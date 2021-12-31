@@ -1,0 +1,6 @@
+---
+project_name: boxen
+builds:
+  - id: boxen-bin
+    ldflags:
+      - -s -w -X github.com/carlmontanari/boxen/boxen/boxen.Version={{.Version}}

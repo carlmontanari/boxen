@@ -1,0 +1,10 @@
+no password strength-check
+username  {{ .Username }} password 0 {{ .Password }} role network-admin
+interface mgmt0
+ip address 10.0.0.15/24
+no shutdown
+exit
+feature scp-server
+feature nxapi
+feature netconf
+feature grpc

@@ -1,0 +1,20 @@
+---
+hardware:
+  memory: 16384
+  acceleration:
+    - kvm
+    - hvf
+  serial_port_count: 1
+  nic_type: virtio-net-pci
+  nic_count: 16
+  nic_per_bus: 26
+advanced:
+  cpu:
+    emulation: "qemu64,+ssse3,+sse4.1,+sse4.2"
+tcp_nat_ports:
+  - 22
+  - 23
+  - 443
+  - 830
+udp_nat_ports:
+  - 161

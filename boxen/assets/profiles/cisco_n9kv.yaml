@@ -1,0 +1,23 @@
+---
+hardware:
+  memory: 8192
+  acceleration:
+    - kvm
+    - none
+  serial_port_count: 1
+  nic_type: e1000
+  nic_count: 8
+  nic_per_bus: 26
+advanced:
+  cpu:
+    emulation: max
+    cores: 8
+    threads: 1
+    sockets: 1
+tcp_nat_ports:
+  - 22
+  - 23
+  - 443
+  - 830
+udp_nat_ports:
+  - 161

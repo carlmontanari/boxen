@@ -1,0 +1,3 @@
+{{range $index, $file := .RequiredFiles -}}
+{{$file}}
+{{end}}

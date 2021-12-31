@@ -1,0 +1,9 @@
+interface MgmtEth 0/RP0/CPU0/0
+ip address 10.0.0.15/24
+no shutdown
+exit
+ssh server v2
+ssh server netconf vrf default
+netconf-yang agent ssh
+grpc port 57400
+grpc no-tls

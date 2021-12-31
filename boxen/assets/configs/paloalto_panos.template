@@ -1,0 +1,2 @@
+set deviceconfig system ip-address 10.0.0.15 netmask 255.255.255.0 default-gateway 10.0.0.2
+set mgt-config users {{ .Username }} permissions role-based superuser yes

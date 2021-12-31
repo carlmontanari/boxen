@@ -1,0 +1,14 @@
+username  {{ .Username }} privilege 15 password {{ .Password }} {{ if ne .Password "" }}
+enable secret 0 {{ .Password }}{{ end }}
+interface GigabitEthernet1
+ip address 10.0.0.15 255.255.255.0
+no shutdown
+exit
+ip domain name boxen.box
+hostname router
+crypto key generate rsa modulus 2048
+restconf
+netconf-yang
+line vty 0 4
+login local
+transport input all

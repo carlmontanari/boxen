@@ -1,0 +1,16 @@
+username  {{ .Username }} secret 0 {{ .Password }} role network-admin{{ if ne .Password "" }}
+enable secret 0 {{ .Password }}{{ end }}
+interface Management 1
+ip address 10.0.0.15 255.255.255.0
+no shutdown
+exit
+management api http-commands
+protocol unix-socket
+no shutdown
+exit
+management api gnmi
+transport grpc default
+no shutdown
+exit
+management api netconf
+transport ssh default

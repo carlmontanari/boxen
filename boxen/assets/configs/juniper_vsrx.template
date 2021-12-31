@@ -1,0 +1,8 @@
+set interfaces fxp0 unit 0 family inet address 10.0.0.15/24
+delete interfaces fxp0 unit 0 family inet dhcp
+delete system processes dhcp-service
+set system services ssh
+set system services netconf ssh
+set system services netconf rfc-compliant
+set system root-authentication encrypted-password {{ .Password }}
+set system login user {{ .Username }} class super-user authentication encrypted-password {{ .Password }}
