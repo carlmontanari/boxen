@@ -29,6 +29,9 @@ const (
 	resultSize = 22
 )
 
+// Md5Crypt "encrypts" a provided password byte slice. This is *not* good encryption by any stretch!
+// This exists in this library to encrypt plain text passwords for JunOS such that they can be sent
+// to the JunOS device(s) over telnet without requiring any prompting.
 func Md5Crypt(password []byte) []byte {
 	md5CryptSwaps := [16]int{12, 6, 0, 13, 7, 1, 14, 8, 2, 15, 9, 3, 5, 10, 4, 11}
 

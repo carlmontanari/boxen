@@ -6,6 +6,7 @@ import (
 	"github.com/carlmontanari/boxen/boxen/boxen"
 )
 
+// Start starts the provided instance(s) (provided as comma separated string).
 func Start(config, instances string) error {
 	l, li, err := spinLogger()
 	if err != nil {
@@ -22,6 +23,7 @@ func Start(config, instances string) error {
 	})
 }
 
+// StartGroup starts all local instances in a group.
 func StartGroup(config, group string) error {
 	l, li, err := spinLogger()
 	if err != nil {

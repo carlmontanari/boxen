@@ -1,5 +1,7 @@
 package config
 
+// AllocatedInstanceIDs returns a slice of integers of all currently allocated instance IDs in the
+// local boxen config.
 func (c *Config) AllocatedInstanceIDs() []int {
 	allocatedIDs := make([]int, 0)
 
@@ -10,6 +12,8 @@ func (c *Config) AllocatedInstanceIDs() []int {
 	return allocatedIDs
 }
 
+// AllocatedMonitorPorts returns a slice of integers of all currently allocated monitor port IDs in
+// the local boxen config.
 func (c *Config) AllocatedMonitorPorts() []int {
 	allocatedMonitorPorts := make([]int, 0)
 
@@ -20,6 +24,8 @@ func (c *Config) AllocatedMonitorPorts() []int {
 	return allocatedMonitorPorts
 }
 
+// AllocatedSerialPorts returns a slice of integers of all currently allocated serial port IDs in
+// the local boxen config.
 func (c *Config) AllocatedSerialPorts() []int {
 	allocatedSerialPorts := make([]int, 0)
 
@@ -30,6 +36,9 @@ func (c *Config) AllocatedSerialPorts() []int {
 	return allocatedSerialPorts
 }
 
+// AllocatedHostSideNatPorts returns a slice of integers of all currently allocated "host side" nat
+// ports in the local boxen config. These ports are the ephemeral range ports that get applied to
+// the qemu hostfwd nat directives for the local virtual machines.
 func (c *Config) AllocatedHostSideNatPorts() []int {
 	allocatedNatPorts := make([]int, 0)
 
@@ -48,6 +57,9 @@ func (c *Config) AllocatedHostSideNatPorts() []int {
 	return allocatedNatPorts
 }
 
+// AllocatedDataPlaneListenPorts returns a slice of integers of all currently allocated "listen"
+// ports in the local boxen config. These ports are the ephemeral range ports that get applied to
+// the qemu udp listen ports for the "dataplane" ports of the virtual machines.
 func (c *Config) AllocatedDataPlaneListenPorts() []int {
 	allocatedListenPorts := make([]int, 0)
 

@@ -14,6 +14,7 @@ import (
 
 const defaultSocketPad = 10000
 
+// QemuLaunchCmd represents all the elements of a qemu launch command as slices of strings.
 type QemuLaunchCmd struct {
 	Name    []string
 	UUID    []string
@@ -31,6 +32,7 @@ type QemuLaunchCmd struct {
 	Extra   []string
 }
 
+// Render creates all elements of the launch command and returns it as a slice of string.
 func (c *QemuLaunchCmd) Render() ([]string, error) {
 	if (c == &QemuLaunchCmd{}) {
 		return nil, fmt.Errorf("%w: command has not been generated", util.ErrCommandError)
@@ -229,6 +231,7 @@ func (i *Qemu) launchCmdMgmtNic() []string {
 	return nicCmd
 }
 
+// GenerateMac generates a mac address with a last octet of lastOctet.
 func (i *Qemu) GenerateMac(lastOctet int) string {
 	buf := make([]byte, 3) //nolint:gomnd
 
@@ -271,6 +274,9 @@ func (i *Qemu) buildDataNicSocketConn(
 	return nicCmd
 }
 
+// BuildDataNic builds a string representation of a "dataplane" nic for a qemu virtual machine. This
+// method is exported such that platforms may use it if they need to modify some behavior of the
+// qemu command creation.
 func (i *Qemu) BuildDataNic(nicID, busID, busAddr int, paddedNicID string) []string {
 	nicCmd := []string{
 		"-device",

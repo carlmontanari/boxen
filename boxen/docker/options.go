@@ -2,8 +2,10 @@ package docker
 
 import "io"
 
+// Option sets a docker args option.
 type Option func(*args) error
 
+// WithWorkDir sets the working directory argument for docker operations.
 func WithWorkDir(workDir string) Option {
 	return func(o *args) error {
 		o.workDir = workDir
@@ -12,6 +14,7 @@ func WithWorkDir(workDir string) Option {
 	}
 }
 
+// WithDockerfile sets '-f' dockerfile argument to provided name f for docker operations.
 func WithDockerfile(f string) Option {
 	return func(o *args) error {
 		o.dockerfile = f
@@ -20,6 +23,7 @@ func WithDockerfile(f string) Option {
 	}
 }
 
+// WithCidFile sets the cidfile argument to the provided name f for docker operations.
 func WithCidFile(f string) Option {
 	return func(o *args) error {
 		o.cidFile = f
@@ -28,6 +32,7 @@ func WithCidFile(f string) Option {
 	}
 }
 
+// WithPrivileged allows for running containers with the privileged flag set.
 func WithPrivileged(b bool) Option {
 	return func(o *args) error {
 		o.privileged = b
@@ -36,6 +41,7 @@ func WithPrivileged(b bool) Option {
 	}
 }
 
+// WithRepo sets the container repository value for docker operations.
 func WithRepo(s string) Option {
 	return func(o *args) error {
 		o.repo = s
@@ -44,6 +50,7 @@ func WithRepo(s string) Option {
 	}
 }
 
+// WithTag sets the container tag value for docker operations.
 func WithTag(s string) Option {
 	return func(o *args) error {
 		o.tag = s
@@ -52,6 +59,7 @@ func WithTag(s string) Option {
 	}
 }
 
+// WithContainer sets the container id value for docker operations.
 func WithContainer(s string) Option {
 	return func(o *args) error {
 		o.container = s
@@ -60,6 +68,7 @@ func WithContainer(s string) Option {
 	}
 }
 
+// WithCommitChange sets the docker args commit changes value to the provided string s.
 func WithCommitChange(s string) Option {
 	return func(o *args) error {
 		o.commitChange = s
@@ -68,6 +77,7 @@ func WithCommitChange(s string) Option {
 	}
 }
 
+// WithStdOut sets the docker args stdout flag to the provided io.Writer.
 func WithStdOut(stdout io.Writer) Option {
 	return func(o *args) error {
 		o.stdOut = stdout
@@ -76,6 +86,7 @@ func WithStdOut(stdout io.Writer) Option {
 	}
 }
 
+// WithStdErr sets the docker args stderr flag to the provided io.Writer.
 func WithStdErr(stderr io.Writer) Option {
 	return func(o *args) error {
 		o.stdErr = stderr
@@ -84,6 +95,7 @@ func WithStdErr(stderr io.Writer) Option {
 	}
 }
 
+// WithNoCache sets the docker args flag to disable cache layers for building container images.
 func WithNoCache(c bool) Option {
 	return func(o *args) error {
 		o.nocache = c
