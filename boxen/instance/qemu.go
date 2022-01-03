@@ -12,6 +12,7 @@ import (
 	"github.com/carlmontanari/boxen/boxen/util"
 )
 
+// Qemu represents a qemu virtual machine process and the associated configuration information.
 type Qemu struct {
 	Name string
 	ID   int
@@ -34,6 +35,8 @@ type Qemu struct {
 	Loggers *Loggers
 }
 
+// NewQemu returns a new "blank" qemu instance based on the provided instance name and boxen Config
+// object.
 func NewQemu(n string, c *config.Config, l *Loggers) (*Qemu, error) {
 	i := &Qemu{
 		Name:          n,
@@ -119,10 +122,15 @@ func (i *Qemu) buildLaunchCmd() {
 	}
 }
 
+// Install "installs" a qemu disk -- meaning it runs through any "initial config" type processes for
+// a virtual machine. For the most part the Qemu struct doesn't do much here -- it simply runs
+// Start, however the objects that embed this struct likely add additional tasks and actions in
+// order to properly "install" the disk.
 func (i *Qemu) Install(opts ...Option) error {
 	return i.Start(opts...)
 }
 
+// Start starts the qemu instance.
 func (i *Qemu) Start(opts ...Option) error {
 	i.Loggers.Base.Info("qemu instance start requested")
 
@@ -227,6 +235,7 @@ func (i *Qemu) validatePid() bool {
 	return bytes.Contains(stdoutOutput, []byte(i.Name))
 }
 
+// Stop stops the qemu virtual machine.
 func (i *Qemu) Stop(opts ...Option) error {
 	i.Loggers.Base.Info("qemu instance stop requested")
 
@@ -285,6 +294,7 @@ func (i *Qemu) Stop(opts ...Option) error {
 	return nil
 }
 
+// GetPid returns the process ID of the virtual machine.
 func (i *Qemu) GetPid() int {
 	return i.PID
 }

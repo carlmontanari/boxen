@@ -1,5 +1,6 @@
 package config
 
+// Instance is a struct that represents a qemu virtual machine instance in the boxen configuration.
 type Instance struct {
 	Name          string         `yaml:"name"`
 	PlatformType  string         `yaml:"platform_type"`

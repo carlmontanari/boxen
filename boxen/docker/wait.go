@@ -4,6 +4,7 @@ import (
 	"github.com/carlmontanari/boxen/boxen/command"
 )
 
+// Wait runs the docker "wait" command for a provided container ID (as provided in options).
 func Wait(opts ...Option) error {
 	a := &args{}
 

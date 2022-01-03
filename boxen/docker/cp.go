@@ -6,6 +6,8 @@ import (
 	"github.com/carlmontanari/boxen/boxen/command"
 )
 
+// CopyFromContainer copies file/path 's' from the container ID provided in the options to the
+// destination 'd' on the local filesystem.
 func CopyFromContainer(s, d string, opts ...Option) error {
 	a := &args{}
 

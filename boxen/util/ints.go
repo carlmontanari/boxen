@@ -1,5 +1,6 @@
 package util
 
+// IntSliceContains is a convenience function to check if a provided int i is in an int slice s.
 func IntSliceContains(s []int, i int) bool {
 	for _, ss := range s {
 		if ss == i {
@@ -10,6 +11,7 @@ func IntSliceContains(s []int, i int) bool {
 	return false
 }
 
+// IntSliceUniqify removes any duplicated entries in a slice of integers s.
 func IntSliceUniqify(s []int) []int {
 	var unique []int
 

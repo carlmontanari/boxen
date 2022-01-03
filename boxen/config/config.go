@@ -11,15 +11,24 @@ import (
 )
 
 const (
-	MAXINSTANCES        = 255
-	MONITORPORTBASE     = 4000
-	SERIALPORTBASE      = 5000
-	SERIALPORTLOW       = 5001
-	SERIALPORTHI        = 5999
-	MGMTNATLOW          = 30001
-	MGMTNATHI           = 39999
+	// MAXINSTANCES is the maximum number of instances boxen can allocate.
+	MAXINSTANCES = 255
+	// MONITORPORTBASE is the starting port ID for qemu monitor ports.
+	MONITORPORTBASE = 4000
+	// SERIALPORTBASE is the starting port ID for serial ports.
+	SERIALPORTBASE = 5000
+	// SERIALPORTLOW is the first possible serial port ID.
+	SERIALPORTLOW = 5001
+	// SERIALPORTHI is the last possible serial port ID.
+	SERIALPORTHI = 5999
+	// MGMTNATLOW is the first possible "management NAT" port ID.
+	MGMTNATLOW = 30001
+	// MGMTNATHI is the last possible "management NAT" port ID.
+	MGMTNATHI = 39999
+	// SOCKETLISTENPORTLOW is the starting port ID for "data plane" listening ports.
 	SOCKETLISTENPORTLOW = 40000
-	SOCKETLISTENPORTHI  = 65535
+	// SOCKETLISTENPORTHI is the last possible port ID for "data plane" listening ports.
+	SOCKETLISTENPORTHI = 65535
 )
 
 // Config is a struct representing boxen configuration data.
