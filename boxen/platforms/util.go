@@ -9,12 +9,26 @@ import (
 
 func diskToVendorPlatformMap() map[*regexp.Regexp][]string {
 	return map[*regexp.Regexp][]string{
-		regexp.MustCompile(`csr1000v-.*.qcow2`):              {"cisco", "csr1000v"},
-		regexp.MustCompile(`(?i)xrv9k-fullk9-x.*.qcow2`):     {"cisco", "xrv9k"},
-		regexp.MustCompile(`(?i)(nexus9300v|nxosv).*.qcow2`): {"cisco", "n9kv"},
-		regexp.MustCompile(`vEOS-lab-.*.vmdk`):               {"arista", "veos"},
-		regexp.MustCompile(`media-vsrx-vmdisk.*.qcow2`):      {"juniper", "vsrx"},
-		regexp.MustCompile(`PA-VM-KVM.*.qcow2`):              {"paloalto", "panos"},
+		regexp.MustCompile(`csr1000v-.*.qcow2`): {
+			"cisco",
+			"csr1000v",
+		},
+		regexp.MustCompile(`(?i)xrv9k-fullk9-x.*.qcow2`): {
+			"cisco",
+			"xrv9k"},
+		regexp.MustCompile(`(?i)(nexus9300v|nxosv).*.qcow2`): {
+			"cisco",
+			"n9kv"},
+		regexp.MustCompile(`(?i)vEOS-lab-.*.vmdk`): {
+			"arista",
+			"veos"},
+		regexp.MustCompile(`(?i)(junos-media-vsrx-x86-64|media-vsrx)-vmdisk.*.qcow2`): {
+			"juniper",
+			"vsrx"},
+		regexp.MustCompile(`(?i)PA-VM-KVM.*.qcow2`): {
+			"paloalto",
+			"panos",
+		},
 	}
 }
 
@@ -45,7 +59,7 @@ func pTDiskToVersionMap() map[string]*regexp.Regexp {
 			`(?i)(?:(?:nexus9300v|nxosv)\.)(\d+\.\d+\.\d+)`,
 		),
 		PlatformTypeJuniperVsrx: regexp.MustCompile(
-			`(?i)(?:media-vsrx-vmdisk-)(\d+\.\w+\.\d+).qcow2`,
+			`(?i)(?:junos-media-vsrx-x86-64-vmdisk-|media-vsrx-vmdisk-)(\d+\.\w+\.\d+).qcow2`,
 		),
 		PlatformTypePaloAltoPanos: regexp.MustCompile(
 			`(?i)(?:pa-vm-kvm-)(\d+\.\d+\.\d+).qcow2`),
