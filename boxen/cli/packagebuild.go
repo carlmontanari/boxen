@@ -27,6 +27,8 @@ func packageBuildCommands() []*cli.Command {
 		Required: false,
 	}
 
+	vendor, platform, version := platformTargetFlags()
+
 	return []*cli.Command{{
 		Name:  "package",
 		Usage: "package a vm instance as a container",
@@ -36,6 +38,9 @@ func packageBuildCommands() []*cli.Command {
 			password,
 			repo,
 			tag,
+			vendor,
+			platform,
+			version,
 		},
 		Action: func(c *cli.Context) error {
 			return packageBuild(
@@ -44,12 +49,15 @@ func packageBuildCommands() []*cli.Command {
 				c.String("password"),
 				c.String("repo"),
 				c.String("tag"),
+				c.String("vendor"),
+				c.String("platform"),
+				c.String("version"),
 			)
 		},
 	}}
 }
 
-func packageBuild(disk, username, password, repo, tag string) error {
+func packageBuild(disk, username, password, repo, tag, vendor, platform, version string) error {
 	l, li, err := spinLogger()
 	if err != nil {
 		return err
@@ -60,5 +68,11 @@ func packageBuild(disk, username, password, repo, tag string) error {
 		return err
 	}
 
-	return spin(l, li, func() error { return b.PackageBuild(disk, username, password, repo, tag) })
+	return spin(
+		l,
+		li,
+		func() error {
+			return b.PackageBuild(disk, username, password, repo, tag, vendor, platform, version)
+		},
+	)
 }

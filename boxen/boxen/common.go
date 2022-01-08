@@ -6,10 +6,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/carlmontanari/boxen/boxen/platforms"
+
 	"github.com/carlmontanari/boxen/boxen"
 	"github.com/carlmontanari/boxen/boxen/command"
 	"github.com/carlmontanari/boxen/boxen/config"
-	"github.com/carlmontanari/boxen/boxen/platforms"
 	"github.com/carlmontanari/boxen/boxen/util"
 
 	"gopkg.in/yaml.v2"
@@ -41,28 +42,36 @@ func (b *Boxen) sourceDiskExists(pT, diskVersion string) bool {
 	return false
 }
 
-func getDiskData(f string) (*Disk, error) {
-	f, err := util.ResolveFile(f)
+func getDiskData(i *installInfo) error {
+	f, err := util.ResolveFile(i.inDisk)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	d := &Disk{}
-	d.Disk = f
+	// if the disk object has already been set (because user provided the values) we can just
+	// set the resolved disk path then bail out of here.
+	if i.srcDisk != nil {
+		i.srcDisk.Disk = f
+
+		return nil
+	}
+
+	i.srcDisk = &Disk{}
+	i.srcDisk.Disk = f
 
 	v, p, err := platforms.GetPlatformTypeFromDisk(filepath.Base(f))
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	d.Vendor = v
-	d.Platform = p
-	d.PlatformType = platforms.GetPlatformType(d.Vendor, d.Platform)
+	i.srcDisk.Vendor = v
+	i.srcDisk.Platform = p
+	i.srcDisk.PlatformType = platforms.GetPlatformType(i.srcDisk.Vendor, i.srcDisk.Platform)
 
-	dV, err := platforms.GetDiskVersion(filepath.Base(f), d.PlatformType)
-	d.Version = dV
+	dV, err := platforms.GetDiskVersion(filepath.Base(f), i.srcDisk.PlatformType)
+	i.srcDisk.Version = dV
 
-	return d, err
+	return err
 }
 
 // GetDefaultProfile fetches the default instance profile for a given platform type 'pt'.
@@ -89,7 +98,7 @@ func GetDefaultProfile(pt string) (*config.Profile, error) {
 }
 
 func (b *Boxen) installAllocateDisks(i *installInfo) error {
-	d, err := getDiskData(i.inDisk)
+	err := getDiskData(i)
 	if err != nil {
 		msg := fmt.Sprintf("failed gleaning source data from disk '%s'", i.inDisk)
 
@@ -102,8 +111,7 @@ func (b *Boxen) installAllocateDisks(i *installInfo) error {
 		)
 	}
 
-	i.srcDisk = d
-	i.name = fmt.Sprintf("%s_%s", d.PlatformType, d.Version)
+	i.name = fmt.Sprintf("%s_%s", i.srcDisk.PlatformType, i.srcDisk.Version)
 	i.newDisk = fmt.Sprintf("%s/%s.qcow2", i.tmpDir, i.name)
 
 	_, err = command.Execute(
@@ -117,6 +125,33 @@ func (b *Boxen) installAllocateDisks(i *installInfo) error {
 		b.Logger.Criticalf("error copying source disk image: %s\n", err)
 
 		return err
+	}
+
+	return nil
+}
+
+func (b *Boxen) handleProvidedPlatformInfo(i *installInfo, vendor, platform, version string) error {
+	if !util.AllStringVal("", vendor, platform, version) {
+		if util.AnyStringVal("", vendor, platform, version) {
+			return fmt.Errorf("%w: one or more of vendor, platform, version set, "+
+				"but not all values provided, if explicitly targeting a specific "+
+				" vendor/platform/version you must provide all values",
+				util.ErrValidationError)
+		}
+
+		pT := platforms.GetPlatformType(vendor, platform)
+
+		if pT == "" {
+			return fmt.Errorf("%w: provided vendor/platform '%s'/'%s' not supported",
+				util.ErrValidationError, vendor, platform)
+		}
+
+		i.srcDisk = &Disk{
+			Vendor:       vendor,
+			Platform:     platform,
+			PlatformType: pT,
+			Version:      version,
+		}
 	}
 
 	return nil

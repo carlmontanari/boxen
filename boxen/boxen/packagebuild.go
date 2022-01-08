@@ -438,13 +438,18 @@ func (b *Boxen) packageBuildContainer(i *installInfo, repo, tag string) error {
 // Finally, this function will build a final container image, copying in the provisioned disk into
 // the final image.
 func (b *Boxen) PackageBuild(
-	disk, username, password, repo, tag string,
+	disk, username, password, repo, tag, vendor, platform, version string,
 ) error {
 	b.Logger.Infof("package requested for disk '%s'", disk)
 
 	i := &installInfo{inDisk: disk, username: username, password: password}
 
-	err := b.packageBuildPreContainer(i)
+	err := b.handleProvidedPlatformInfo(i, vendor, platform, version)
+	if err != nil {
+		return err
+	}
+
+	err = b.packageBuildPreContainer(i)
 	if err != nil {
 		return err
 	}

@@ -215,13 +215,16 @@ func (b *Boxen) installUpdateConfig(i *installInfo) error {
 // handles disabling initial config dialogs/prompts, setting base credentials, and then storing the
 // image for use for later provisioned instances.
 func (b *Boxen) Install(
-	disk, username, password string,
+	disk, username, password, vendor, platform, version string,
 ) error {
 	b.Logger.Infof("install requested for disk '%s'", disk)
 
 	i := &installInfo{inDisk: disk, username: username, password: password}
 
-	var err error
+	err := b.handleProvidedPlatformInfo(i, vendor, platform, version)
+	if err != nil {
+		return err
+	}
 
 	i.tmpDir, err = ioutil.TempDir(os.TempDir(), "boxen")
 	if err != nil {

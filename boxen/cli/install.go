@@ -16,6 +16,7 @@ func installCommands() []*cli.Command {
 	}
 
 	username, password, _ := customizationFlags()
+	vendor, platform, version := platformTargetFlags()
 
 	return []*cli.Command{{
 		Name:  "install",
@@ -25,6 +26,9 @@ func installCommands() []*cli.Command {
 			disk,
 			username,
 			password,
+			vendor,
+			platform,
+			version,
 		},
 		Action: func(c *cli.Context) error {
 			return Install(
@@ -32,13 +36,16 @@ func installCommands() []*cli.Command {
 				c.String("disk"),
 				c.String("username"),
 				c.String("password"),
+				c.String("vendor"),
+				c.String("platform"),
+				c.String("version"),
 			)
 		},
 	}}
 }
 
 // Install is the cli entrypoint to install a disk as a local source disk.
-func Install(config, disk, username, password string) error {
+func Install(config, disk, username, password, vendor, platform, version string) error {
 	l, li, err := spinLogger()
 	if err != nil {
 		return err
@@ -49,5 +56,9 @@ func Install(config, disk, username, password string) error {
 		return err
 	}
 
-	return spin(l, li, func() error { return b.Install(disk, username, password) })
+	return spin(
+		l,
+		li,
+		func() error { return b.Install(disk, username, password, vendor, platform, version) },
+	)
 }
