@@ -41,6 +41,28 @@ func customizationFlags() (username, password, hostname *cli.StringFlag) {
 	return username, password, hostname
 }
 
+func platformTargetFlags() (vendor, platform, version *cli.StringFlag) {
+	vendor = &cli.StringFlag{
+		Name:     "vendor",
+		Usage:    "name of the disks vendor (ex: 'arista')",
+		Required: false,
+	}
+
+	platform = &cli.StringFlag{
+		Name:     "platform",
+		Usage:    "name of the disks platform (ex: 'veos')",
+		Required: false,
+	}
+
+	version = &cli.StringFlag{
+		Name:     "version",
+		Usage:    "version of the disk (ex: '4.22.1F')",
+		Required: false,
+	}
+
+	return vendor, platform, version
+}
+
 func operationCommands() []*cli.Command {
 	config := boxenGlobalFlags()
 
