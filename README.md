@@ -191,6 +191,17 @@ packaged containers (see log level note).
   sent to the device without needing interaction.
 - PanOS should very, very much be packaged with sparsify set! Without this the image is huge (>8gb),
   but with sparsify enabled it is a much more manageable (but still large) ~3gb. 
+- Boxen totally does not care about you! Well... it *kind of* doesn't care about you. Boxen
+  generally requires elevated permissions -- we run containers with privileged flag, this allows the
+  container to access KVM acceleration, we also launch all "local" qemu instances with sudo which
+  allows for taps and bridges and acceleration and all that stuff. If you are *not* a passwordless
+  super user you have two choices about how to let boxen run things as root. 1) you can simply run
+  the entire boxen binary as root ("sudo boxen blah"), or 2) you can let boxen prompt you and it
+  will only use "sudo" when it needs to. The part where boxen does not care about you is that if you
+  opt for option two, your sudo password will be leaked into your bash/zsh history as we are lazy
+  (and don't care about you!) and basically run "sh -c 'echo 'yourpassword' | sudo -S somecommand".
+  TL:DR -- if you care about your password being in your bash history either be a passwordless sudo
+  user, or run the boxen binary as root!
 
 
 ### VM Acceleration Notes

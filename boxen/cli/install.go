@@ -46,6 +46,11 @@ func installCommands() []*cli.Command {
 
 // Install is the cli entrypoint to install a disk as a local source disk.
 func Install(config, disk, username, password, vendor, platform, version string) error {
+	err := checkSudo()
+	if err != nil {
+		return err
+	}
+
 	l, li, err := spinLogger()
 	if err != nil {
 		return err
