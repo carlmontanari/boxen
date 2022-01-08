@@ -8,6 +8,11 @@ import (
 
 // Start starts the provided instance(s) (provided as comma separated string).
 func Start(config, instances string) error {
+	err := checkSudo()
+	if err != nil {
+		return err
+	}
+
 	l, li, err := spinLogger()
 	if err != nil {
 		return err
@@ -25,6 +30,11 @@ func Start(config, instances string) error {
 
 // StartGroup starts all local instances in a group.
 func StartGroup(config, group string) error {
+	err := checkSudo()
+	if err != nil {
+		return err
+	}
+
 	l, li, err := spinLogger()
 	if err != nil {
 		return err

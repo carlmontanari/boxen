@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 
 	"golang.org/x/term"
@@ -51,8 +52,10 @@ func (s *sudoer) init() {
 
 	s.available = true
 
+	// user is a passwordless user *or* user is root (indicating user ran boxen w/ sudo)
 	if bytes.Contains(b, []byte("(ALL) NOPASSWD: ALL")) ||
-		bytes.Contains(b, []byte("(ALL : ALL) NOPASSWD: ALL")) {
+		bytes.Contains(b, []byte("(ALL : ALL) NOPASSWD: ALL")) ||
+		bytes.Contains(b, []byte("root may run the following commands")) {
 		s.passwordless = true
 	}
 }
@@ -85,7 +88,10 @@ func (s *sudoer) updateCmd(cmd string, args []string) (string, []string) { //nol
 		s.getSudoPassword()
 	}
 
-	args = append([]string{s.password, "|", "sudo", "-S", cmd}, args...)
+	args = []string{
+		"-c",
+		fmt.Sprintf("echo '%s' | sudo -S %s %s", s.password, cmd, strings.Join(args, " ")),
+	}
 
-	return "echo", args
+	return "sh", args
 }

@@ -7,6 +7,11 @@ import (
 )
 
 func Stop(config, instances string) error {
+	err := checkSudo()
+	if err != nil {
+		return err
+	}
+
 	l, li, err := spinLogger()
 	if err != nil {
 		return err
@@ -23,6 +28,11 @@ func Stop(config, instances string) error {
 }
 
 func StopGroup(config, group string) error {
+	err := checkSudo()
+	if err != nil {
+		return err
+	}
+
 	l, li, err := spinLogger()
 	if err != nil {
 		return err

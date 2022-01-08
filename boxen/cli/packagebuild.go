@@ -58,6 +58,11 @@ func packageBuildCommands() []*cli.Command {
 }
 
 func packageBuild(disk, username, password, repo, tag, vendor, platform, version string) error {
+	err := checkSudo()
+	if err != nil {
+		return err
+	}
+
 	l, li, err := spinLogger()
 	if err != nil {
 		return err
