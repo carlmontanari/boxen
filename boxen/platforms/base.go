@@ -10,8 +10,12 @@ type Platform interface {
 
 	// Package builds any necessary files for instance installation/start such as a config file or
 	// a similar and checks that the srcDir contains any files that must be included for the
-	// instance such as bios files or bootloaders etc.
-	Package(srcDir, pkgDir string) (pkgFiles []string, installFiles []string, err error)
+	// instance such as bios files or bootloaders etc. The `pkgFiles` are files that should be
+	// included during initial packaging (of either the initial build container, or the local temp
+	// directory in the case of local VMs). The `runFiles` are files that are required to actually
+	// run the device, and therefore should be collocated with the final disk -- since all files get
+	// copied to the container in the case of a "package" build, this is specific to local VM mode.
+	Package(srcDir, pkgDir string) (pkgFiles []string, runFiles []string, err error)
 
 	// Config sends some lines of configs to the device -- *probably* via console, but up to the
 	// platform how that happens. Hopefully this will be satisfied by ScrapliConsole being embedded

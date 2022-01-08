@@ -13,15 +13,15 @@ import (
 )
 
 type installInfo struct {
-	inDisk       string
-	srcDisk      *Disk
-	newDisk      string
-	username     string
-	password     string
-	config       []string
-	installFiles []string
-	name         string
-	tmpDir       string
+	inDisk   string
+	srcDisk  *Disk
+	newDisk  string
+	username string
+	password string
+	config   []string
+	runFiles []string
+	name     string
+	tmpDir   string
 }
 
 func (b *Boxen) installAllocateInstance(
@@ -132,7 +132,7 @@ func (b *Boxen) installProvisionInstance(i *installInfo) error {
 		return err
 	}
 
-	_, i.installFiles, err = b.Instances[i.name].Package(filepath.Dir(i.inDisk), i.tmpDir)
+	_, i.runFiles, err = b.Instances[i.name].Package(filepath.Dir(i.inDisk), i.tmpDir)
 	if err != nil {
 		b.Logger.Critical("error during package phase of installation")
 
@@ -181,14 +181,14 @@ func (b *Boxen) installTransferFinalFiles(
 		return err
 	}
 
-	for _, f := range i.installFiles {
+	for _, f := range i.runFiles {
 		err = util.CopyFile(
 			fmt.Sprintf("%s/%s", i.tmpDir, f),
 			fmt.Sprintf("%s/%s", pTVersionSourceDir, f),
 		)
 		if err != nil {
 			b.Logger.Criticalf(
-				"error copying required installation files to source disk directory: %s\n", err,
+				"error copying required run files to source disk directory: %s\n", err,
 			)
 
 			return err

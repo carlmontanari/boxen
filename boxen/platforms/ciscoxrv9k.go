@@ -24,7 +24,7 @@ type CiscoXrv9k struct {
 
 func (p *CiscoXrv9k) Package(
 	sourceDir, packageDir string,
-) (packageFiles, installFiles []string, err error) {
+) (packageFiles, runFiles []string, err error) {
 	_, _ = sourceDir, packageDir
 	return []string{}, []string{}, err
 }

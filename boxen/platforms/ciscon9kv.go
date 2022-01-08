@@ -28,10 +28,10 @@ type CiscoN9kv struct {
 
 func (p *CiscoN9kv) Package(
 	sourceDir, packageDir string,
-) (packageFiles, installFiles []string, err error) {
+) (packageFiles, runFiles []string, err error) {
 	if !util.FileExists(fmt.Sprintf("%s/%s", sourceDir, CiscoN9kvBiosName)) {
 		return nil, nil, fmt.Errorf(
-			"%w: did not find Aboot iso in dir '%s'",
+			"%w: did not find bios file in dir '%s'",
 			util.ErrInspectionError,
 			sourceDir,
 		)

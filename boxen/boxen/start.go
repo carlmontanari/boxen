@@ -3,6 +3,7 @@ package boxen
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/carlmontanari/boxen/boxen/command"
@@ -10,6 +11,73 @@ import (
 	"github.com/carlmontanari/boxen/boxen/platforms"
 	"github.com/carlmontanari/boxen/boxen/util"
 )
+
+func (b *Boxen) copySourceDiskToInstanceDir(name, disk string) error {
+	var err error
+
+	if b.Config.Options.Qemu.UseThickDisks {
+		err = util.CopyFile(
+			fmt.Sprintf(
+				"%s/%s/%s/disk.qcow2",
+				b.Config.Options.Build.SourcePath,
+				b.Config.Instances[name].PlatformType,
+				b.Config.Instances[name].Disk,
+			),
+			disk,
+		)
+	} else {
+		_, err = command.Execute(
+			util.QemuImgCmd,
+			command.WithArgs(
+				[]string{"create", "-f", "qcow2", "-F", "qcow2", "-b", fmt.Sprintf(
+					"%s/%s/%s/disk.qcow2",
+					b.Config.Options.Build.SourcePath,
+					b.Config.Instances[name].PlatformType,
+					b.Config.Instances[name].Disk,
+				), disk},
+			),
+			command.WithWait(true),
+		)
+	}
+
+	if err != nil {
+		b.Logger.Criticalf("error creating instance disk: %s\n", err)
+
+		return err
+	}
+
+	return nil
+}
+
+func (b *Boxen) copySourceRunFilesToInstanceDir(name, disk string) error {
+	runFiles, err := filepath.Glob(
+		fmt.Sprintf("%s/%s/%s/[^disk.qcow2]*", b.Config.Options.Build.SourcePath,
+			b.Config.Instances[name].PlatformType,
+			b.Config.Instances[name].Disk),
+	)
+
+	if err != nil {
+		b.Logger.Criticalf("error globbing run files associated with disk: %s\n", err)
+
+		return err
+	}
+
+	for _, f := range runFiles {
+		err = util.CopyFile(f, fmt.Sprintf("%s/%s", filepath.Dir(disk), filepath.Base(f)))
+
+		if err != nil {
+			b.Logger.Criticalf(
+				"error copying run file '%s' to instance directory: %s\n",
+				f,
+				err,
+			)
+
+			return err
+		}
+	}
+
+	return nil
+}
 
 func (b *Boxen) startCheckDisk(name, disk string) error {
 	var err error
@@ -20,34 +88,13 @@ func (b *Boxen) startCheckDisk(name, disk string) error {
 	// yet) is false. for now, we will just copy the disk over if it doesn't exist.
 
 	if !diskExists {
-		if b.Config.Options.Qemu.UseThickDisks {
-			err = util.CopyFile(
-				fmt.Sprintf(
-					"%s/%s/%s/disk.qcow2",
-					b.Config.Options.Build.SourcePath,
-					b.Config.Instances[name].PlatformType,
-					b.Config.Instances[name].Disk,
-				),
-				disk,
-			)
-		} else {
-			_, err = command.Execute(
-				util.QemuImgCmd,
-				command.WithArgs(
-					[]string{"create", "-f", "qcow2", "-F", "qcow2", "-b", fmt.Sprintf(
-						"%s/%s/%s/disk.qcow2",
-						b.Config.Options.Build.SourcePath,
-						b.Config.Instances[name].PlatformType,
-						b.Config.Instances[name].Disk,
-					), disk},
-				),
-				command.WithWait(true),
-			)
+		err = b.copySourceDiskToInstanceDir(name, disk)
+		if err != nil {
+			return err
 		}
 
+		err = b.copySourceRunFilesToInstanceDir(name, disk)
 		if err != nil {
-			b.Logger.Criticalf("error creating instance disk: %s\n", err)
-
 			return err
 		}
 	}

@@ -37,7 +37,7 @@ func ciscoCsr1000vInstallConfig() []byte {
 
 func (p *CiscoCsr1000v) Package(
 	sourceDir, packageDir string,
-) (packageFiles, installFiles []string, err error) {
+) (packageFiles, runFiles []string, err error) {
 	_ = sourceDir
 
 	err = os.WriteFile(
