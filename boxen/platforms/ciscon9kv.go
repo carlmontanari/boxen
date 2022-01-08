@@ -3,6 +3,7 @@ package platforms
 import (
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"time"
 
 	"github.com/carlmontanari/boxen/boxen/instance"
@@ -168,7 +169,33 @@ func (p *CiscoN9kv) initialConfigPrompt() error {
 	)
 }
 
-func (p *CiscoN9kv) Install(opts ...instance.Option) error {
+func (p *CiscoN9kv) setBootVar() error {
+	dirBootflashResult, err := p.c.SendCommand("dir bootflash: | i nxos")
+	if err != nil {
+		return err
+	}
+
+	bootImagePattern := regexp.MustCompile(`nxos[.0-9]+bin`)
+	bootVarImage := bootImagePattern.FindString(dirBootflashResult.Result)
+
+	bootVarConfig := "boot nxos bootflash:///"
+
+	if bootVarImage != "" {
+		bootVarConfig = fmt.Sprintf("boot nxos bootflash:%s", bootVarImage)
+	}
+
+	// setting boot config does a verification thing too; it takes an eternity!
+	_, err = p.c.SendConfig(
+		bootVarConfig,
+		base.WithSendTimeoutOps(
+			time.Duration(getPlatformSaveTimeout(PlatformTypeCiscoN9kv))*2*time.Second,
+		),
+	)
+
+	return err
+}
+
+func (p *CiscoN9kv) Install(opts ...instance.Option) error { //nolint: funlen
 	p.Loggers.Base.Info("install requested")
 
 	a, opts, err := setInstallArgs(opts...)
@@ -194,6 +221,8 @@ func (p *CiscoN9kv) Install(opts ...instance.Option) error {
 			p.Loggers.Base.Criticalf("error waiting for start ready state: %s\n", err)
 
 			c <- err
+
+			return
 		}
 
 		p.Loggers.Base.Debug("start ready state acquired, handling initial config dialog")
@@ -203,6 +232,8 @@ func (p *CiscoN9kv) Install(opts ...instance.Option) error {
 			p.Loggers.Base.Criticalf("error running through initial config dialog: %s\n", err)
 
 			c <- err
+
+			return
 		}
 
 		p.Loggers.Base.Debug("initial config dialog addressed, logging in")
@@ -217,6 +248,8 @@ func (p *CiscoN9kv) Install(opts ...instance.Option) error {
 		)
 		if err != nil {
 			c <- err
+
+			return
 		}
 
 		p.Loggers.Base.Debug("log in complete")
@@ -229,6 +262,8 @@ func (p *CiscoN9kv) Install(opts ...instance.Option) error {
 				p.Loggers.Base.Criticalf("error running scrapligo on open: %s\n", err)
 
 				c <- err
+
+				return
 			}
 
 			err = p.Config(a.configLines)
@@ -236,10 +271,21 @@ func (p *CiscoN9kv) Install(opts ...instance.Option) error {
 				p.Loggers.Base.Criticalf("error sending install config lines: %s\n", err)
 
 				c <- err
+
+				return
 			}
 		}
 
-		p.Loggers.Base.Debug("initial installation complete")
+		p.Loggers.Base.Debug("initial installation complete, setting boot var before saving")
+
+		err = p.setBootVar()
+		if err != nil {
+			p.Loggers.Base.Criticalf("error setting boot var: %s\n", err)
+
+			c <- err
+
+			return
+		}
 
 		err = p.SaveConfig()
 		if err != nil {
