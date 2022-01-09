@@ -17,7 +17,7 @@ const (
 	CiscoN9kvScrapliPlatform = "cisco_nxos"
 	CiscoN9kvDefaultUser     = "admin"
 
-	ciscoN9kvDefaultBootTime    = 720
+	ciscoN9kvDefaultBootTime    = 900
 	ciscoN9kvDefaultPromptDelay = 300
 	ciscoN9kvDefaultPromptWait  = 60
 )
