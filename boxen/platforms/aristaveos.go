@@ -27,7 +27,7 @@ type AristaVeos struct {
 
 func (p *AristaVeos) Package(
 	sourceDir, packageDir string,
-) (packageFiles, installFiles []string, err error) {
+) (packageFiles, runFiles []string, err error) {
 	if !util.FileExists(fmt.Sprintf("%s/%s", sourceDir, AristaVeosAbootFileName)) {
 		return nil, nil, fmt.Errorf(
 			"%w: did not find Aboot iso in dir '%s'",
@@ -41,7 +41,7 @@ func (p *AristaVeos) Package(
 		fmt.Sprintf("%s/%s", packageDir, AristaVeosAbootFileName),
 	)
 
-	return []string{AristaVeosAbootFileName}, []string{AristaVeosAbootFileName}, err
+	return []string{AristaVeosAbootFileName}, []string{}, err
 }
 
 func (p *AristaVeos) patchCmdMgmtNic(c *instance.QemuLaunchCmd) {
