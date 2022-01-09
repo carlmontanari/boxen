@@ -184,6 +184,10 @@ func (b *Boxen) Start(name string) error {
 
 	b.Config.Instances[name].PID = q.GetPid()
 
+	// reset the in memory config disk version back to the actual source disk version prior to
+	// dumping the config to disk
+	b.Config.Instances[name].Disk = diskVer
+
 	err = b.Config.Dump(b.ConfigPath)
 	if err != nil {
 		b.Logger.Criticalf("error dumping updated boxen config to disk: %s", err)
