@@ -1,5 +1,5 @@
-username  {{ .Username }} privilege 15 password {{ .Password }} {{ if ne .Password "" }}
-enable secret 0 {{ .Password }}{{ end }}
+username  {{ .Username }} privilege 15 password {{ .Password }}
+enable secret 0 {{ .Password }}
 interface GigabitEthernet1
 ip address 10.0.0.15 255.255.255.0
 no shutdown

@@ -224,3 +224,4 @@ For Darwin users, it is highly recommend to install HAXM (see link above).
 ## TODO
 
 - Output mgmt interface details when starting local VM instances
+- Remove deprovisioned devices from any groups they may belong to
