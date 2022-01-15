@@ -16,7 +16,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-var Version = "v0.0.0" //nolint: gochecknoglobals
+var Version = "0.0.0" //nolint: gochecknoglobals
 
 type Disk struct {
 	Disk         string
