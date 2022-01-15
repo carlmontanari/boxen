@@ -54,7 +54,7 @@ func GetPlatformEmptyStruct(pT string) (Platform, error) {
 	panic("unknown platform type, this shouldn't happen!")
 }
 
-func NewPlatformFromConfig(
+func NewPlatformFromConfig( //nolint:funlen
 	n string,
 	c *config.Config,
 	l *instance.Loggers,
@@ -146,6 +146,7 @@ func NewPlatformFromConfig(
 			q.Credentials.Username,
 			q.Credentials.Password,
 			l,
+			base.WithCommsReturnChar("\r"),
 		)
 
 		p = &PaloAltoPanos{

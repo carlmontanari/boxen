@@ -205,11 +205,6 @@ func (p *PaloAltoPanos) Install(opts ...instance.Option) error { //nolint:funlen
 		if a.configLines != nil {
 			p.Loggers.Base.Debug("install config lines provided, executing scrapligo on open")
 
-			// seems like the pan vm wants to flake out a bit and paint the prompt a few times in
-			// weird timing immediately after boot... fetching the prompt seems to
-			// kinda "clear" things out
-			_, _ = p.c.GetPrompt()
-
 			err = p.defOnOpen(p.c)
 			if err != nil {
 				p.Loggers.Base.Criticalf("error running scrapligo on open: %s\n", err)
