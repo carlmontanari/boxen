@@ -177,6 +177,15 @@ want to have debug level logging for your containerlab images, you should packag
 this flag set!
 
 
+## Packaging With Non-Release Versions
+
+Packaging NOSs into containers *should* (usually!) work with release versions of boxen. But... while
+doing development or testing, you may want to package the boxen binary with your changes made. To do
+this you can set the `BOXEN_PACKAGE_BINARY` to the file name/path of the built binary you would like
+to have packaged into the container (for both build/install and final/start images). Make sure that
+the binary is packaged for *Linux* (x86)!
+
+
 ### Timeout Multiplier
 
 `BOXEN_TIMEOUT_MULTIPLIER` does what it says on the tin -- mostly this just modifies how long to
@@ -224,3 +233,7 @@ For Darwin users, it is highly recommend to install HAXM (see link above).
 
 - Output mgmt interface details when starting local VM instances
 - Remove deprovisioned devices from any groups they may belong to
+- Docker wait blocks as long as the container is still showing up in docker ps -a -- so probably for
+  package build we should update to not only rely on wait but also a goroutine that is checking
+  docker ps output for the container id from the cid file...
+

@@ -20,7 +20,12 @@ COPY tc-tap-ifup /etc/
 RUN chmod 0777 /etc/tc-tap-ifup
 COPY boxen.yaml /
 
+{{if not .BinaryOverride }}
 RUN bash -c "$(curl -sL https://raw.githubusercontent.com/carlmontanari/boxen/main/get.sh)" -- -v {{ .BoxenVersion }}
+{{else}}
+RUN curl http://{{ $.LocalHost }}:6666/boxen -o boxen
+RUN chmod +x boxen && mv boxen /usr/local/bin/boxen
+{{end}}
 
 {{range $index, $file := .RequiredFiles -}}
 RUN curl http://{{ $.LocalHost }}:6666/{{$file}} -o {{$file}}

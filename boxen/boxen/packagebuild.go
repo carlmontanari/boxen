@@ -29,6 +29,7 @@ type dockerfileTemplateData struct {
 	LogLevel          string
 	Sparsify          int
 	BoxenVersion      string
+	BinaryOverride    bool
 }
 
 type dockerignoreTemplateData struct {
@@ -40,6 +41,7 @@ func writeDockerfiles(
 	inclFiles []string,
 	exposedTCPPorts, exposedUDPPorts []int,
 	timeoutModifier int,
+	binaryOverride bool,
 ) error {
 	inclFiles = append(inclFiles, "disk.qcow2")
 
@@ -70,6 +72,7 @@ func writeDockerfiles(
 		LogLevel:          util.GetEnvStrOrDefault("BOXEN_LOG_LEVEL", "info"),
 		Sparsify:          util.GetEnvIntOrDefault("BOXEN_SPARSIFY_DISK", 0),
 		BoxenVersion:      Version,
+		BinaryOverride:    binaryOverride,
 	}
 
 	dockerignoreData := &dockerignoreTemplateData{
@@ -149,12 +152,30 @@ func (b *Boxen) packageBundle(
 		return err
 	}
 
+	usrBoxenBinary := util.GetEnvStrOrDefault("BOXEN_PACKAGE_BINARY", "")
+	binaryOverride := false
+
+	if usrBoxenBinary != "" {
+		b.Logger.Debugf(
+			"user provided boxen binary at path '%s', copying to temp dir",
+			usrBoxenBinary,
+		)
+
+		err = util.CopyFile(usrBoxenBinary, fmt.Sprintf("%s/boxen", i.tmpDir))
+		if err != nil {
+			return err
+		}
+
+		binaryOverride = true
+	}
+
 	err = writeDockerfiles(
 		i.tmpDir,
 		packageFiles,
 		platformDefaultProfile.TPCNatPorts,
 		platformDefaultProfile.UDPNatPorts,
 		util.GetTimeoutMultiplier(),
+		binaryOverride,
 	)
 	if err != nil {
 		return err
