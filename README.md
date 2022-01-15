@@ -177,7 +177,7 @@ want to have debug level logging for your containerlab images, you should packag
 this flag set!
 
 
-## Packaging With Non-Release Versions
+### Packaging With Non-Release Versions
 
 Packaging NOSs into containers *should* (usually!) work with release versions of boxen. But... while
 doing development or testing, you may want to package the boxen binary with your changes made. To do
