@@ -3,7 +3,6 @@ package platforms
 import (
 	"fmt"
 	"regexp"
-	"strings"
 	"time"
 
 	"github.com/carlmontanari/boxen/boxen/instance"
@@ -126,7 +125,12 @@ func (p *JuniperVsrx) Install(opts ...instance.Option) error {
 				c <- err
 			}
 
-			err = p.Config(p.configLinesEncryptPasswords(a.configLines))
+			err = p.Config(
+				util.ConfigLinesMd5Password(
+					a.configLines,
+					regexp.MustCompile(`(?i)(?:set system .* encrypted-password )(.*$)`),
+				),
+			)
 			if err != nil {
 				p.Loggers.Base.Criticalf("error sending install config lines: %s\n", err)
 
@@ -209,27 +213,6 @@ func (p *JuniperVsrx) Start(opts ...instance.Option) error { //nolint:dupl
 	p.Loggers.Base.Info("starting platform instance complete")
 
 	return nil
-}
-
-func (p *JuniperVsrx) configLinesEncryptPasswords(lines []string) []string {
-	pattern := regexp.MustCompile(`(?i)(?:set system .* encrypted-password )(.*$)`)
-
-	for i, line := range lines {
-		matches := pattern.FindStringSubmatch(line)
-
-		if len(matches) > 1 {
-			newLine := strings.Replace(
-				line,
-				matches[1],
-				string(util.Md5Crypt([]byte(matches[1]))),
-				1,
-			)
-
-			lines[i] = newLine
-		}
-	}
-
-	return lines
 }
 
 func (p *JuniperVsrx) SaveConfig() error {

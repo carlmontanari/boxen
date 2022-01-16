@@ -22,6 +22,8 @@ package util
 
 import (
 	"crypto/md5"
+	"regexp"
+	"strings"
 )
 
 const (
@@ -105,4 +107,26 @@ func Md5Crypt(password []byte) []byte {
 	result = append(result, itoa64[v&0x3f])
 
 	return append(append(append(magic, salt...), '$'), result...)
+}
+
+// ConfigLinesMd5Password accepts a slice of config lines and replaces the plain-text password with
+// a md5 encrypted password. It does this by using the provided passwordPattern to find lines that
+// contain passwords.
+func ConfigLinesMd5Password(lines []string, passwordPattern *regexp.Regexp) []string {
+	for i, line := range lines {
+		matches := passwordPattern.FindStringSubmatch(line)
+
+		if len(matches) > 1 {
+			newLine := strings.Replace(
+				line,
+				matches[1],
+				string(Md5Crypt([]byte(matches[1]))),
+				1,
+			)
+
+			lines[i] = newLine
+		}
+	}
+
+	return lines
 }
