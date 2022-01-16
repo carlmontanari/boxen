@@ -2,8 +2,11 @@ package platforms
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
+
+	"github.com/carlmontanari/boxen/boxen/util"
 
 	"github.com/carlmontanari/boxen/boxen/instance"
 
@@ -219,7 +222,12 @@ func (p *PaloAltoPanos) Install(opts ...instance.Option) error { //nolint:funlen
 				c <- err
 			}
 
-			err = p.Config(a.configLines)
+			err = p.Config(
+				util.ConfigLinesMd5Password(
+					a.configLines,
+					regexp.MustCompile(`(?i)(?:set mgt-config users .* phash )(.*$)`),
+				),
+			)
 			if err != nil {
 				p.Loggers.Base.Criticalf("error sending install config lines: %s\n", err)
 
