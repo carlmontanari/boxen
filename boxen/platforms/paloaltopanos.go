@@ -20,6 +20,7 @@ const (
 
 	paloAltoPanosDefaultBootTime   = 720
 	paloAltoPanosDefaultPromptWait = 30
+	paloAltoPanosDefaultLoginWait  = 180
 )
 
 type PaloAltoPanos struct {
@@ -264,7 +265,7 @@ func (p *PaloAltoPanos) Install(opts ...instance.Option) error { //nolint:funlen
 	return p.Stop(opts...)
 }
 
-func (p *PaloAltoPanos) Start(opts ...instance.Option) error { //nolint:dupl
+func (p *PaloAltoPanos) Start(opts ...instance.Option) error {
 	p.Loggers.Base.Info("start platform instance requested")
 
 	a, opts, err := setStartArgs(opts...)
@@ -291,6 +292,13 @@ func (p *PaloAltoPanos) Start(opts ...instance.Option) error { //nolint:dupl
 
 		return nil
 	}
+
+	loginWait := util.ApplyTimeoutMultiplier(paloAltoPanosDefaultLoginWait)
+
+	p.Loggers.Base.Debug(
+		"start ready prompt found, but sleeping %s seconds to give auth time to get ready",
+	)
+	time.Sleep(time.Duration(loginWait) * time.Second)
 
 	err = p.login(
 		&loginArgs{
