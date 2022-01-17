@@ -10,8 +10,6 @@ import (
 
 	"github.com/carlmontanari/boxen/boxen/instance"
 
-	"github.com/scrapli/scrapligo/channel"
-
 	"github.com/scrapli/scrapligo/driver/base"
 )
 
@@ -282,7 +280,7 @@ func (p *PaloAltoPanos) Start(opts ...instance.Option) error {
 
 	err = p.startReady(false)
 	if err != nil {
-		p.Loggers.Base.Criticalf("error waiting for start ready state: %s\n", err)
+		p.Loggers.Base.Criticalf("error waiting for start ready state: %s", err)
 
 		return err
 	}
@@ -295,9 +293,11 @@ func (p *PaloAltoPanos) Start(opts ...instance.Option) error {
 
 	loginWait := util.ApplyTimeoutMultiplier(paloAltoPanosDefaultLoginWait)
 
-	p.Loggers.Base.Debug(
-		"start ready prompt found, but sleeping %s seconds to give auth time to get ready",
+	p.Loggers.Base.Debugf(
+		"start ready prompt found, but sleeping %d seconds to give auth time to get ready",
+		loginWait,
 	)
+
 	time.Sleep(time.Duration(loginWait) * time.Second)
 
 	err = p.login(
@@ -342,7 +342,14 @@ func (p *PaloAltoPanos) waitAutoCommit() error {
 func (p *PaloAltoPanos) SaveConfig() error {
 	p.Loggers.Base.Info("save config requested")
 
-	_, err := p.c.SendConfig(
+	err := p.waitAutoCommit()
+	if err != nil {
+		p.Loggers.Base.Criticalf("error waiting for autocommit to complete: %s\n", err)
+
+		return err
+	}
+
+	_, err = p.c.SendConfig(
 		"commit",
 		base.WithSendTimeoutOps(
 			time.Duration(getPlatformSaveTimeout(PlatformTypePaloAltoPanos))*time.Second,
@@ -355,35 +362,17 @@ func (p *PaloAltoPanos) SaveConfig() error {
 func (p *PaloAltoPanos) SetUserPass(usr, pwd string) error {
 	p.Loggers.Base.Infof("set user/password for user '%s' requested", usr)
 
-	_, err := p.c.Driver.SendInteractive(
-		[]*channel.SendInteractiveEvent{
-			{
-				ChannelInput: fmt.Sprintf(
-					"set mgt-config users %s password",
-					usr,
-				),
-				ChannelResponse: "Enter password   :",
-				HideInput:       false,
-			},
-			{
-				ChannelInput:    pwd,
-				ChannelResponse: "Confirm password :",
-				HideInput:       true,
-			},
-			{
-				ChannelInput:    pwd,
-				ChannelResponse: "#",
-				HideInput:       true,
-			},
-		},
-		base.WithDesiredPrivilegeLevel("configuration"),
+	lines := util.ConfigLinesMd5Password(
+		[]string{fmt.Sprintf("set mgt-config users %s phash %s", usr, pwd)},
+		regexp.MustCompile(`(?i)(?:set mgt-config users .* phash )(.*$)`),
 	)
-	if err != nil {
-		return err
-	}
 
-	return p.Config([]string{
-		fmt.Sprintf("set mgmt-config users %s permissions role-based superuser yes", usr)})
+	lines = append(
+		lines,
+		fmt.Sprintf("set mgmt-config users %s permissions role-based superuser yes", usr),
+	)
+
+	return p.Config(lines)
 }
 
 func (p *PaloAltoPanos) SetHostname(h string) error {
