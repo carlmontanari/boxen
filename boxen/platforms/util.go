@@ -59,7 +59,7 @@ func pTDiskToVersionMap() map[string]*regexp.Regexp {
 			`(?i)(?:(?:nexus9300v|nxosv)\.)(\d+\.\d+\.\d+)`,
 		),
 		PlatformTypeJuniperVsrx: regexp.MustCompile(
-			`(?i)(?:junos-media-vsrx-x86-64-vmdisk-|media-vsrx-vmdisk-)(\d+\.\w+\.\d+).qcow2`,
+			`(?i)(?:junos-media-vsrx-x86-64-vmdisk-|media-vsrx-vmdisk-)(\d+\.[\w-]+\.\d+).qcow2`,
 		),
 		PlatformTypePaloAltoPanos: regexp.MustCompile(
 			`(?i)(?:pa-vm-kvm-)(\d+\.\d+\.\d+).qcow2`),
