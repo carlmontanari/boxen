@@ -254,17 +254,16 @@ func (i *Qemu) buildDataNicSocketConn(
 		nicCmd = append(
 			nicCmd,
 			fmt.Sprintf(
-				"socket,id=p%s,udp=127.0.0.1:%d,listen=:%d",
+				"socket,id=p%s,connect=127.0.0.1:%d",
 				paddedNicID,
 				nicMap.Connect,
-				nicMap.Listen,
 			),
 		)
 	} else {
 		nicCmd = append(
 			nicCmd,
 			fmt.Sprintf(
-				"socket,id=p%s,listen=:%d",
+				"socket,id=p%s,listen=127.0.0.1:%d",
 				paddedNicID,
 				nicMap.Listen,
 			),
