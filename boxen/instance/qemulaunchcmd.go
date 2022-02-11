@@ -280,8 +280,9 @@ func (i *Qemu) BuildDataNic(nicID, busID, busAddr int, paddedNicID string) []str
 	nicCmd := []string{
 		"-device",
 		fmt.Sprintf(
-			"%s,netdev=p%s,bus=pci.%d,addr=0x%x,mac=%s",
+			"%s,id=p%s,netdev=p%s,bus=pci.%d,addr=0x%x,mac=%s",
 			i.Hardware.NicType,
+			paddedNicID,
 			paddedNicID,
 			busID,
 			busAddr,
