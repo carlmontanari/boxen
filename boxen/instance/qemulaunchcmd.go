@@ -12,8 +12,6 @@ import (
 	"github.com/carlmontanari/boxen/boxen/util"
 )
 
-const defaultSocketPad = 10000
-
 // QemuLaunchCmd represents all the elements of a qemu launch command as slices of strings.
 type QemuLaunchCmd struct {
 	Name    []string
@@ -250,21 +248,13 @@ func (i *Qemu) buildDataNicSocketConn(
 ) []string {
 	nicCmd := make([]string, 0)
 
-	if nicMap.Connect != -1 {
+	if nicMap.Connect != -1 && nicMap.Listen != -1 {
 		nicCmd = append(
 			nicCmd,
 			fmt.Sprintf(
-				"socket,id=p%s,connect=127.0.0.1:%d",
+				"socket,id=p%s,udp=127.0.0.1:%d,localaddr=127.0.0.1:%d",
 				paddedNicID,
 				nicMap.Connect,
-			),
-		)
-	} else {
-		nicCmd = append(
-			nicCmd,
-			fmt.Sprintf(
-				"socket,id=p%s,listen=127.0.0.1:%d",
-				paddedNicID,
 				nicMap.Listen,
 			),
 		)
@@ -280,15 +270,13 @@ func (i *Qemu) BuildDataNic(nicID, busID, busAddr int, paddedNicID string) []str
 	nicCmd := []string{
 		"-device",
 		fmt.Sprintf(
-			"%s,id=p%s,netdev=p%s,bus=pci.%d,addr=0x%x,mac=%s",
+			"%s,id=p%s,bus=pci.%d,addr=0x%x,mac=%s",
 			i.Hardware.NicType,
-			paddedNicID,
 			paddedNicID,
 			busID,
 			busAddr,
 			i.GenerateMac(nicID),
 		),
-		"-netdev",
 	}
 
 	var nicMap *config.SocketConnectPair
@@ -300,8 +288,11 @@ func (i *Qemu) BuildDataNic(nicID, busID, busAddr int, paddedNicID string) []str
 	}
 
 	if util.DirectoryExists(fmt.Sprintf("/sys/class/net/eth%d", nicID)) {
+		nicCmd[1] = fmt.Sprintf("%s,netdev=p%s", nicCmd[1], paddedNicID)
+
 		nicCmd = append(
 			nicCmd,
+			"-netdev",
 			fmt.Sprintf(
 				"tap,id=p%s,ifname=tap%d,script=/etc/tc-tap-ifup,downscript=no",
 				paddedNicID,
@@ -309,10 +300,13 @@ func (i *Qemu) BuildDataNic(nicID, busID, busAddr int, paddedNicID string) []str
 			),
 		)
 	} else if ok && nicMap != nil {
-		nicCmd = append(nicCmd, i.buildDataNicSocketConn(paddedNicID, nicMap)...)
-	} else {
-		nicCmd = append(
-			nicCmd, fmt.Sprintf("socket,id=p%s,listen=:%d", paddedNicID, nicID+defaultSocketPad))
+		socketNetDev := i.buildDataNicSocketConn(paddedNicID, nicMap)
+
+		if len(socketNetDev) > 0 {
+			nicCmd[1] = fmt.Sprintf("%s,netdev=p%s", nicCmd[1], paddedNicID)
+			nicCmd = append(nicCmd, "-netdev")
+			nicCmd = append(nicCmd, socketNetDev...)
+		}
 	}
 
 	return nicCmd
