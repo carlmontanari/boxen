@@ -76,11 +76,15 @@ func getDiskData(i *installInfo) error {
 
 // GetDefaultProfile fetches the default instance profile for a given platform type 'pt'.
 func GetDefaultProfile(pt string) (*config.Profile, error) {
-	f, err := boxen.Assets.ReadFile(fmt.Sprintf("assets/profiles/%s.yaml", pt))
+	var f []byte
+
+	var err error
 
 	envProfilePath := os.Getenv(fmt.Sprintf("BOXEN_%s_PROFILE", strings.ToUpper(pt)))
 	if envProfilePath != "" {
 		f, err = os.ReadFile(envProfilePath)
+	} else {
+		f, err = boxen.Assets.ReadFile(fmt.Sprintf("assets/profiles/%s.yaml", pt))
 	}
 
 	if err != nil {
