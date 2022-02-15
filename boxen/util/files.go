@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -102,4 +103,10 @@ func CopyAsset(s, d string) error {
 	err = dest.Sync()
 
 	return err
+}
+
+// CommandExists checks if a command `cmd` exists in the PATH
+func CommandExists(cmd string) bool {
+	_, err := exec.LookPath(cmd)
+	return err == nil
 }
