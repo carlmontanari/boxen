@@ -1,4 +1,10 @@
 .DEFAULT_GOAL := help
+BIN_DIR = $$(pwd)/bin
+BINARY = $$(pwd)/bin/boxen
+
+build: ## Build boxen
+	mkdir -p $(BIN_DIR)
+	go build -o $(BINARY) -ldflags="-s -w" main.go
 
 lint: ## Run linters
 	gofmt -w -s .
