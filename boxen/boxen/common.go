@@ -114,13 +114,27 @@ func (b *Boxen) installAllocateDisks(i *installInfo) error {
 	i.name = fmt.Sprintf("%s_%s", i.srcDisk.PlatformType, i.srcDisk.Version)
 	i.newDisk = fmt.Sprintf("%s/%s.qcow2", i.tmpDir, i.name)
 
-	_, err = command.Execute(
-		util.QemuImgCmd,
-		command.WithArgs(
-			[]string{"convert", "-O", "qcow2", i.srcDisk.Disk, i.newDisk},
-		),
-		command.WithWait(true),
-	)
+	switch {
+	// if the qemu-img command is not present, use docker
+	case !util.CommandExists(util.QemuImgCmd):
+		_, err = command.Execute(
+			util.DockerCmd,
+			command.WithArgs(
+				[]string{"run", "-v", i.srcDisk.Disk + ":/src", "-v", i.tmpDir + ":/dst", util.QemuImgContainer,
+					"convert", "-O", "qcow2", "/src", "/dst/" + i.name + ".qcow2"},
+			),
+			command.WithWait(true),
+		)
+	default:
+		_, err = command.Execute(
+			util.QemuImgCmd,
+			command.WithArgs(
+				[]string{"convert", "-O", "qcow2", i.srcDisk.Disk, i.newDisk},
+			),
+			command.WithWait(true),
+		)
+	}
+
 	if err != nil {
 		b.Logger.Criticalf("error copying source disk image: %s\n", err)
 
