@@ -27,16 +27,20 @@ func (b *Boxen) RenderInitialConfig(
 		Password: b.Config.Instances[name].Credentials.Password,
 	}
 
-	t, err := template.ParseFS(
-		boxen.Assets,
-		fmt.Sprintf("assets/configs/%s.template", platformType),
-	)
+	var t *template.Template
+
+	var err error
 
 	envProfilePath := os.Getenv(
 		fmt.Sprintf("BOXEN_%s_INITIAL_CONFIG_TEMPLATE", strings.ToUpper(platformType)),
 	)
 	if envProfilePath != "" {
 		t, err = template.ParseFiles(envProfilePath)
+	} else {
+		t, err = template.ParseFS(
+			boxen.Assets,
+			fmt.Sprintf("assets/configs/%s.template", platformType),
+		)
 	}
 
 	if err != nil {
