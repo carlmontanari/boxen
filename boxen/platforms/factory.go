@@ -1,8 +1,11 @@
 package platforms
 
 import (
+	"fmt"
+
 	"github.com/carlmontanari/boxen/boxen/config"
 	"github.com/carlmontanari/boxen/boxen/instance"
+	"github.com/carlmontanari/boxen/boxen/util"
 
 	"github.com/scrapli/scrapligo/driver/base"
 )
@@ -153,6 +156,9 @@ func NewPlatformFromConfig( //nolint:funlen
 			Qemu:           q,
 			ScrapliConsole: con,
 		}
+	default:
+		return nil, fmt.Errorf("%w: scrapligo driver is not found for %q platform",
+			util.ErrAllocationError, pT)
 	}
 
 	return p, err
