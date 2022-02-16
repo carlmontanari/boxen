@@ -33,6 +33,10 @@ func GetPlatformType(v, p string) string {
 		if p == PlatformPaloAltoPanos {
 			return PlatformTypePaloAltoPanos
 		}
+	case VendorIPInfusion:
+		if p == PlatformIPInfusionOcNOS {
+			return PlatformTypeIPInfusionOcNOS
+		}
 	}
 
 	return ""
