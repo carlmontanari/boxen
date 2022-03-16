@@ -1,0 +1,2 @@
+interface eth0
+ip address 10.0.0.15 255.255.255.0
