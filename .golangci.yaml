@@ -107,15 +107,15 @@ linters:
 issues:
   # Excluding configuration per-path, per-linter, per-text and per-source
   exclude-rules:
-      - path: util/md5crypt
-        linters:
-          - gosec
-      - path: cli/start
-        linters:
-          - dupl
-      - path: cli/stop
-        linters:
-          - dupl
+    - path: util/md5crypt
+      linters:
+        - gosec
+    - path: cli/start
+      linters:
+        - dupl
+    - path: cli/stop
+      linters:
+        - dupl
 
 run:
   skip-dirs:
