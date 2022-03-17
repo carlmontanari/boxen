@@ -18,7 +18,7 @@ type IPInfusionOcNOS struct {
 }
 
 func (p *IPInfusionOcNOS) Package(
-	sourceDir, packageDir string,
+	_, _ string,
 ) (packageFiles, runFiles []string, err error) {
 	return nil, nil, err
 }
