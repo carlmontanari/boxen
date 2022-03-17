@@ -1,7 +1,6 @@
 package platforms
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/carlmontanari/boxen/boxen/instance"
@@ -24,7 +23,7 @@ func (p *IPInfusionOcNOS) Package(
 	return nil, nil, err
 }
 
-func (p *IPInfusionOcNOS) Install(opts ...instance.Option) error { //nolint:funlen
+func (p *IPInfusionOcNOS) Install(opts ...instance.Option) error {
 	p.Loggers.Base.Info("install requested")
 
 	a, opts, err := setInstallArgs(opts...)
@@ -34,8 +33,8 @@ func (p *IPInfusionOcNOS) Install(opts ...instance.Option) error { //nolint:funl
 
 	c := make(chan error, 1)
 	stop := make(chan bool, 1)
-	fmt.Printf("%q", p.Qemu.Qemu.Acceleration)
-	go func() {
+
+	go func() { //nolint:dupl
 		err = p.Qemu.Start(opts...)
 		if err != nil {
 			c <- err
