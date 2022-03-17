@@ -124,8 +124,19 @@ func (b *Boxen) installAllocateDisks(i *installInfo) error {
 		_, err = command.Execute(
 			util.DockerCmd,
 			command.WithArgs(
-				[]string{"run", "-v", i.srcDisk.Disk + ":/src", "-v", i.tmpDir + ":/dst", util.QemuImgContainer,
-					"convert", "-O", "qcow2", "/src", "/dst/" + i.name + ".qcow2"},
+				[]string{
+					"run",
+					"-v",
+					i.srcDisk.Disk + ":/src",
+					"-v",
+					i.tmpDir + ":/dst",
+					util.QemuImgContainer,
+					"convert",
+					"-O",
+					"qcow2",
+					"/src",
+					"/dst/" + i.name + ".qcow2",
+				},
 			),
 			command.WithWait(true),
 		)
