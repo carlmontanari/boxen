@@ -1,6 +1,7 @@
 package platforms
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/carlmontanari/boxen/boxen/instance"
@@ -111,6 +112,48 @@ func (p *IPInfusionOcNOS) Install(opts ...instance.Option) error {
 }
 
 func (p *IPInfusionOcNOS) Start(opts ...instance.Option) error {
+	p.Loggers.Base.Info("start platform instance requested")
+
+	a, opts, err := setStartArgs(opts...)
+	if err != nil {
+		return err
+	}
+
+	err = p.Qemu.Start(opts...)
+	if err != nil {
+		return err
+	}
+
+	err = p.startReady()
+	if err != nil {
+		p.Loggers.Base.Criticalf("error waiting for start ready state: %s\n", err)
+
+		return err
+	}
+
+	if !a.prepareConsole {
+		p.Loggers.Base.Info("prepare console not requested, starting instance complete")
+
+		return nil
+	}
+
+	err = p.login(
+		&loginArgs{
+			username: p.Credentials.Username,
+			password: p.Credentials.Password,
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	err = p.defOnOpen(p.c)
+	if err != nil {
+		return err
+	}
+
+	p.Loggers.Base.Info("starting platform instance complete")
+
 	return nil
 }
 
@@ -134,9 +177,18 @@ func (p *IPInfusionOcNOS) SaveConfig() error {
 }
 
 func (p *IPInfusionOcNOS) SetUserPass(usr, pwd string) error {
-	return nil
+	p.Loggers.Base.Infof("set user/password for user '%s' requested", usr)
+
+	return p.Config([]string{fmt.Sprintf(
+		"username %s password %s",
+		usr,
+		pwd)})
 }
 
 func (p *IPInfusionOcNOS) SetHostname(h string) error {
-	return nil
+	p.Loggers.Base.Infof("set hostname '%s' requested", h)
+
+	return p.Config([]string{fmt.Sprintf(
+		"hostname %s",
+		h)})
 }
