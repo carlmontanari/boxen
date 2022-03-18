@@ -6,7 +6,7 @@ hardware:
     - hax
   serial_port_count: 1
   nic_type: virtio-net-pci
-  nic_count: 8
+  nic_count: 6
   nic_per_bus: 26
 advanced:
   cpu:
