@@ -1,0 +1,23 @@
+---
+hardware:
+  memory: 4096
+  acceleration:
+    - kvm
+    - hax
+  serial_port_count: 1
+  nic_type: virtio-net-pci
+  nic_count: 6
+  nic_per_bus: 26
+advanced:
+  cpu:
+    emulation: host
+    cores: 2
+    threads: 1
+    sockets: 1
+tcp_nat_ports:
+  - 22
+  - 23
+  - 443
+  - 830
+udp_nat_ports:
+  - 161

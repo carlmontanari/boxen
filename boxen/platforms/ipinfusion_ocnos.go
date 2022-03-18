@@ -2,110 +2,36 @@ package platforms
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
-	"runtime"
 	"time"
 
-	"github.com/carlmontanari/boxen/boxen/command"
 	"github.com/carlmontanari/boxen/boxen/instance"
-	"github.com/carlmontanari/boxen/boxen/util"
-
 	"github.com/scrapli/scrapligo/driver/base"
 )
 
 const (
-	CiscoCsr1000vInstallCdromName = "config.iso"
-	CiscoCsr1000vScrapliPlatform  = "cisco_iosxe"
-	CiscoCsr1000vDefaultUser      = "admin"
-	CiscoCsr1000vDefaultPass      = "admin"
+	IPInfusionOcNOSScrapliPlatform = "ipinfusion_ocnos"
+	IPInfusionOcNOSDefaultUser     = "root"
+	IPInfusionOcNOSDefaultPass     = "root"
 )
 
-type CiscoCsr1000v struct {
+type IPInfusionOcNOS struct {
 	*instance.Qemu
 	*ScrapliConsole
 }
 
-func ciscoCsr1000vInstallConfig() []byte {
-	return []byte(
-		"platform console serial\r\n\r\n" +
-			"do clear platform software vnic-if nvtable\r\n\r\n" +
-			"do wr\r\n\n" +
-			"do reload\r\n",
-	)
-}
-
-func (p *CiscoCsr1000v) Package(
-	sourceDir, packageDir string,
+func (p *IPInfusionOcNOS) Package(
+	_, _ string,
 ) (packageFiles, runFiles []string, err error) {
-	_ = sourceDir
-
-	err = os.WriteFile(
-		fmt.Sprintf("%s/%s", packageDir, "iosxe_config.txt"),
-		ciscoCsr1000vInstallConfig(),
-		util.FilePerms,
-	)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	genisoBinary := "genisoimage"
-	if runtime.GOOS == "darwin" {
-		genisoBinary = "mkisofs"
-	}
-
-	_, err = command.Execute(
-		genisoBinary,
-		command.WithArgs([]string{"-l", "-o", CiscoCsr1000vInstallCdromName, "iosxe_config.txt"}),
-		command.WithWorkDir(packageDir),
-		command.WithWait(true),
-	)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return []string{CiscoCsr1000vInstallCdromName}, []string{}, err
+	return nil, nil, err
 }
 
-func (p *CiscoCsr1000v) patchCmdCdrom(c *instance.QemuLaunchCmd) {
-	diskDir := filepath.Dir(p.Disk)
-	c.Extra = append(
-		c.Extra,
-		[]string{"-cdrom", fmt.Sprintf("%s/%s", diskDir, CiscoCsr1000vInstallCdromName)}...)
-}
-
-func (p *CiscoCsr1000v) modifyStartCmd(c *instance.QemuLaunchCmd) {
-	_ = c
-}
-
-func (p *CiscoCsr1000v) modifyInstallCmd(c *instance.QemuLaunchCmd) {
-	p.modifyStartCmd(c)
-	p.patchCmdCdrom(c)
-}
-
-func (p *CiscoCsr1000v) startReady() error {
-	err := p.openRetry()
-	if err != nil {
-		return err
-	}
-
-	err = p.readUntil(
-		[]byte("Press RETURN to get started"),
-		getPlatformBootTimeout(PlatformTypeCiscoCsr1000v),
-	)
-
-	return err
-}
-
-func (p *CiscoCsr1000v) Install(opts ...instance.Option) error {
+func (p *IPInfusionOcNOS) Install(opts ...instance.Option) error {
 	p.Loggers.Base.Info("install requested")
 
 	a, opts, err := setInstallArgs(opts...)
 	if err != nil {
 		return err
 	}
-
-	opts = append(opts, instance.WithLaunchModifier(p.modifyInstallCmd))
 
 	c := make(chan error, 1)
 	stop := make(chan bool, 1)
@@ -129,8 +55,8 @@ func (p *CiscoCsr1000v) Install(opts ...instance.Option) error {
 
 		err = p.login(
 			&loginArgs{
-				username: CiscoCsr1000vDefaultUser,
-				password: CiscoCsr1000vDefaultPass,
+				username: IPInfusionOcNOSDefaultUser,
+				password: IPInfusionOcNOSDefaultPass,
 			},
 		)
 		if err != nil {
@@ -186,15 +112,13 @@ func (p *CiscoCsr1000v) Install(opts ...instance.Option) error {
 	return p.Stop(opts...)
 }
 
-func (p *CiscoCsr1000v) Start(opts ...instance.Option) error { //nolint:dupl
+func (p *IPInfusionOcNOS) Start(opts ...instance.Option) error {
 	p.Loggers.Base.Info("start platform instance requested")
 
 	a, opts, err := setStartArgs(opts...)
 	if err != nil {
 		return err
 	}
-
-	opts = append(opts, instance.WithLaunchModifier(p.modifyStartCmd))
 
 	err = p.Qemu.Start(opts...)
 	if err != nil {
@@ -216,8 +140,8 @@ func (p *CiscoCsr1000v) Start(opts ...instance.Option) error { //nolint:dupl
 
 	err = p.login(
 		&loginArgs{
-			username: p.Credentials.Username,
-			password: p.Credentials.Password,
+			username: IPInfusionOcNOSDefaultUser,
+			password: IPInfusionOcNOSDefaultPass,
 		},
 	)
 	if err != nil {
@@ -234,29 +158,44 @@ func (p *CiscoCsr1000v) Start(opts ...instance.Option) error { //nolint:dupl
 	return nil
 }
 
-func (p *CiscoCsr1000v) SaveConfig() error {
+func (p *IPInfusionOcNOS) startReady() error {
+	// openRetry doesn't do auth and doesn't call onOpen as it is set to nil somewhere before this
+	err := p.openRetry()
+	if err != nil {
+		return err
+	}
+
+	err = p.readUntil(
+		[]byte("OcNOS login:"),
+		getPlatformBootTimeout(PlatformTypeIPInfusionOcNOS),
+	)
+
+	return err
+}
+
+func (p *IPInfusionOcNOS) SaveConfig() error {
 	p.Loggers.Base.Info("save config requested")
 
 	_, err := p.c.SendCommand(
 		"copy running-config startup-config",
 		base.WithSendTimeoutOps(
-			time.Duration(getPlatformSaveTimeout(PlatformTypeCiscoCsr1000v))*time.Second,
+			time.Duration(getPlatformSaveTimeout(PlatformTypeIPInfusionOcNOS))*time.Second,
 		),
 	)
 
 	return err
 }
 
-func (p *CiscoCsr1000v) SetUserPass(usr, pwd string) error {
+func (p *IPInfusionOcNOS) SetUserPass(usr, pwd string) error {
 	p.Loggers.Base.Infof("set user/password for user '%s' requested", usr)
 
 	return p.Config([]string{fmt.Sprintf(
-		"username %s privilege 15 password %s",
+		"username %s role network-admin password %s",
 		usr,
 		pwd)})
 }
 
-func (p *CiscoCsr1000v) SetHostname(h string) error {
+func (p *IPInfusionOcNOS) SetHostname(h string) error {
 	p.Loggers.Base.Infof("set hostname '%s' requested", h)
 
 	return p.Config([]string{fmt.Sprintf(

@@ -12,6 +12,8 @@ import (
 	"github.com/carlmontanari/boxen/boxen/logging"
 	"github.com/carlmontanari/boxen/boxen/util"
 
+	scrapliocnos "github.com/hellt/scrapligo-ocnos/ocnos"
+
 	"github.com/scrapli/scrapligo/cfg"
 
 	"github.com/scrapli/scrapligo/driver/base"
@@ -57,11 +59,24 @@ func NewScrapliConsole(
 		opts = append(opts, base.WithChannelLog(l.Console))
 	}
 
-	c, err := core.NewCoreDriver(
-		"localhost",
-		scrapliPlatform,
-		opts...,
-	)
+	var c *network.Driver
+
+	var err error
+
+	switch scrapliPlatform {
+	case IPInfusionOcNOSScrapliPlatform:
+		c, err = scrapliocnos.NewOcNOSDriver(
+			"localhost",
+			opts...,
+		)
+	default:
+		c, err = core.NewCoreDriver(
+			"localhost",
+			scrapliPlatform,
+			opts...,
+		)
+	}
+
 	if err != nil {
 		return nil, err
 	}

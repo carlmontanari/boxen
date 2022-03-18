@@ -33,6 +33,10 @@ func GetPlatformType(v, p string) string {
 		if p == PlatformPaloAltoPanos {
 			return PlatformTypePaloAltoPanos
 		}
+	case VendorIPInfusion:
+		if p == PlatformIPInfusionOcNOS {
+			return PlatformTypeIPInfusionOcNOS
+		}
 	}
 
 	return ""
@@ -52,9 +56,11 @@ func GetPlatformEmptyStruct(pT string) (Platform, error) {
 		return &JuniperVsrx{}, nil
 	case PlatformTypePaloAltoPanos:
 		return &PaloAltoPanos{}, nil
+	case PlatformTypeIPInfusionOcNOS:
+		return &IPInfusionOcNOS{}, nil
 	}
 
-	panic("unknown platform type, this shouldn't happen!")
+	return nil, fmt.Errorf("%w: unknown platform type, this shouldn't happen", util.ErrValidationError)
 }
 
 func NewPlatformFromConfig( //nolint:funlen
@@ -153,6 +159,20 @@ func NewPlatformFromConfig( //nolint:funlen
 		)
 
 		p = &PaloAltoPanos{
+			Qemu:           q,
+			ScrapliConsole: con,
+		}
+	case PlatformTypeIPInfusionOcNOS:
+		con, err = NewScrapliConsole(
+			IPInfusionOcNOSScrapliPlatform,
+			q.Hardware.SerialPorts[0],
+			q.Credentials.Username,
+			q.Credentials.Password,
+			l,
+			base.WithCommsReturnChar("\r"),
+		)
+
+		p = &IPInfusionOcNOS{
 			Qemu:           q,
 			ScrapliConsole: con,
 		}
