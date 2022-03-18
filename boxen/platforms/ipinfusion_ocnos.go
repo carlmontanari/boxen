@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/carlmontanari/boxen/boxen/instance"
+	"github.com/scrapli/scrapligo/driver/base"
 )
 
 const (
@@ -139,8 +140,8 @@ func (p *IPInfusionOcNOS) Start(opts ...instance.Option) error {
 
 	err = p.login(
 		&loginArgs{
-			username: p.Credentials.Username,
-			password: p.Credentials.Password,
+			username: IPInfusionOcNOSDefaultUser,
+			password: IPInfusionOcNOSDefaultPass,
 		},
 	)
 	if err != nil {
@@ -173,14 +174,23 @@ func (p *IPInfusionOcNOS) startReady() error {
 }
 
 func (p *IPInfusionOcNOS) SaveConfig() error {
-	return nil
+	p.Loggers.Base.Info("save config requested")
+
+	_, err := p.c.SendCommand(
+		"copy running-config startup-config",
+		base.WithSendTimeoutOps(
+			time.Duration(getPlatformSaveTimeout(PlatformTypeIPInfusionOcNOS))*time.Second,
+		),
+	)
+
+	return err
 }
 
 func (p *IPInfusionOcNOS) SetUserPass(usr, pwd string) error {
 	p.Loggers.Base.Infof("set user/password for user '%s' requested", usr)
 
 	return p.Config([]string{fmt.Sprintf(
-		"username %s password %s",
+		"username %s role network-admin password %s",
 		usr,
 		pwd)})
 }
