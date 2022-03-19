@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"time"
 
 	"github.com/carlmontanari/boxen/boxen/command"
@@ -49,17 +48,49 @@ func (p *CiscoCsr1000v) Package(
 		return nil, nil, err
 	}
 
-	genisoBinary := "genisoimage"
-	if runtime.GOOS == "darwin" {
-		genisoBinary = "mkisofs"
+	// binary to create iso files
+	var genisoBinary string
+
+	switch {
+	case util.CommandExists(util.ISOBinary):
+		genisoBinary = util.ISOBinary
+	case util.CommandExists(util.DarwinISOBinary):
+		genisoBinary = util.DarwinISOBinary
 	}
 
-	_, err = command.Execute(
-		genisoBinary,
-		command.WithArgs([]string{"-l", "-o", CiscoCsr1000vInstallCdromName, "iosxe_config.txt"}),
-		command.WithWorkDir(packageDir),
-		command.WithWait(true),
-	)
+	switch {
+	// if genisoBinary was not detected - use docker
+	case genisoBinary == "":
+		_, err = command.Execute(
+			util.DockerCmd,
+			command.WithArgs(
+				[]string{
+					"run",
+					"-v",
+					packageDir + ":/work",
+					"-w",
+					packageDir,
+					util.ISOBinaryContainer,
+					"mkisofs",
+					"-l",
+					"-o",
+					CiscoCsr1000vInstallCdromName,
+					"iosxe_config.txt",
+				},
+			),
+			command.WithWait(true),
+		)
+	default:
+		_, err = command.Execute(
+			genisoBinary,
+			command.WithArgs(
+				[]string{"-l", "-o", CiscoCsr1000vInstallCdromName, "iosxe_config.txt"},
+			),
+			command.WithWorkDir(packageDir),
+			command.WithWait(true),
+		)
+	}
+
 	if err != nil {
 		return nil, nil, err
 	}
