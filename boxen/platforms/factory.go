@@ -60,7 +60,10 @@ func GetPlatformEmptyStruct(pT string) (Platform, error) {
 		return &IPInfusionOcNOS{}, nil
 	}
 
-	return nil, fmt.Errorf("%w: unknown platform type, this shouldn't happen", util.ErrValidationError)
+	return nil, fmt.Errorf(
+		"%w: unknown platform type, this shouldn't happen",
+		util.ErrValidationError,
+	)
 }
 
 func NewPlatformFromConfig( //nolint:funlen
