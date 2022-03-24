@@ -16,7 +16,7 @@ func diskToVendorPlatformMap() map[*regexp.Regexp][]string {
 		regexp.MustCompile(`(?i)xrv9k-fullk9-x.*.qcow2`): {
 			"cisco",
 			"xrv9k"},
-		regexp.MustCompile(`(?i)(nexus9300v|nxosv).*.qcow2`): {
+		regexp.MustCompile(`(?i)(nexus9300v(?:64)?|nxosv).*.qcow2`): {
 			"cisco",
 			"n9kv"},
 		regexp.MustCompile(`(?i)vEOS-lab-.*.vmdk`): {
@@ -56,7 +56,7 @@ func pTDiskToVersionMap() map[string]*regexp.Regexp {
 			`(?i)(?:xrv9k-fullk9-x\.vrr-)(\d+\.\d+\.\d+)`,
 		),
 		PlatformTypeCiscoN9kv: regexp.MustCompile(
-			`(?i)(?:(?:nexus9300v|nxosv)\.)(\d+\.\d+\.\d+)`,
+			`(?i)(?:(?:nexus9300v(?:64)?|nxosv)\.)(\d+\.\d+\.\d+)`,
 		),
 		PlatformTypeJuniperVsrx: regexp.MustCompile(
 			`(?i)(?:junos-media-vsrx-x86-64-vmdisk-|media-vsrx-vmdisk-)(\d+\.[\w-]+\.\d+).qcow2`,
