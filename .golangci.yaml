@@ -118,6 +118,9 @@ issues:
         - dupl
 
 run:
+  # running w/ 1.17 because we dont actually need/use 1.18 things and 1.18 breaks some linters.
+  # actions workflows are set to 1.17 but... are 1.18 anyway? for... science?
+  go: '1.17'
   skip-dirs:
     - private
     - test/testdata_etc
