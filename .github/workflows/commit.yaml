@@ -16,6 +16,6 @@ jobs:
       - name: set up go ${{ matrix.version }}
         uses: golangci/golangci-lint-action@v3
         with:
-          version: v1.43
+          version: v1.45
       - name: golangci-lint
         run: golangci-lint run
