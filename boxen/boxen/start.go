@@ -106,6 +106,11 @@ func (b *Boxen) startCheckDisk(name, disk string) error {
 func (b *Boxen) Start(name string) error {
 	b.Logger.Infof("start for instance '%s' requested", name)
 
+	_, ok := b.Config.Instances[name]
+	if !ok {
+		return fmt.Errorf("%w: no instance name '%s' in the config", util.ErrInstanceError, name)
+	}
+
 	instanceDir := fmt.Sprintf("%s/%s", b.Config.Options.Build.InstancePath, name)
 	instanceDirExists := util.DirectoryExists(instanceDir)
 
