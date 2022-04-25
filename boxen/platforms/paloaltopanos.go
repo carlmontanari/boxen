@@ -369,7 +369,7 @@ func (p *PaloAltoPanos) SetUserPass(usr, pwd string) error {
 
 	lines = append(
 		lines,
-		fmt.Sprintf("set mgmt-config users %s permissions role-based superuser yes", usr),
+		fmt.Sprintf("set mgt-config users %s permissions role-based superuser yes", usr),
 	)
 
 	return p.Config(lines)
