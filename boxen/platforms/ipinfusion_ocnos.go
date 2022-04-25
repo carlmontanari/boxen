@@ -166,7 +166,7 @@ func (p *IPInfusionOcNOS) startReady() error {
 	}
 
 	err = p.readUntil(
-		[]byte("OcNOS login:"),
+		[]byte("Welcome to OcNOS"),
 		getPlatformBootTimeout(PlatformTypeIPInfusionOcNOS),
 	)
 
