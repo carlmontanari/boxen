@@ -375,7 +375,10 @@ func (p *PaloAltoPanos) SetUserPass(usr, pwd string) error {
 		fmt.Sprintf("set mgt-config users %s phash %s", usr, pwd),
 	}
 
-	lines = util.ConfigLinesMd5Password(lines, regexp.MustCompile(`(?i)(?:set mgt-config users .* phash )(.*$)`))
+	lines = util.ConfigLinesMd5Password(
+		lines,
+		regexp.MustCompile(`(?i)(?:set mgt-config users .* phash )(.*$)`),
+	)
 
 	return p.Config(lines)
 }
