@@ -333,10 +333,14 @@ func (p *CiscoXrv9k) SaveConfig() error {
 func (p *CiscoXrv9k) SetUserPass(usr, pwd string) error {
 	p.Loggers.Base.Infof("set user/password for user '%s' requested", usr)
 
-	return p.Config([]string{fmt.Sprintf(
-		"username %s password 0 %s",
-		usr,
-		pwd)})
+	return p.Config(
+		[]string{
+			fmt.Sprintf("username %s", usr),
+			fmt.Sprintf("password 0 %s", pwd),
+			"group root-lr",
+			"group cisco-support",
+		},
+	)
 }
 
 func (p *CiscoXrv9k) SetHostname(h string) error {
