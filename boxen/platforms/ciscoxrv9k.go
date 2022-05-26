@@ -247,7 +247,7 @@ func (p *CiscoXrv9k) Install(opts ...instance.Option) error { //nolint:funlen
 	return p.Stop(opts...)
 }
 
-func (p *CiscoXrv9k) Start(opts ...instance.Option) error { //nolint:dupl
+func (p *CiscoXrv9k) Start(opts ...instance.Option) error {
 	p.Loggers.Base.Info("start platform instance requested")
 
 	a, opts, err := setStartArgs(opts...)
@@ -290,7 +290,9 @@ func (p *CiscoXrv9k) Start(opts ...instance.Option) error { //nolint:dupl
 		return err
 	}
 
-	p.Loggers.Base.Info("on open complete, waiting until we see 'system configuration completed' message")
+	p.Loggers.Base.Info(
+		"on open complete, waiting until we see 'system configuration completed' message",
+	)
 
 	err = p.readUntil(
 		[]byte("SYSTEM CONFIGURATION COMPLETED"),

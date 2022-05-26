@@ -217,7 +217,7 @@ func (p *CiscoCsr1000v) Install(opts ...instance.Option) error {
 	return p.Stop(opts...)
 }
 
-func (p *CiscoCsr1000v) Start(opts ...instance.Option) error { //nolint:dupl
+func (p *CiscoCsr1000v) Start(opts ...instance.Option) error {
 	p.Loggers.Base.Info("start platform instance requested")
 
 	a, opts, err := setStartArgs(opts...)
