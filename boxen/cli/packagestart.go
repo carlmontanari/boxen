@@ -6,7 +6,9 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func vrnetlabFlags() (*cli.StringFlag, *cli.BoolFlag) {
+func vrnetlabFlags() ( //nolint: gocritic
+	*cli.StringFlag, *cli.BoolFlag, *cli.StringFlag, *cli.StringFlag,
+) {
 	vrConnectionMode := &cli.StringFlag{
 		Name:     "connection-mode",
 		Usage:    "ignored",
@@ -19,13 +21,25 @@ func vrnetlabFlags() (*cli.StringFlag, *cli.BoolFlag) {
 		Required: false,
 	}
 
-	return vrConnectionMode, vrTrace
+	vrVCPU := &cli.StringFlag{
+		Name:     "vcpu",
+		Usage:    "ignored",
+		Required: false,
+	}
+
+	vrRAM := &cli.StringFlag{
+		Name:     "ram",
+		Usage:    "ignored",
+		Required: false,
+	}
+
+	return vrConnectionMode, vrTrace, vrVCPU, vrRAM
 }
 
 func packageStartCommands() []*cli.Command {
 	// vrnetlab compatibility flags are ignored, but exist so containerlab doesn't require any
 	// changes to work with boxen!
-	vrConnectionMode, vrTrace := vrnetlabFlags()
+	vrConnectionMode, vrTrace, vrVCPU, vrRAM := vrnetlabFlags()
 
 	username, password, hostname := customizationFlags()
 
@@ -45,6 +59,8 @@ func packageStartCommands() []*cli.Command {
 			hostname,
 			vrConnectionMode,
 			vrTrace,
+			vrVCPU,
+			vrRAM,
 			startupConfig,
 		},
 		Action: func(c *cli.Context) error {
