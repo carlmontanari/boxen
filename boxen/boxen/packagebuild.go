@@ -137,6 +137,14 @@ func (b *Boxen) packageBundle(
 		Advanced:      platformDefaultProfile.Advanced,
 	}
 
+	if i.username != "" {
+		c.Instances[i.srcDisk.PlatformType].Credentials.Username = i.username
+	}
+
+	if i.password != "" {
+		c.Instances[i.srcDisk.PlatformType].Credentials.Password = i.password
+	}
+
 	c.Instances[i.srcDisk.PlatformType].Hardware.MonitorPort = b.allocateMonitorPort(1)
 
 	c.Instances[i.srcDisk.PlatformType].Hardware.SerialPorts, err = b.allocateSerialPorts(
