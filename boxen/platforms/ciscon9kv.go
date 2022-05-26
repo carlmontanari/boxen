@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/carlmontanari/boxen/boxen/instance"
@@ -365,14 +366,27 @@ func (p *CiscoN9kv) Start(opts ...instance.Option) error { //nolint:dupl
 func (p *CiscoN9kv) SaveConfig() error {
 	p.Loggers.Base.Info("save config requested")
 
-	_, err := p.c.SendCommand(
+	r, err := p.c.SendCommand(
 		"copy running-config startup-config",
 		base.WithSendTimeoutOps(
 			time.Duration(getPlatformSaveTimeout(PlatformTypeCiscoN9kv))*time.Second,
 		),
 	)
+	if err != nil {
+		return err
+	}
 
-	return err
+	if strings.Contains(r.Result, "aborted") {
+		p.Loggers.Base.Info(
+			"'update aborted' seen in save config output, sleeping and trying again....",
+		)
+
+		time.Sleep(ciscoN9kvDefaultPromptWait * time.Second)
+
+		return p.SaveConfig()
+	}
+
+	return nil
 }
 
 func (p *CiscoN9kv) SetUserPass(usr, pwd string) error {
