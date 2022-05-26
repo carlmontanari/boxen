@@ -226,6 +226,7 @@ func (b *Boxen) buildBaseImage(i *installInfo, repo, tag string) error {
 		docker.WithTag(tag),
 		docker.WithStdErr(f),
 		docker.WithStdOut(f),
+		docker.WithNoCache(true),
 	)
 	if err != nil {
 		b.Logger.Criticalf("error starting build container: %s", err)
@@ -345,6 +346,7 @@ func (b *Boxen) buildFinalImage(i *installInfo, repo, tag string) error {
 		docker.WithTag(tag),
 		docker.WithStdErr(f),
 		docker.WithStdOut(f),
+		docker.WithNoCache(true),
 	)
 
 	b.Logger.Infof(
