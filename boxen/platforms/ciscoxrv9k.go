@@ -2,6 +2,7 @@ package platforms
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/carlmontanari/boxen/boxen/instance"
@@ -289,6 +290,16 @@ func (p *CiscoXrv9k) Start(opts ...instance.Option) error { //nolint:dupl
 		return err
 	}
 
+	p.Loggers.Base.Info("on open complete, waiting until we see 'system configuration completed' message")
+
+	err = p.readUntil(
+		[]byte("SYSTEM CONFIGURATION COMPLETED"),
+		getPlatformBootTimeout(PlatformTypeCiscoXrv9k),
+	)
+	if err != nil {
+		return err
+	}
+
 	p.Loggers.Base.Info("starting platform instance complete")
 
 	return nil
@@ -297,12 +308,22 @@ func (p *CiscoXrv9k) Start(opts ...instance.Option) error { //nolint:dupl
 func (p *CiscoXrv9k) SaveConfig() error {
 	p.Loggers.Base.Info("save config requested")
 
-	_, err := p.c.SendConfig(
+	r, err := p.c.SendConfig(
 		"commit",
 		base.WithSendTimeoutOps(
 			time.Duration(getPlatformSaveTimeout(PlatformTypeCiscoXrv9k))*time.Second,
 		),
 	)
+
+	if strings.Contains(r.Result, "Failed to commit") {
+		p.Loggers.Base.Info(
+			"'failed to commit' seen in save config output, sleeping and trying again....",
+		)
+
+		time.Sleep(ciscoXrv9kDefaultPromptWait * time.Second)
+
+		return p.SaveConfig()
+	}
 
 	return err
 }
