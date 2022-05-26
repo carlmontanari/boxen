@@ -275,6 +275,18 @@ func (p *CiscoXrv9k) Start(opts ...instance.Option) error {
 		return nil
 	}
 
+	p.Loggers.Base.Info(
+		"start ready complete, waiting until we see 'system configuration completed' message",
+	)
+
+	err = p.readUntil(
+		[]byte("SYSTEM CONFIGURATION COMPLETED"),
+		getPlatformBootTimeout(PlatformTypeCiscoXrv9k),
+	)
+	if err != nil {
+		return err
+	}
+
 	err = p.login(
 		&loginArgs{
 			username: p.Credentials.Username,
@@ -286,18 +298,6 @@ func (p *CiscoXrv9k) Start(opts ...instance.Option) error {
 	}
 
 	err = p.defOnOpen(p.c)
-	if err != nil {
-		return err
-	}
-
-	p.Loggers.Base.Info(
-		"on open complete, waiting until we see 'system configuration completed' message",
-	)
-
-	err = p.readUntil(
-		[]byte("SYSTEM CONFIGURATION COMPLETED"),
-		getPlatformBootTimeout(PlatformTypeCiscoXrv9k),
-	)
 	if err != nil {
 		return err
 	}
