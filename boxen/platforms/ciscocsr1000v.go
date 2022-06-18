@@ -141,7 +141,7 @@ func (p *CiscoCsr1000v) Install(opts ...instance.Option) error {
 	c := make(chan error, 1)
 	stop := make(chan bool, 1)
 
-	go func() { //nolint:dupl
+	go func() {
 		err = p.Qemu.Start(opts...)
 		if err != nil {
 			c <- err
