@@ -2,6 +2,7 @@ package platforms
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/carlmontanari/boxen/boxen/instance"
@@ -246,7 +247,7 @@ func (p *CiscoXrv9k) Install(opts ...instance.Option) error { //nolint:funlen
 	return p.Stop(opts...)
 }
 
-func (p *CiscoXrv9k) Start(opts ...instance.Option) error { //nolint:dupl
+func (p *CiscoXrv9k) Start(opts ...instance.Option) error {
 	p.Loggers.Base.Info("start platform instance requested")
 
 	a, opts, err := setStartArgs(opts...)
@@ -274,6 +275,18 @@ func (p *CiscoXrv9k) Start(opts ...instance.Option) error { //nolint:dupl
 		return nil
 	}
 
+	p.Loggers.Base.Info(
+		"start ready complete, waiting until we see 'system configuration completed' message",
+	)
+
+	err = p.readUntil(
+		[]byte("SYSTEM CONFIGURATION COMPLETED"),
+		getPlatformBootTimeout(PlatformTypeCiscoXrv9k),
+	)
+	if err != nil {
+		return err
+	}
+
 	err = p.login(
 		&loginArgs{
 			username: p.Credentials.Username,
@@ -297,12 +310,22 @@ func (p *CiscoXrv9k) Start(opts ...instance.Option) error { //nolint:dupl
 func (p *CiscoXrv9k) SaveConfig() error {
 	p.Loggers.Base.Info("save config requested")
 
-	_, err := p.c.SendConfig(
+	r, err := p.c.SendConfig(
 		"commit",
 		base.WithSendTimeoutOps(
 			time.Duration(getPlatformSaveTimeout(PlatformTypeCiscoXrv9k))*time.Second,
 		),
 	)
+
+	if strings.Contains(r.Result, "Failed to commit") {
+		p.Loggers.Base.Info(
+			"'failed to commit' seen in save config output, sleeping and trying again....",
+		)
+
+		time.Sleep(ciscoXrv9kDefaultPromptWait * time.Second)
+
+		return p.SaveConfig()
+	}
 
 	return err
 }
@@ -310,10 +333,14 @@ func (p *CiscoXrv9k) SaveConfig() error {
 func (p *CiscoXrv9k) SetUserPass(usr, pwd string) error {
 	p.Loggers.Base.Infof("set user/password for user '%s' requested", usr)
 
-	return p.Config([]string{fmt.Sprintf(
-		"username %s password 0 %s",
-		usr,
-		pwd)})
+	return p.Config(
+		[]string{
+			fmt.Sprintf("username %s", usr),
+			fmt.Sprintf("password 0 %s", pwd),
+			"group root-lr",
+			"group cisco-support",
+		},
+	)
 }
 
 func (p *CiscoXrv9k) SetHostname(h string) error {

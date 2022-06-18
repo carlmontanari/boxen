@@ -231,7 +231,7 @@ func (p *JuniperVsrx) SaveConfig() error {
 func (p *JuniperVsrx) SetUserPass(usr, pwd string) error {
 	p.Loggers.Base.Infof("set user/password for user '%s' requested", usr)
 
-	_, err := p.c.Driver.SendInteractive(
+	_, err := p.c.SendInteractive(
 		[]*channel.SendInteractiveEvent{
 			{
 				ChannelInput: fmt.Sprintf(

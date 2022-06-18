@@ -18,7 +18,7 @@ const (
 
 	paloAltoPanosDefaultBootTime   = 720
 	paloAltoPanosDefaultPromptWait = 30
-	paloAltoPanosDefaultLoginWait  = 180
+	paloAltoPanosDefaultLoginWait  = 300
 )
 
 type PaloAltoPanos struct {
@@ -214,6 +214,14 @@ func (p *PaloAltoPanos) Install(opts ...instance.Option) error { //nolint:funlen
 				c <- err
 			}
 
+			// this should move to scrapligo/scrapli-community, but to be quicker here it is...
+			_, err = p.ScrapliConsole.c.SendCommand("set cli terminal width 500")
+			if err != nil {
+				p.Loggers.Base.Criticalf("error disabling terminal width on open: %s\n", err)
+
+				c <- err
+			}
+
 			err = p.waitAutoCommit()
 			if err != nil {
 				p.Loggers.Base.Criticalf("error waiting for autocommit to complete: %s\n", err)
@@ -362,14 +370,14 @@ func (p *PaloAltoPanos) SaveConfig() error {
 func (p *PaloAltoPanos) SetUserPass(usr, pwd string) error {
 	p.Loggers.Base.Infof("set user/password for user '%s' requested", usr)
 
-	lines := util.ConfigLinesMd5Password(
-		[]string{fmt.Sprintf("set mgt-config users %s phash %s", usr, pwd)},
-		regexp.MustCompile(`(?i)(?:set mgt-config users .* phash )(.*$)`),
-	)
-
-	lines = append(
-		lines,
+	lines := []string{
 		fmt.Sprintf("set mgt-config users %s permissions role-based superuser yes", usr),
+		fmt.Sprintf("set mgt-config users %s phash %s", usr, pwd),
+	}
+
+	lines = util.ConfigLinesMd5Password(
+		lines,
+		regexp.MustCompile(`(?i)(?:set mgt-config users .* phash )(.*$)`),
 	)
 
 	return p.Config(lines)
