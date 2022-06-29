@@ -3,11 +3,11 @@ package platforms
 import (
 	"fmt"
 
+	soptions "github.com/scrapli/scrapligo/driver/options"
+
 	"github.com/carlmontanari/boxen/boxen/config"
 	"github.com/carlmontanari/boxen/boxen/instance"
 	"github.com/carlmontanari/boxen/boxen/util"
-
-	"github.com/scrapli/scrapligo/driver/base"
 )
 
 func GetPlatformType(v, p string) string {
@@ -117,7 +117,7 @@ func NewPlatformFromConfig( //nolint:funlen
 			q.Credentials.Username,
 			q.Credentials.Password,
 			l,
-			base.WithCommsReturnChar("\r"),
+			soptions.WithReturnChar("\r"),
 		)
 
 		p = &CiscoXrv9k{
@@ -131,7 +131,7 @@ func NewPlatformFromConfig( //nolint:funlen
 			q.Credentials.Username,
 			q.Credentials.Password,
 			l,
-			base.WithCommsReturnChar("\r"),
+			soptions.WithReturnChar("\r"),
 		)
 
 		p = &CiscoN9kv{
@@ -158,7 +158,7 @@ func NewPlatformFromConfig( //nolint:funlen
 			q.Credentials.Username,
 			q.Credentials.Password,
 			l,
-			base.WithCommsReturnChar("\r"),
+			soptions.WithReturnChar("\r"),
 		)
 
 		p = &PaloAltoPanos{
@@ -172,7 +172,7 @@ func NewPlatformFromConfig( //nolint:funlen
 			q.Credentials.Username,
 			q.Credentials.Password,
 			l,
-			base.WithCommsReturnChar("\r"),
+			soptions.WithReturnChar("\r"),
 		)
 
 		p = &IPInfusionOcNOS{

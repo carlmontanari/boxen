@@ -6,11 +6,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/scrapli/scrapligo/driver/generic"
+	sopoptions "github.com/scrapli/scrapligo/driver/opoptions"
+
 	"github.com/carlmontanari/boxen/boxen/util"
 
 	"github.com/carlmontanari/boxen/boxen/instance"
-
-	"github.com/scrapli/scrapligo/driver/base"
 )
 
 const (
@@ -65,7 +66,7 @@ func (p *PaloAltoPanos) startReady(install bool) error {
 			return err
 		}
 
-		return p.c.Channel.SendReturn()
+		return p.c.Channel.WriteReturn()
 	}
 
 	err = p.readUntil(
@@ -77,65 +78,65 @@ func (p *PaloAltoPanos) startReady(install bool) error {
 }
 
 func (p *PaloAltoPanos) initialConfigPrompt() error {
-	vmLoginPrompt, _ := base.NewReadCallback(
-		func(d *base.Driver, output string) error {
-			return d.Channel.SendReturn()
+	vmLoginPrompt, _ := generic.NewCallback(
+		func(d *generic.Driver, output string) error {
+			return d.Channel.WriteReturn()
 		},
 		// needs to be re so it doesnt also match "pa-vm login" or obv could use "not contains"
-		base.WithCallbackContainsRe(`^vm login:`),
-		base.WithCallbackNextTimeout(paloAltoPanosDefaultPromptWait*time.Second),
+		sopoptions.WithCallbackContainsRe(regexp.MustCompile(`^vm login:`)),
+		sopoptions.WithCallbackNextTimeout(paloAltoPanosDefaultPromptWait*time.Second),
 	)
 
-	hdfLoginPrompt, _ := base.NewReadCallback(
-		func(d *base.Driver, output string) error {
-			return d.Channel.SendReturn()
+	hdfLoginPrompt, _ := generic.NewCallback(
+		func(d *generic.Driver, output string) error {
+			return d.Channel.WriteReturn()
 		},
-		base.WithCallbackContains("pa-hdf login"),
-		base.WithCallbackNextTimeout(paloAltoPanosDefaultPromptWait*time.Second),
+		sopoptions.WithCallbackContains("pa-hdf login"),
+		sopoptions.WithCallbackNextTimeout(paloAltoPanosDefaultPromptWait*time.Second),
 	)
 
-	loginPrompt, _ := base.NewReadCallback(
-		func(d *base.Driver, output string) error {
+	loginPrompt, _ := generic.NewCallback(
+		func(d *generic.Driver, output string) error {
 			return d.Channel.WriteAndReturn([]byte("admin"), false)
 		},
-		base.WithCallbackContainsRe(`^pa-vm login:`),
-		base.WithCallbackNextTimeout(paloAltoPanosDefaultPromptWait*time.Second),
+		sopoptions.WithCallbackContainsRe(regexp.MustCompile(`^pa-vm login:`)),
+		sopoptions.WithCallbackNextTimeout(paloAltoPanosDefaultPromptWait*time.Second),
 	)
 
-	passwordPrompt, _ := base.NewReadCallback(
-		func(d *base.Driver, output string) error {
+	passwordPrompt, _ := generic.NewCallback(
+		func(d *generic.Driver, output string) error {
 			return d.Channel.WriteAndReturn([]byte("admin"), false)
 		},
-		base.WithCallbackContains("assword:"),
-		base.WithCallbackNextTimeout(paloAltoPanosDefaultPromptWait*time.Second),
+		sopoptions.WithCallbackContains("assword:"),
+		sopoptions.WithCallbackNextTimeout(paloAltoPanosDefaultPromptWait*time.Second),
 	)
 
-	oldPasswordPrompt, _ := base.NewReadCallback(
-		func(d *base.Driver, output string) error {
+	oldPasswordPrompt, _ := generic.NewCallback(
+		func(d *generic.Driver, output string) error {
 			return d.Channel.WriteAndReturn([]byte("admin"), false)
 		},
-		base.WithCallbackContains("enter old password :"),
-		base.WithCallbackNextTimeout(paloAltoPanosDefaultPromptWait*time.Second),
+		sopoptions.WithCallbackContains("enter old password :"),
+		sopoptions.WithCallbackNextTimeout(paloAltoPanosDefaultPromptWait*time.Second),
 	)
 
-	newPasswordPrompt, _ := base.NewReadCallback(
-		func(d *base.Driver, output string) error {
+	newPasswordPrompt, _ := generic.NewCallback(
+		func(d *generic.Driver, output string) error {
 			return d.Channel.WriteAndReturn([]byte(p.Credentials.Password), true)
 		},
-		base.WithCallbackContains("enter new password :"),
-		base.WithCallbackNextTimeout(paloAltoPanosDefaultPromptWait*time.Second),
+		sopoptions.WithCallbackContains("enter new password :"),
+		sopoptions.WithCallbackNextTimeout(paloAltoPanosDefaultPromptWait*time.Second),
 	)
 
-	confirmNewPasswordPrompt, _ := base.NewReadCallback(
-		func(d *base.Driver, output string) error {
+	confirmNewPasswordPrompt, _ := generic.NewCallback(
+		func(d *generic.Driver, output string) error {
 			return d.Channel.WriteAndReturn([]byte(p.Credentials.Password), true)
 		},
-		base.WithCallbackContains("confirm password   :"),
-		base.WithCallbackNextTimeout(paloAltoPanosDefaultPromptWait*time.Second),
-		base.WithCallbackComplete(true),
+		sopoptions.WithCallbackContains("confirm password   :"),
+		sopoptions.WithCallbackNextTimeout(paloAltoPanosDefaultPromptWait*time.Second),
+		sopoptions.WithCallbackComplete(),
 	)
 
-	callbacks := []*base.ReadCallback{
+	callbacks := []*generic.Callback{
 		vmLoginPrompt,
 		hdfLoginPrompt,
 		loginPrompt,
@@ -145,12 +146,13 @@ func (p *PaloAltoPanos) initialConfigPrompt() error {
 		confirmNewPasswordPrompt,
 	}
 
-	return p.c.ReadWithCallbacks(
-		callbacks,
+	_, err := p.c.SendWithCallbacks(
 		"",
+		callbacks,
 		60*time.Second, // nolint:gomnd
-		1*time.Second,
 	)
+
+	return err
 }
 
 func (p *PaloAltoPanos) Install(opts ...instance.Option) error { //nolint:funlen
@@ -359,7 +361,7 @@ func (p *PaloAltoPanos) SaveConfig() error {
 
 	_, err = p.c.SendConfig(
 		"commit",
-		base.WithSendTimeoutOps(
+		sopoptions.WithTimeoutOps(
 			time.Duration(getPlatformSaveTimeout(PlatformTypePaloAltoPanos))*time.Second,
 		),
 	)

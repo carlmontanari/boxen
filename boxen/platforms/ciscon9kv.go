@@ -7,10 +7,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/scrapli/scrapligo/driver/generic"
+	sopoptions "github.com/scrapli/scrapligo/driver/opoptions"
+
 	"github.com/carlmontanari/boxen/boxen/instance"
 	"github.com/carlmontanari/boxen/boxen/util"
-
-	"github.com/scrapli/scrapligo/driver/base"
 )
 
 const (
@@ -112,49 +113,49 @@ func (p *CiscoN9kv) startReady(install bool) error {
 }
 
 func (p *CiscoN9kv) initialConfigPrompt() error {
-	disablePOAP, _ := base.NewReadCallback(
-		func(d *base.Driver, output string) error {
+	disablePOAP, _ := generic.NewCallback(
+		func(d *generic.Driver, output string) error {
 			return d.Channel.WriteAndReturn([]byte("yes"), false)
 		},
-		base.WithCallbackContains("(yes/skip/no)[no]:"),
-		base.WithCallbackNextTimeout(ciscoN9kvDefaultPromptWait*time.Second),
+		sopoptions.WithCallbackContains("(yes/skip/no)[no]:"),
+		sopoptions.WithCallbackNextTimeout(ciscoN9kvDefaultPromptWait*time.Second),
 	)
 
-	disableSecurePassword, _ := base.NewReadCallback(
-		func(d *base.Driver, output string) error {
+	disableSecurePassword, _ := generic.NewCallback(
+		func(d *generic.Driver, output string) error {
 			return d.Channel.WriteAndReturn([]byte("no"), false)
 		},
-		base.WithCallbackContains("do you want to enforce secure password standard"),
-		base.WithCallbackNextTimeout(ciscoN9kvDefaultPromptWait*time.Second),
+		sopoptions.WithCallbackContains("do you want to enforce secure password standard"),
+		sopoptions.WithCallbackNextTimeout(ciscoN9kvDefaultPromptWait*time.Second),
 	)
 
-	enterAdminPass, _ := base.NewReadCallback(
-		func(d *base.Driver, output string) error {
+	enterAdminPass, _ := generic.NewCallback(
+		func(d *generic.Driver, output string) error {
 			return d.Channel.WriteAndReturn([]byte(p.Credentials.Password), true)
 		},
-		base.WithCallbackContains("enter the password for \"admin\""),
-		base.WithCallbackNextTimeout(ciscoN9kvDefaultPromptWait*time.Second),
+		sopoptions.WithCallbackContains("enter the password for \"admin\""),
+		sopoptions.WithCallbackNextTimeout(ciscoN9kvDefaultPromptWait*time.Second),
 	)
 
-	confirmAdminPass, _ := base.NewReadCallback(
-		func(d *base.Driver, output string) error {
+	confirmAdminPass, _ := generic.NewCallback(
+		func(d *generic.Driver, output string) error {
 			return d.Channel.WriteAndReturn([]byte(p.Credentials.Password), true)
 		},
-		base.WithCallbackContains("confirm the password for \"admin\""),
-		base.WithCallbackNextTimeout(ciscoN9kvDefaultPromptWait*time.Second),
+		sopoptions.WithCallbackContains("confirm the password for \"admin\""),
+		sopoptions.WithCallbackNextTimeout(ciscoN9kvDefaultPromptWait*time.Second),
 	)
 
-	initialConfigDialog, _ := base.NewReadCallback(
-		func(d *base.Driver, output string) error {
+	initialConfigDialog, _ := generic.NewCallback(
+		func(d *generic.Driver, output string) error {
 			return d.Channel.WriteAndReturn([]byte("no"), false)
 		},
-		base.WithCallbackContains(
+		sopoptions.WithCallbackContains(
 			"would you like to enter the basic configuration dialog (yes/no):",
 		),
-		base.WithCallbackComplete(true),
+		sopoptions.WithCallbackComplete(),
 	)
 
-	callbacks := []*base.ReadCallback{
+	callbacks := []*generic.Callback{
 		disablePOAP,
 		disableSecurePassword,
 		enterAdminPass,
@@ -162,12 +163,13 @@ func (p *CiscoN9kv) initialConfigPrompt() error {
 		initialConfigDialog,
 	}
 
-	return p.c.ReadWithCallbacks(
-		callbacks,
+	_, err := p.c.SendWithCallbacks(
 		"",
+		callbacks,
 		ciscoN9kvDefaultPromptDelay*time.Second,
-		1*time.Second,
 	)
+
+	return err
 }
 
 func (p *CiscoN9kv) setBootVar() error {
@@ -188,7 +190,7 @@ func (p *CiscoN9kv) setBootVar() error {
 	// setting boot config does a verification thing too; it takes an eternity!
 	_, err = p.c.SendConfig(
 		bootVarConfig,
-		base.WithSendTimeoutOps(
+		sopoptions.WithTimeoutOps(
 			time.Duration(getPlatformSaveTimeout(PlatformTypeCiscoN9kv))*2*time.Second,
 		),
 	)
@@ -368,7 +370,7 @@ func (p *CiscoN9kv) SaveConfig() error {
 
 	r, err := p.c.SendCommand(
 		"copy running-config startup-config",
-		base.WithSendTimeoutOps(
+		sopoptions.WithTimeoutOps(
 			time.Duration(getPlatformSaveTimeout(PlatformTypeCiscoN9kv))*time.Second,
 		),
 	)

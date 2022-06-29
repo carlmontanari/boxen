@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"time"
 
+	sopoptions "github.com/scrapli/scrapligo/driver/opoptions"
+
 	"github.com/carlmontanari/boxen/boxen/instance"
-	"github.com/scrapli/scrapligo/driver/base"
 )
 
 const (
@@ -178,7 +179,7 @@ func (p *IPInfusionOcNOS) SaveConfig() error {
 
 	_, err := p.c.SendCommand(
 		"copy running-config startup-config",
-		base.WithSendTimeoutOps(
+		sopoptions.WithTimeoutOps(
 			time.Duration(getPlatformSaveTimeout(PlatformTypeIPInfusionOcNOS))*time.Second,
 		),
 	)

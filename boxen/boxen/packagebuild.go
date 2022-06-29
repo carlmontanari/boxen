@@ -1,6 +1,7 @@
 package boxen
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -299,13 +300,28 @@ func (b *Boxen) runInstallImage(i *installInfo, repo, tag string) error {
 		docker.ReadCidFile(fmt.Sprintf("%s/install_cidfile", i.tmpDir)),
 	)
 
+	waitStdoutW := &bytes.Buffer{}
+
 	err = docker.Wait(
 		docker.WithContainer(docker.ReadCidFile(fmt.Sprintf("%s/install_cidfile", i.tmpDir))),
+		docker.WithStdOut(waitStdoutW),
 	)
 	if err != nil {
 		b.Logger.Criticalf("error waiting for installation container to exit: %s", err)
 
 		return err
+	}
+
+	if waitStdoutW.Len() > 0 {
+		// we got some stdout, we want to check if its a zero (48) or a 1 (49) to know what the
+		// containers exit code was (we exit with 1 in main.go if we encounter an error, so that
+		// would be what the container returns). we should also always get a newline (10).
+		if !bytes.Equal(waitStdoutW.Bytes(), []byte{48, 10}) {
+			return fmt.Errorf(
+				"%w: docker wait indicates install container exited with non-zero exit code",
+				util.ErrCommandError,
+			)
+		}
 	}
 
 	err = docker.CopyFromContainer(
