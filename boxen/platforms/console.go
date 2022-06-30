@@ -26,7 +26,7 @@ const (
 	defaultCommsReturnChar          = "\r\n"
 	defaultConsoleTimeout           = 120
 	defaultConsoleSleep             = 2
-	defaultMaxLoginAttempts         = 50
+	defaultMaxLoginAttempts         = 5
 	defaultMaxConsecutiveEmptyReads = 10
 )
 
@@ -259,6 +259,8 @@ func (c *ScrapliConsole) login(
 		}
 
 		if loginArgs.loginPattern.Match(b) {
+			loginAttempts++
+
 			c.logger.Debugf("found login prompt sending username %s", loginArgs.username)
 
 			_ = c.c.Channel.WriteAndReturn([]byte(loginArgs.username), false)
@@ -271,8 +273,6 @@ func (c *ScrapliConsole) login(
 			_ = c.c.Channel.WriteAndReturn([]byte(loginArgs.password), true)
 			b = make([]byte, 0)
 		}
-
-		loginAttempts++
 
 		if loginAttempts > defaultMaxLoginAttempts {
 			return fmt.Errorf("%w: console login failed", util.ErrConsoleError)
@@ -315,14 +315,14 @@ func (c *ScrapliConsole) InstallConfig(f string, replace bool) error {
 	)
 
 	if err != nil {
-		c.logger.Criticalf("failed creating scraplicfg driver: %s", err)
+		c.logger.Criticalf("failed creating scrapli cfg driver: %s", err)
 
 		return err
 	}
 
 	err = cfgConn.Prepare()
 	if err != nil {
-		c.logger.Criticalf("failed running prepare method of scrpalicfg driver: %s", err)
+		c.logger.Criticalf("failed running prepare method of scrapli cfg driver: %s", err)
 
 		return err
 	}
@@ -332,7 +332,7 @@ func (c *ScrapliConsole) InstallConfig(f string, replace bool) error {
 		replace,
 	)
 	if err != nil {
-		c.logger.Criticalf("failed creating scraplicfg driver: %s", err)
+		c.logger.Criticalf("failed creating scrapli cfg driver: %s", err)
 
 		return err
 	}
@@ -346,7 +346,7 @@ func (c *ScrapliConsole) InstallConfig(f string, replace bool) error {
 
 	err = cfgConn.Cleanup()
 	if err != nil {
-		c.logger.Criticalf("failed running cleanup method of scrpalicfg driver: %s", err)
+		c.logger.Criticalf("failed running cleanup method of scrapli cfg driver: %s", err)
 
 		return err
 	}
