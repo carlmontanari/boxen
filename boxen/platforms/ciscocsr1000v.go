@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 	"time"
 
+	sopoptions "github.com/scrapli/scrapligo/driver/opoptions"
+
 	"github.com/carlmontanari/boxen/boxen/command"
 	"github.com/carlmontanari/boxen/boxen/instance"
 	"github.com/carlmontanari/boxen/boxen/util"
-
-	"github.com/scrapli/scrapligo/driver/base"
 )
 
 const (
@@ -270,7 +270,7 @@ func (p *CiscoCsr1000v) SaveConfig() error {
 
 	_, err := p.c.SendCommand(
 		"copy running-config startup-config",
-		base.WithSendTimeoutOps(
+		sopoptions.WithTimeoutOps(
 			time.Duration(getPlatformSaveTimeout(PlatformTypeCiscoCsr1000v))*time.Second,
 		),
 	)
