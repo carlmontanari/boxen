@@ -26,7 +26,7 @@ func (p *IPInfusionOcNOS) Package(
 	return nil, nil, err
 }
 
-func (p *IPInfusionOcNOS) Install(opts ...instance.Option) error {
+func (p *IPInfusionOcNOS) Install(opts ...instance.Option) error { // nolint:dupl
 	p.Loggers.Base.Info("install requested")
 
 	a, opts, err := setInstallArgs(opts...)
