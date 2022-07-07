@@ -23,6 +23,8 @@ func getPlatformBootTimeout(pT string) int {
 		t = ciscoXrv9kDefaultBootTime
 	case PlatformTypePaloAltoPanos:
 		t = paloAltoPanosDefaultBootTime
+	case PlatformTypeCheckpointCloudguard:
+		t = checkpointCloudGuardDefaultBootTime
 	default:
 		t = DefaultBootTime
 	}

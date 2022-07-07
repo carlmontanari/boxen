@@ -5,7 +5,7 @@
 
 ---
 
-boxen -- put your network operating systems in a box (or if you speak 🇩🇪, fight them! 🤣)! 
+boxen -- put your network operating systems in a box (or if you speak 🇩🇪, fight them! 🤣)!
 
 boxen is a cli tool written in Go that allows you to package your network operating systems neatly 
 into little... boxes (container images) so they are easily portable, and, most importantly, so you 
@@ -39,6 +39,8 @@ Please note that this is a work in progress... especially the documentation!
   - vSRX (tested with 17.3R2.10)
 - Palo Alto
   - PA-VM (tested with 10.0.6)
+- Checkpoint
+  - Cloudguard (tested with R81.10)
 
 Additional platforms can of course be added! 
 

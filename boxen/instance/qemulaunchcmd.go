@@ -136,6 +136,17 @@ func (i *Qemu) launchCmdCPU() []string {
 			}...)
 	}
 
+	// when only cores are specified, the `-smp %s` gets appended
+	if c.Cores != 0 && c.Threads == 0 && c.Sockets == 0 {
+		if len(cpuCmd) == 0 {
+			cpuCmd = append(cpuCmd, []string{"-cpu", "max"}...)
+		}
+
+		cpuCmd = append(
+			cpuCmd,
+			[]string{"-smp", fmt.Sprint(c.Cores)}...)
+	}
+
 	return cpuCmd
 }
 

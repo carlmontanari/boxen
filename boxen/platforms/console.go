@@ -38,7 +38,7 @@ type ScrapliConsole struct {
 }
 
 func NewScrapliConsole(
-	scrapliPlatform string,
+	scrapliPlatform interface{},
 	port int,
 	usr, pwd string,
 	l *instance.Loggers,
@@ -82,7 +82,7 @@ func NewScrapliConsole(
 	}
 
 	con := &ScrapliConsole{
-		pT:        scrapliPlatform,
+		pT:        "bandaid",
 		c:         c,
 		defOnOpen: c.OnOpen,
 		logger:    l.Base,

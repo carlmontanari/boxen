@@ -3,6 +3,7 @@ package platforms
 import (
 	"fmt"
 
+	"github.com/carlmontanari/boxen/boxen/assets"
 	soptions "github.com/scrapli/scrapligo/driver/options"
 
 	"github.com/carlmontanari/boxen/boxen/config"
@@ -37,6 +38,10 @@ func GetPlatformType(v, p string) string {
 		if p == PlatformIPInfusionOcNOS {
 			return PlatformTypeIPInfusionOcNOS
 		}
+	case VendorCheckpoint:
+		if p == PlatformCheckpointCloudguard {
+			return PlatformTypeCheckpointCloudguard
+		}
 	}
 
 	return ""
@@ -58,6 +63,8 @@ func GetPlatformEmptyStruct(pT string) (Platform, error) {
 		return &PaloAltoPanos{}, nil
 	case PlatformTypeIPInfusionOcNOS:
 		return &IPInfusionOcNOS{}, nil
+	case PlatformTypeCheckpointCloudguard:
+		return &CheckpointCloudguard{}, nil
 	}
 
 	return nil, fmt.Errorf(
@@ -176,6 +183,31 @@ func NewPlatformFromConfig( //nolint:funlen
 		)
 
 		p = &IPInfusionOcNOS{
+			Qemu:           q,
+			ScrapliConsole: con,
+		}
+	case PlatformTypeCheckpointCloudguard:
+		var platformDefinition []byte
+
+		platformDefinition, err = assets.ScrapliPlatformsAssets.ReadFile(
+			"scrapli_platforms/" + CheckpointCloudguardDefaultScrapliPlatformDefinitionFile,
+		)
+
+		if err != nil {
+			return nil, fmt.Errorf("%w: scrapligo driver is not found for %q platform: %v",
+				util.ErrAllocationError, pT, err)
+		}
+
+		con, err = NewScrapliConsole(
+			platformDefinition,
+			q.Hardware.SerialPorts[0],
+			q.Credentials.Username,
+			q.Credentials.Password,
+			l,
+			soptions.WithReturnChar("\r"),
+		)
+
+		p = &CheckpointCloudguard{
 			Qemu:           q,
 			ScrapliConsole: con,
 		}
