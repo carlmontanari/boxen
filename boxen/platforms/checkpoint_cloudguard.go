@@ -14,7 +14,7 @@ const (
 	CheckpointCloudguardDefaultUser = "admin"
 	CheckpointCloudguardDefaultPass = "admin"
 
-	CheckpointCloudguardDefaultScrapliPlatformDefinitionFile = "https://gist.githubusercontent.com/hellt/1eee1024bc1cb3121aaeac199d48663a/raw/07caf0b024802da2dbb6fe17dbabcb26231b8cb6/checkpoint_cloudguard.yaml" // nolint:lll
+	CheckpointCloudguardScrapliPlatform = "https://gist.githubusercontent.com/hellt/1eee1024bc1cb3121aaeac199d48663a/raw/07caf0b024802da2dbb6fe17dbabcb26231b8cb6/checkpoint_cloudguard.yaml" // nolint:lll
 
 	checkpointCloudGuardDefaultBootTime = 720
 )
