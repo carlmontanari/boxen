@@ -38,7 +38,7 @@ type ScrapliConsole struct {
 }
 
 func NewScrapliConsole(
-	scrapliPlatform interface{},
+	scrapliPlatform string,
 	port int,
 	usr, pwd string,
 	l *instance.Loggers,
@@ -82,7 +82,9 @@ func NewScrapliConsole(
 	}
 
 	con := &ScrapliConsole{
-		pT:        "bandaid",
+		// (hellt) TODO: change this to a method call that returns platform type out of a scrapli definition
+		// to support plugging in platform types from yml files referenced via URL/paths
+		pT:        scrapliPlatform,
 		c:         c,
 		defOnOpen: c.OnOpen,
 		logger:    l.Base,

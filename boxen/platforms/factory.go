@@ -3,7 +3,6 @@ package platforms
 import (
 	"fmt"
 
-	"github.com/carlmontanari/boxen/boxen/assets"
 	soptions "github.com/scrapli/scrapligo/driver/options"
 
 	"github.com/carlmontanari/boxen/boxen/config"
@@ -187,11 +186,7 @@ func NewPlatformFromConfig( //nolint:funlen
 			ScrapliConsole: con,
 		}
 	case PlatformTypeCheckpointCloudguard:
-		var platformDefinition []byte
-
-		platformDefinition, err = assets.ScrapliPlatformsAssets.ReadFile(
-			"scrapli_platforms/" + CheckpointCloudguardDefaultScrapliPlatformDefinitionFile,
-		)
+		platformDefinition := CheckpointCloudguardDefaultScrapliPlatformDefinitionFile
 
 		if err != nil {
 			return nil, fmt.Errorf("%w: scrapligo driver is not found for %q platform: %v",

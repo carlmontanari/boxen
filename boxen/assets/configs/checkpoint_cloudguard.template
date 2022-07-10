@@ -1,4 +1,5 @@
 lock database override
 set interface eth0 ipv4-address 10.0.0.15 subnet-mask 255.255.255.0
 set interface eth0 state on
+set ipv6-state on
 unlock database
