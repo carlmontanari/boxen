@@ -123,28 +123,23 @@ func (i *Qemu) launchCmdCPU() []string {
 		cpuCmd = append(cpuCmd, []string{"-cpu", c.Emulation}...)
 	}
 
-	if c.Cores != 0 && c.Threads != 0 && c.Sockets != 0 {
+	if c.Cores != 0 {
 		if len(cpuCmd) == 0 {
 			cpuCmd = append(cpuCmd, []string{"-cpu", "max"}...)
 		}
 
-		cpuCmd = append(
-			cpuCmd,
-			[]string{
-				"-smp",
-				fmt.Sprintf("cores=%d,threads=%d,sockets=%d", c.Cores, c.Threads, c.Sockets),
-			}...)
-	}
-
-	// when only cores are specified, the `-smp %s` gets appended
-	if c.Cores != 0 && c.Threads == 0 && c.Sockets == 0 {
-		if len(cpuCmd) == 0 {
-			cpuCmd = append(cpuCmd, []string{"-cpu", "max"}...)
+		if c.Threads != 0 && c.Sockets != 0 {
+			cpuCmd = append(
+				cpuCmd,
+				[]string{
+					"-smp",
+					fmt.Sprintf("cores=%d,threads=%d,sockets=%d", c.Cores, c.Threads, c.Sockets),
+				}...)
+		} else if c.Threads == 0 && c.Sockets == 0 {
+			cpuCmd = append(
+				cpuCmd,
+				[]string{"-smp", fmt.Sprint(c.Cores)}...)
 		}
-
-		cpuCmd = append(
-			cpuCmd,
-			[]string{"-smp", fmt.Sprint(c.Cores)}...)
 	}
 
 	return cpuCmd
