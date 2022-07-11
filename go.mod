@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/google/uuid v1.3.0
-	github.com/scrapli/scrapligo v1.0.0
+	github.com/scrapli/scrapligo v1.1.0
 	github.com/scrapli/scrapligocfg v1.0.0
 	github.com/urfave/cli/v2 v2.3.0
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211

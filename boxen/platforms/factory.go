@@ -2,6 +2,7 @@ package platforms
 
 import (
 	"fmt"
+	"os"
 
 	soptions "github.com/scrapli/scrapligo/driver/options"
 
@@ -37,6 +38,10 @@ func GetPlatformType(v, p string) string {
 		if p == PlatformIPInfusionOcNOS {
 			return PlatformTypeIPInfusionOcNOS
 		}
+	case VendorCheckpoint:
+		if p == PlatformCheckpointCloudguard {
+			return PlatformTypeCheckpointCloudguard
+		}
 	}
 
 	return ""
@@ -58,12 +63,46 @@ func GetPlatformEmptyStruct(pT string) (Platform, error) {
 		return &PaloAltoPanos{}, nil
 	case PlatformTypeIPInfusionOcNOS:
 		return &IPInfusionOcNOS{}, nil
+	case PlatformTypeCheckpointCloudguard:
+		return &CheckpointCloudguard{}, nil
 	}
 
 	return nil, fmt.Errorf(
 		"%w: unknown platform type, this shouldn't happen",
 		util.ErrValidationError,
 	)
+}
+
+// GetPlatformScrapliDefinition sets the scrapli platform definition to a value
+// of the BOXEN_SCRAPLI_PLATFORM_DEFINITION env var or to a default string value.
+func GetPlatformScrapliDefinition(p string) string {
+	scrapliPlatform := os.Getenv("BOXEN_SCRAPLI_PLATFORM_DEFINITION")
+	if scrapliPlatform != "" {
+		return scrapliPlatform
+	}
+
+	// retrieve default scrapli platform url/name
+	// when env var is not set
+	switch p {
+	case PlatformTypeAristaVeos:
+		return AristaVeosScrapliPlatform
+	case PlatformTypeCiscoCsr1000v:
+		return CiscoCsr1000vScrapliPlatform
+	case PlatformTypeCiscoXrv9k:
+		return CiscoXrv9kScrapliPlatform
+	case PlatformTypeCiscoN9kv:
+		return CiscoN9kvScrapliPlatform
+	case PlatformTypeJuniperVsrx:
+		return JuniperVsrxScrapliPlatform
+	case PlatformTypePaloAltoPanos:
+		return PaloAltoPanosScrapliPlatform
+	case PlatformTypeIPInfusionOcNOS:
+		return IPInfusionOcNOSScrapliPlatform
+	case PlatformTypeCheckpointCloudguard:
+		return CheckpointCloudguardScrapliPlatform
+	}
+
+	return ""
 }
 
 func NewPlatformFromConfig( //nolint:funlen
@@ -83,10 +122,12 @@ func NewPlatformFromConfig( //nolint:funlen
 
 	var con *ScrapliConsole
 
+	scrapliPlatform := GetPlatformScrapliDefinition(pT)
+
 	switch pT {
 	case PlatformTypeAristaVeos:
 		con, err = NewScrapliConsole(
-			AristaVeosScrapliPlatform,
+			scrapliPlatform,
 			q.Hardware.SerialPorts[0],
 			q.Credentials.Username,
 			q.Credentials.Password,
@@ -99,7 +140,7 @@ func NewPlatformFromConfig( //nolint:funlen
 		}
 	case PlatformTypeCiscoCsr1000v:
 		con, err = NewScrapliConsole(
-			CiscoCsr1000vScrapliPlatform,
+			scrapliPlatform,
 			q.Hardware.SerialPorts[0],
 			q.Credentials.Username,
 			q.Credentials.Password,
@@ -112,7 +153,7 @@ func NewPlatformFromConfig( //nolint:funlen
 		}
 	case PlatformTypeCiscoXrv9k:
 		con, err = NewScrapliConsole(
-			CiscoXrv9kScrapliPlatform,
+			scrapliPlatform,
 			q.Hardware.SerialPorts[0],
 			q.Credentials.Username,
 			q.Credentials.Password,
@@ -126,7 +167,7 @@ func NewPlatformFromConfig( //nolint:funlen
 		}
 	case PlatformTypeCiscoN9kv:
 		con, err = NewScrapliConsole(
-			CiscoN9kvScrapliPlatform,
+			scrapliPlatform,
 			q.Hardware.SerialPorts[0],
 			q.Credentials.Username,
 			q.Credentials.Password,
@@ -140,7 +181,7 @@ func NewPlatformFromConfig( //nolint:funlen
 		}
 	case PlatformTypeJuniperVsrx:
 		con, err = NewScrapliConsole(
-			JuniperVsrxScrapliPlatform,
+			scrapliPlatform,
 			q.Hardware.SerialPorts[0],
 			q.Credentials.Username,
 			q.Credentials.Password,
@@ -153,7 +194,7 @@ func NewPlatformFromConfig( //nolint:funlen
 		}
 	case PlatformTypePaloAltoPanos:
 		con, err = NewScrapliConsole(
-			PaloAltoPanosScrapliPlatform,
+			scrapliPlatform,
 			q.Hardware.SerialPorts[0],
 			q.Credentials.Username,
 			q.Credentials.Password,
@@ -167,7 +208,7 @@ func NewPlatformFromConfig( //nolint:funlen
 		}
 	case PlatformTypeIPInfusionOcNOS:
 		con, err = NewScrapliConsole(
-			IPInfusionOcNOSScrapliPlatform,
+			scrapliPlatform,
 			q.Hardware.SerialPorts[0],
 			q.Credentials.Username,
 			q.Credentials.Password,
@@ -176,6 +217,20 @@ func NewPlatformFromConfig( //nolint:funlen
 		)
 
 		p = &IPInfusionOcNOS{
+			Qemu:           q,
+			ScrapliConsole: con,
+		}
+	case PlatformTypeCheckpointCloudguard:
+		con, err = NewScrapliConsole(
+			scrapliPlatform,
+			q.Hardware.SerialPorts[0],
+			q.Credentials.Username,
+			q.Credentials.Password,
+			l,
+			soptions.WithReturnChar("\r"),
+		)
+
+		p = &CheckpointCloudguard{
 			Qemu:           q,
 			ScrapliConsole: con,
 		}

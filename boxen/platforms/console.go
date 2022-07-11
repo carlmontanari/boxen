@@ -82,7 +82,7 @@ func NewScrapliConsole(
 	}
 
 	con := &ScrapliConsole{
-		pT:        scrapliPlatform,
+		pT:        p.GetPlatformType(),
 		c:         c,
 		defOnOpen: c.OnOpen,
 		logger:    l.Base,
