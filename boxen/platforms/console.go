@@ -82,10 +82,7 @@ func NewScrapliConsole(
 	}
 
 	con := &ScrapliConsole{
-		// (hellt) TODO: change this to a method call that returns the platform type.
-		// This is to support plugging in platform types
-		// from yml files referenced via URL/paths
-		pT:        scrapliPlatform,
+		pT:        p.GetPlatformType(),
 		c:         c,
 		defOnOpen: c.OnOpen,
 		logger:    l.Base,
