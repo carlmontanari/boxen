@@ -1,7 +1,6 @@
 package platforms
 
 import (
-	_ "embed" // embed FS
 	"fmt"
 	"time"
 
