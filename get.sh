@@ -117,8 +117,8 @@ checkInstalledVersion() {
             echo "${BINARY_NAME} is already at ${DESIRED_VERSION:-latest ($version)}" version
             return 0
         else
-            echo "A newer ${BINARY_NAME} ${TAG_WO_VER} is available. Release notes: https://containerlab.srlinux.dev/rn/${TAG_WO_VER}"
-            echo "You are running containerlab $version version"
+            echo "A newer ${BINARY_NAME} ${TAG_WO_VER} is available. Release notes: https://github.com/carlmontanari/boxen/releases/tag/${TAG}"
+            echo "You are running Boxen version $version"
             UPGR_NEEDED="Y"
             # check if stdin is open (i.e. capable of getting users input)
             if [ -t 0 ]; then
