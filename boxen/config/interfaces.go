@@ -1,5 +1,7 @@
 package config
 
+import "fmt"
+
 type MgmtIntf struct {
 	Nat    *Nat
 	Bridge *Bridge
@@ -13,6 +15,10 @@ type Nat struct {
 type NatPortPair struct {
 	InstanceSide int `yaml:"instance_side,omitempty"`
 	HostSide     int `yaml:"host_side,omitempty"`
+}
+
+func (n *NatPortPair) String() string {
+	return fmt.Sprintf("(host)%d<->%d(instance)", n.HostSide, n.InstanceSide)
 }
 
 type Bridge struct{}

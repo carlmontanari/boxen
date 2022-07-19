@@ -118,6 +118,8 @@ func (b *Boxen) packageBundle(
 		return err
 	}
 
+	tcpNats, udpNats := zipPlatformProfileNats(platformDefaultProfile.TPCNatPorts, platformDefaultProfile.UDPNatPorts)
+
 	c.Instances[i.srcDisk.PlatformType] = &config.Instance{
 		Name:         i.srcDisk.PlatformType,
 		PlatformType: i.srcDisk.PlatformType,
@@ -129,8 +131,8 @@ func (b *Boxen) packageBundle(
 		Hardware:     platformDefaultProfile.Hardware.ToHardware(),
 		MgmtIntf: &config.MgmtIntf{
 			Nat: &config.Nat{
-				TCP: zipDefaultTCPNats(platformDefaultProfile.TPCNatPorts),
-				UDP: zipDefaultUDPNats(platformDefaultProfile.UDPNatPorts),
+				TCP: tcpNats,
+				UDP: udpNats,
 			},
 			Bridge: nil,
 		},
