@@ -1,8 +1,9 @@
-package boxen
+package boxen_test
 
 import (
 	"testing"
 
+	"github.com/carlmontanari/boxen/boxen/boxen"
 	"github.com/carlmontanari/boxen/boxen/config"
 	"github.com/google/go-cmp/cmp"
 )
@@ -70,7 +71,7 @@ func TestZipPlatformProfileNats(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			tcp, udp := zipPlatformProfileNats(tt.tcp, tt.udp)
+			tcp, udp := boxen.ZipPlatformProfileNats(tt.tcp, tt.udp)
 
 			if !cmp.Equal(tcp, tt.wantTCPNats) {
 				t.Fatalf(
@@ -91,6 +92,5 @@ func TestZipPlatformProfileNats(t *testing.T) {
 			}
 		},
 		)
-
 	}
 }

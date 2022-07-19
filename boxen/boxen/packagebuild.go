@@ -118,7 +118,7 @@ func (b *Boxen) packageBundle(
 		return err
 	}
 
-	tcpNats, udpNats := zipPlatformProfileNats(
+	tcpNats, udpNats := ZipPlatformProfileNats(
 		platformDefaultProfile.TPCNatPorts,
 		platformDefaultProfile.UDPNatPorts,
 	)
