@@ -10,7 +10,9 @@ const (
 // zipPlatformProfileNats receives the lists of TCP and UDP ports that are defined in a platform profile yaml.
 // For each received tcp/udp instance port a host port is allocated sequentially from the hostPortBase port number.
 // These port mappings are used in packaging workflow (e.g. when building for containerlab)
-func zipPlatformProfileNats(platformTCPPorts, platformUDPPorts []int) (tcpNats, udpNats []*config.NatPortPair) {
+func zipPlatformProfileNats(
+	platformTCPPorts, platformUDPPorts []int,
+) (tcpNats, udpNats []*config.NatPortPair) {
 	tcpPortsLen := len(platformTCPPorts)
 	udpPortsLen := len(platformUDPPorts)
 
