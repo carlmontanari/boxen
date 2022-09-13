@@ -29,6 +29,10 @@ func diskToVendorPlatformMap() map[*regexp.Regexp][]string {
 			"paloalto",
 			"panos",
 		},
+		regexp.MustCompile(`(?i)check_point_r.*.cloudguard.*.qcow2`): {
+			"checkpoint",
+			"cloudguard",
+		},
 	}
 }
 
@@ -63,12 +67,12 @@ func pTDiskToVersionMap() map[string]*regexp.Regexp {
 		),
 		PlatformTypePaloAltoPanos: regexp.MustCompile(
 			`(?i)(?:pa-vm-kvm-)(\d+\.\d+\.\d+).qcow2`),
+		PlatformTypeCheckpointCloudguard: regexp.MustCompile(
+			`(?i)check_point_(r\d+\.\d+)_cloudguard_.*.qcow2`),
 	}
 }
 
-func GetDiskVersion(
-	f, pT string,
-) (string, error) {
+func GetDiskVersion(f, pT string) (string, error) {
 	targetVersionMap := pTDiskToVersionMap()
 
 	pattern := targetVersionMap[pT]
