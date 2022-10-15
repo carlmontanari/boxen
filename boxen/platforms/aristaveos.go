@@ -10,7 +10,7 @@ import (
 	"github.com/carlmontanari/boxen/boxen/instance"
 	"github.com/carlmontanari/boxen/boxen/util"
 
-	"github.com/scrapli/scrapligo/driver/base"
+	sopoptions "github.com/scrapli/scrapligo/driver/opoptions"
 )
 
 const (
@@ -127,7 +127,7 @@ func (p *AristaVeos) startReady(install bool) error {
 	return err
 }
 
-func (p *AristaVeos) Install(opts ...instance.Option) error {
+func (p *AristaVeos) Install(opts ...instance.Option) error { //nolint: funlen
 	p.Loggers.Base.Info("install requested")
 
 	a, opts, err := setInstallArgs(opts...)
@@ -144,6 +144,8 @@ func (p *AristaVeos) Install(opts ...instance.Option) error {
 		err = p.Qemu.Start(opts...)
 		if err != nil {
 			c <- err
+
+			return
 		}
 
 		p.Loggers.Base.Debug("instance started, waiting for start ready state")
@@ -153,6 +155,8 @@ func (p *AristaVeos) Install(opts ...instance.Option) error {
 			p.Loggers.Base.Criticalf("error waiting for start ready state: %s\n", err)
 
 			c <- err
+
+			return
 		}
 
 		p.Loggers.Base.Debug("start ready state acquired, logging in")
@@ -165,6 +169,8 @@ func (p *AristaVeos) Install(opts ...instance.Option) error {
 		)
 		if err != nil {
 			c <- err
+
+			return
 		}
 
 		p.Loggers.Base.Debug("log in complete")
@@ -177,6 +183,8 @@ func (p *AristaVeos) Install(opts ...instance.Option) error {
 				p.Loggers.Base.Criticalf("error running scrapligo on open: %s\n", err)
 
 				c <- err
+
+				return
 			}
 
 			err = p.Config(a.configLines)
@@ -184,6 +192,8 @@ func (p *AristaVeos) Install(opts ...instance.Option) error {
 				p.Loggers.Base.Criticalf("error sending install config lines: %s\n", err)
 
 				c <- err
+
+				return
 			}
 		}
 
@@ -194,6 +204,8 @@ func (p *AristaVeos) Install(opts ...instance.Option) error {
 			p.Loggers.Base.Criticalf("error saving config: %s\n", err)
 
 			c <- err
+
+			return
 		}
 
 		// small delay ensuring config is saved nicely, without this extra sleep things just seem to
@@ -269,7 +281,7 @@ func (p *AristaVeos) SaveConfig() error {
 
 	_, err := p.c.SendCommand(
 		"copy running-config startup-config",
-		base.WithSendTimeoutOps(
+		sopoptions.WithTimeoutOps(
 			time.Duration(getPlatformSaveTimeout(PlatformTypeAristaVeos))*time.Second,
 		),
 	)

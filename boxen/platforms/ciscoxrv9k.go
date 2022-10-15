@@ -5,9 +5,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/carlmontanari/boxen/boxen/instance"
+	"github.com/scrapli/scrapligo/driver/generic"
+	sopoptions "github.com/scrapli/scrapligo/driver/opoptions"
 
-	"github.com/scrapli/scrapligo/driver/base"
+	"github.com/carlmontanari/boxen/boxen/instance"
 )
 
 const (
@@ -70,78 +71,80 @@ func (p *CiscoXrv9k) startReady() error {
 		return err
 	}
 
-	return p.c.Channel.SendReturn()
+	return p.c.Channel.WriteReturn()
 }
 
 func (p *CiscoXrv9k) initialConfigPrompt() error {
-	rootUser, _ := base.NewReadCallback(
-		func(d *base.Driver, output string) error {
+	rootUser, _ := generic.NewCallback(
+		func(d *generic.Driver, output string) error {
 			return d.Channel.WriteAndReturn([]byte(p.Credentials.Username), false)
 		},
-		base.WithCallbackContains("enter root-system username"),
-		base.WithCallbackNextTimeout(ciscoXrv9kDefaultPromptWait*time.Second),
+		sopoptions.WithCallbackContains("enter root-system username"),
+		sopoptions.WithCallbackNextTimeout(ciscoXrv9kDefaultPromptWait*time.Second),
 	)
 
-	enterAdminPass, _ := base.NewReadCallback(
-		func(d *base.Driver, output string) error {
+	enterAdminPass, _ := generic.NewCallback(
+		func(d *generic.Driver, output string) error {
 			return d.Channel.WriteAndReturn([]byte(p.Credentials.Password), true)
 		},
 		// don't forget the colon at the end or this will match for the secret again step too!
 		// could also have a "not contains" but this works well enough.
-		base.WithCallbackContains("enter secret:"),
-		base.WithCallbackNextTimeout(ciscoXrv9kDefaultPromptWait*time.Second),
+		sopoptions.WithCallbackContains("enter secret:"),
+		sopoptions.WithCallbackNextTimeout(ciscoXrv9kDefaultPromptWait*time.Second),
 	)
 
-	confirmAdminPass, _ := base.NewReadCallback(
-		func(d *base.Driver, output string) error {
+	confirmAdminPass, _ := generic.NewCallback(
+		func(d *generic.Driver, output string) error {
 			return d.Channel.WriteAndReturn([]byte(p.Credentials.Password), true)
 		},
-		base.WithCallbackContains("enter secret again"),
-		base.WithCallbackNextTimeout(ciscoXrv9kDefaultPromptWait*time.Second),
-		base.WithCallbackComplete(true),
+		sopoptions.WithCallbackContains("enter secret again"),
+		sopoptions.WithCallbackNextTimeout(ciscoXrv9kDefaultPromptWait*time.Second),
+		sopoptions.WithCallbackComplete(),
 	)
 
-	callbacks := []*base.ReadCallback{
+	callbacks := []*generic.Callback{
 		rootUser,
 		enterAdminPass,
 		confirmAdminPass,
 	}
 
-	return p.c.ReadWithCallbacks(
-		callbacks,
+	_, err := p.c.SendWithCallbacks(
 		"",
+		callbacks,
 		ciscoXrv9kDefaultPromptDelay*time.Second,
-		1*time.Second,
 	)
+
+	return err
 }
 
 func (p *CiscoXrv9k) generateCryptoKey() error {
-	confirmReplace, _ := base.NewReadCallback(
-		func(d *base.Driver, output string) error {
+	confirmReplace, _ := generic.NewCallback(
+		func(d *generic.Driver, output string) error {
 			return d.Channel.WriteAndReturn([]byte("yes"), false)
 		},
-		base.WithCallbackContains("really want to replace them"),
+		sopoptions.WithCallbackContains("really want to replace them"),
 	)
 
-	enterBits, _ := base.NewReadCallback(
-		func(d *base.Driver, output string) error {
-			return d.Channel.SendReturn()
+	enterBits, _ := generic.NewCallback(
+		func(d *generic.Driver, output string) error {
+			return d.Channel.WriteReturn()
 		},
-		base.WithCallbackContains("many bits in the modulus"),
-		base.WithCallbackComplete(true),
+		sopoptions.WithCallbackContains("many bits in the modulus"),
+		sopoptions.WithCallbackComplete(),
 	)
 
-	callbacks := []*base.ReadCallback{
+	callbacks := []*generic.Callback{
 		confirmReplace,
 		enterBits,
 	}
 
-	return p.c.ReadWithCallbacks(
-		callbacks,
+	_, err := p.c.SendWithCallbacks(
 		"crypto key generate rsa",
+		callbacks,
 		ciscoXrv9kDefaultPromptWait*time.Second,
-		1*time.Second,
 	)
+
+	return err
 }
 
 func (p *CiscoXrv9k) Install(opts ...instance.Option) error { //nolint:funlen
@@ -312,7 +315,7 @@ func (p *CiscoXrv9k) SaveConfig() error {
 
 	r, err := p.c.SendConfig(
 		"commit",
-		base.WithSendTimeoutOps(
+		sopoptions.WithTimeoutOps(
 			time.Duration(getPlatformSaveTimeout(PlatformTypeCiscoXrv9k))*time.Second,
 		),
 	)

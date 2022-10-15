@@ -80,7 +80,7 @@ setDesiredVersion() {
         # when desired version is not provided
         # get latest tag from the gh releases
         if type "curl" &>/dev/null; then
-            local latest_release_url=$(curl -s $REPO_URL/releases/latest | cut -d '"' -f 2)
+            local latest_release_url=$(curl -s -N https://api.github.com/repos/$REPO_NAME/releases/latest | sed '5q;d' | cut -d '"' -f 4)
             TAG=$(echo $latest_release_url | cut -d '"' -f 2 | awk -F "/" '{print $NF}')
             # tag with stripped `v` prefix
             TAG_WO_VER=$(echo "${TAG}" | cut -c 2-)
@@ -112,13 +112,13 @@ setDesiredVersion() {
 # if it needs to be changed.
 checkInstalledVersion() {
     if [[ -f "${BIN_INSTALL_DIR}/${BINARY_NAME}" ]]; then
-        local version=$("${BIN_INSTALL_DIR}/${BINARY_NAME}" version | grep version | awk '{print $NF}')
+        local version=$("${BIN_INSTALL_DIR}/${BINARY_NAME}" --version | grep version | awk '{print $NF}')
         if [[ "v$version" == "$TAG" ]]; then
             echo "${BINARY_NAME} is already at ${DESIRED_VERSION:-latest ($version)}" version
             return 0
         else
-            echo "A newer ${BINARY_NAME} ${TAG_WO_VER} is available. Release notes: https://containerlab.srlinux.dev/rn/${TAG_WO_VER}"
-            echo "You are running containerlab $version version"
+            echo "A newer ${BINARY_NAME} ${TAG_WO_VER} is available. Release notes: https://github.com/carlmontanari/boxen/releases/tag/${TAG}"
+            echo "You are running Boxen version $version"
             UPGR_NEEDED="Y"
             # check if stdin is open (i.e. capable of getting users input)
             if [ -t 0 ]; then

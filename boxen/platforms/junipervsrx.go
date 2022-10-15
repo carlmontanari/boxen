@@ -5,12 +5,12 @@ import (
 	"regexp"
 	"time"
 
+	sopoptions "github.com/scrapli/scrapligo/driver/opoptions"
+
 	"github.com/carlmontanari/boxen/boxen/instance"
 	"github.com/carlmontanari/boxen/boxen/util"
 
 	"github.com/scrapli/scrapligo/channel"
-
-	"github.com/scrapli/scrapligo/driver/base"
 )
 
 const (
@@ -105,8 +105,8 @@ func (p *JuniperVsrx) Install(opts ...instance.Option) error {
 
 		err = p.login(
 			&loginArgs{
-				username: p.c.Channel.CommsReturnChar,
-				password: p.c.Channel.CommsReturnChar,
+				username: string(p.c.Channel.ReturnChar),
+				password: string(p.c.Channel.ReturnChar),
 			},
 		)
 		if err != nil {
@@ -220,7 +220,7 @@ func (p *JuniperVsrx) SaveConfig() error {
 
 	_, err := p.c.SendConfig(
 		"commit",
-		base.WithSendTimeoutOps(
+		sopoptions.WithTimeoutOps(
 			time.Duration(getPlatformSaveTimeout(PlatformJuniperVsrx))*time.Second,
 		),
 	)
@@ -252,7 +252,7 @@ func (p *JuniperVsrx) SetUserPass(usr, pwd string) error {
 				HideInput:       true,
 			},
 		},
-		base.WithDesiredPrivilegeLevel("configuration"),
+		sopoptions.WithPrivilegeLevel("configuration"),
 	)
 
 	return err

@@ -10,23 +10,26 @@ import (
 )
 
 const (
-	IPInfusionOcNOSScrapliPlatform = "ipinfusion_ocnos"
-	IPInfusionOcNOSDefaultUser     = "ocnos"
-	IPInfusionOcNOSDefaultPass     = "ocnos"
+	CheckpointCloudguardDefaultUser = "admin"
+	CheckpointCloudguardDefaultPass = "admin"
+
+	CheckpointCloudguardScrapliPlatform = "https://gist.githubusercontent.com/hellt/1eee1024bc1cb3121aaeac199d48663a/raw/07caf0b024802da2dbb6fe17dbabcb26231b8cb6/checkpoint_cloudguard.yaml" // nolint:lll
+
+	checkpointCloudGuardDefaultBootTime = 720
 )
 
-type IPInfusionOcNOS struct {
+type CheckpointCloudguard struct {
 	*instance.Qemu
 	*ScrapliConsole
 }
 
-func (p *IPInfusionOcNOS) Package(
+func (p *CheckpointCloudguard) Package(
 	_, _ string,
 ) (packageFiles, runFiles []string, err error) {
 	return nil, nil, err
 }
 
-func (p *IPInfusionOcNOS) Install(opts ...instance.Option) error { // nolint:dupl
+func (p *CheckpointCloudguard) Install(opts ...instance.Option) error { // nolint:dupl
 	p.Loggers.Base.Info("install requested")
 
 	a, opts, err := setInstallArgs(opts...)
@@ -37,7 +40,7 @@ func (p *IPInfusionOcNOS) Install(opts ...instance.Option) error { // nolint:dup
 	c := make(chan error, 1)
 	stop := make(chan bool, 1)
 
-	go func() {
+	go func() { //nolint:dupl
 		err = p.Qemu.Start(opts...)
 		if err != nil {
 			c <- err
@@ -56,8 +59,8 @@ func (p *IPInfusionOcNOS) Install(opts ...instance.Option) error { // nolint:dup
 
 		err = p.login(
 			&loginArgs{
-				username: IPInfusionOcNOSDefaultUser,
-				password: IPInfusionOcNOSDefaultPass,
+				username: CheckpointCloudguardDefaultUser,
+				password: CheckpointCloudguardDefaultPass,
 			},
 		)
 		if err != nil {
@@ -82,10 +85,6 @@ func (p *IPInfusionOcNOS) Install(opts ...instance.Option) error { // nolint:dup
 
 				c <- err
 			}
-
-			// issue a commit which is required by ocnos v5+, but is not needed in earlier version
-			// thus the error is not checked
-			p.Config([]string{"commit"}) // nolint:errcheck
 		}
 
 		p.Loggers.Base.Debug("initial installation complete")
@@ -117,7 +116,7 @@ func (p *IPInfusionOcNOS) Install(opts ...instance.Option) error { // nolint:dup
 	return p.Stop(opts...)
 }
 
-func (p *IPInfusionOcNOS) Start(opts ...instance.Option) error {
+func (p *CheckpointCloudguard) Start(opts ...instance.Option) error {
 	p.Loggers.Base.Info("start platform instance requested")
 
 	a, opts, err := setStartArgs(opts...)
@@ -145,8 +144,8 @@ func (p *IPInfusionOcNOS) Start(opts ...instance.Option) error {
 
 	err = p.login(
 		&loginArgs{
-			username: IPInfusionOcNOSDefaultUser,
-			password: IPInfusionOcNOSDefaultPass,
+			username: CheckpointCloudguardDefaultUser,
+			password: CheckpointCloudguardDefaultPass,
 		},
 	)
 	if err != nil {
@@ -163,7 +162,7 @@ func (p *IPInfusionOcNOS) Start(opts ...instance.Option) error {
 	return nil
 }
 
-func (p *IPInfusionOcNOS) startReady() error {
+func (p *CheckpointCloudguard) startReady() error {
 	// openRetry doesn't do auth and doesn't call onOpen as it is set to nil somewhere before this
 	err := p.openRetry()
 	if err != nil {
@@ -171,57 +170,51 @@ func (p *IPInfusionOcNOS) startReady() error {
 	}
 
 	err = p.readUntil(
-		[]byte("Welcome to OcNOS"),
-		getPlatformBootTimeout(PlatformTypeIPInfusionOcNOS),
+		[]byte("This system is for authorized use only"),
+		getPlatformBootTimeout(PlatformTypeCheckpointCloudguard),
 	)
 
 	return err
 }
 
-func (p *IPInfusionOcNOS) SaveConfig() error {
+func (p *CheckpointCloudguard) SaveConfig() error {
 	p.Loggers.Base.Info("save config requested")
 
 	_, err := p.c.SendCommand(
-		"copy running-config startup-config",
+		"save config",
 		sopoptions.WithTimeoutOps(
-			time.Duration(getPlatformSaveTimeout(PlatformTypeIPInfusionOcNOS))*time.Second,
+			time.Duration(getPlatformSaveTimeout(PlatformTypeCheckpointCloudguard))*time.Second,
 		),
 	)
 
 	return err
 }
 
-func (p *IPInfusionOcNOS) SetUserPass(usr, pwd string) error {
+func (p *CheckpointCloudguard) SetUserPass(usr, pwd string) error {
+	if usr == CheckpointCloudguardDefaultPass && pwd == CheckpointCloudguardDefaultPass {
+		p.Loggers.Base.Info("skipping user creation, since credentials match defaults for platform")
+		return nil
+	}
+
 	p.Loggers.Base.Infof("set user/password for user '%s' requested", usr)
 
-	err := p.Config([]string{fmt.Sprintf(
-		"username %s role network-admin password %s",
-		usr,
-		pwd)})
-	if err != nil {
-		return err
-	}
-
-	// issue a commit which is required by ocnos v5+, but is not needed in earlier version
-	// thus the error is not checked
-	p.Config([]string{"commit"}) // nolint:errcheck
-
-	return err
+	return p.Config([]string{
+		fmt.Sprintf(
+			"add user %s uid 0 homedir /home/%s",
+			usr,
+			usr),
+		fmt.Sprintf(
+			"add rba user %s roles adminRole",
+			usr),
+		fmt.Sprintf(
+			"set user %s newpass %s",
+			usr,
+			pwd),
+	})
 }
 
-func (p *IPInfusionOcNOS) SetHostname(h string) error {
+func (p *CheckpointCloudguard) SetHostname(h string) error {
 	p.Loggers.Base.Infof("set hostname '%s' requested", h)
 
-	err := p.Config([]string{fmt.Sprintf(
-		"hostname %s",
-		h)})
-	if err != nil {
-		return err
-	}
-
-	// issue a commit which is required by ocnos v5+, but is not needed in earlier version
-	// thus the error is not checked
-	p.Config([]string{"commit"}) // nolint:errcheck
-
-	return err
+	return p.Config([]string{fmt.Sprintf("set hostname %s", h)})
 }

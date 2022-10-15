@@ -8,24 +8,26 @@ import (
 	"strings"
 	"time"
 
+	"github.com/scrapli/scrapligo/platform"
+
 	"github.com/carlmontanari/boxen/boxen/instance"
 	"github.com/carlmontanari/boxen/boxen/logging"
 	"github.com/carlmontanari/boxen/boxen/util"
 
-	scrapliocnos "github.com/hellt/scrapligo-ocnos/ocnos"
+	"github.com/scrapli/scrapligocfg"
 
-	"github.com/scrapli/scrapligo/cfg"
-
-	"github.com/scrapli/scrapligo/driver/base"
-	"github.com/scrapli/scrapligo/driver/core"
 	"github.com/scrapli/scrapligo/driver/network"
+
+	soptions "github.com/scrapli/scrapligo/driver/options"
+	sutil "github.com/scrapli/scrapligo/util"
 )
 
 const (
-	defaultCommsReturnChar  = "\r\n"
-	defaultConsoleTimeout   = 120
-	defaultConsoleSleep     = 2
-	defaultMaxLoginAttempts = 50
+	defaultCommsReturnChar          = "\r\n"
+	defaultConsoleTimeout           = 120
+	defaultConsoleSleep             = 2
+	defaultMaxLoginAttempts         = 5
+	defaultMaxConsecutiveEmptyReads = 10
 )
 
 type ScrapliConsole struct {
@@ -40,49 +42,47 @@ func NewScrapliConsole(
 	port int,
 	usr, pwd string,
 	l *instance.Loggers,
-	options ...base.Option,
+	options ...sutil.Option,
 ) (*ScrapliConsole, error) {
-	opts := []base.Option{
-		base.WithPort(port),
-		base.WithAuthUsername(usr),
-		base.WithAuthPassword(pwd),
-		base.WithAuthSecondary(pwd),
-		base.WithAuthBypass(true),
-		base.WithCommsReturnChar(defaultCommsReturnChar),
-		base.WithTransportType("telnet"),
-		base.WithTimeoutTransport(0),
+	opts := []sutil.Option{
+		soptions.WithPort(port),
+		soptions.WithAuthUsername(usr),
+		soptions.WithAuthPassword(pwd),
+		soptions.WithAuthSecondary(pwd),
+		soptions.WithAuthBypass(),
+		soptions.WithReturnChar(defaultCommsReturnChar),
+		soptions.WithTransportType("telnet"),
 	}
 
 	opts = append(opts, options...)
 
 	if l.Console != nil {
-		opts = append(opts, base.WithChannelLog(l.Console))
+		opts = append(opts, soptions.WithChannelLog(l.Console))
 	}
 
 	var c *network.Driver
 
 	var err error
 
-	switch scrapliPlatform {
-	case IPInfusionOcNOSScrapliPlatform:
-		c, err = scrapliocnos.NewOcNOSDriver(
-			"localhost",
-			opts...,
-		)
-	default:
-		c, err = core.NewCoreDriver(
-			"localhost",
-			scrapliPlatform,
-			opts...,
-		)
+	var p *platform.Platform
+
+	p, err = platform.NewPlatform(
+		scrapliPlatform,
+		"localhost",
+		opts...,
+	)
+	if err != nil {
+		return nil, err
 	}
+
+	c, err = p.GetNetworkDriver()
 
 	if err != nil {
 		return nil, err
 	}
 
 	con := &ScrapliConsole{
-		pT:        scrapliPlatform,
+		pT:        p.GetPlatformType(),
 		c:         c,
 		defOnOpen: c.OnOpen,
 		logger:    l.Base,
@@ -99,7 +99,7 @@ func (c *ScrapliConsole) Config(lines []string) error {
 }
 
 func (c *ScrapliConsole) Detach() error {
-	_ = c.c.Transport.Close()
+	_ = c.c.Transport.Close(true)
 
 	return nil
 }
@@ -143,13 +143,17 @@ func (c *ScrapliConsole) readUntil(readUntil []byte, timeout int) error {
 	origChannelTimeoutOps := c.c.Channel.TimeoutOps
 	c.c.Channel.TimeoutOps = 0
 
+	defer func() {
+		c.c.Channel.TimeoutOps = origChannelTimeoutOps
+	}()
+
 	ch := make(chan error)
 
 	go func() {
 		b := make([]byte, 0)
 
 		for {
-			cr, err := c.c.Channel.Read()
+			cr, err := c.c.Channel.ReadAll()
 			if err != nil {
 				ch <- err
 			}
@@ -161,8 +165,6 @@ func (c *ScrapliConsole) readUntil(readUntil []byte, timeout int) error {
 
 				return
 			}
-
-			time.Sleep(1 * time.Second)
 		}
 	}()
 
@@ -172,10 +174,8 @@ func (c *ScrapliConsole) readUntil(readUntil []byte, timeout int) error {
 
 	select {
 	case <-ch:
-		c.c.Channel.TimeoutOps = origChannelTimeoutOps
 		return nil
 	case <-timer.C:
-		c.c.Channel.TimeoutOps = origChannelTimeoutOps
 		return fmt.Errorf("%w: console read timeout", util.ErrConsoleError)
 	}
 }
@@ -221,26 +221,31 @@ func (c *ScrapliConsole) login(
 		loginArgs.promptPatterns = c.joinScrapliPatterns()
 	}
 
-	tt := util.ApplyTimeoutMultiplier(10) // nolint:gomnd
-	c.c.Transport.BaseTransportArgs.TimeoutTransport = time.Duration(tt) * time.Second
+	consecutiveEmptyReads := 0
+	maxConsecutiveEmptyReads := util.ApplyTimeoutMultiplier(defaultMaxConsecutiveEmptyReads)
 
 	loginAttempts := 0
 
 	b := make([]byte, 0)
 
 	for {
-		//  in theory this could block forever due to the way scrapli handles timeouts -- if the
-		//  read operation "times out" that goroutine does not actually die because it is still in
-		//  a blocking read. there doesn't appear to be any good solution to this because you can't
-		//  set read deadlines on os.File objects... the good news is that this seems to *not*
-		//  actually cause any issues somehow (which honestly doesn't make a lot of sense), so we
-		//  will let it slide for now and see if/when this causes an issue (it almost certainly
-		//  won't in the context of boxen thankfully!)
-		cr, err := c.c.Channel.Read()
+		cr, err := c.c.Channel.ReadAll()
 		if err != nil {
-			// only error we would get here is a timeout error (in theory), in which case we want
-			// to send a return to "help" the console get its life together
-			_ = c.c.Channel.SendReturn()
+			return err
+		}
+
+		if cr == nil {
+			// consecutive empty reads may mean we need to send a "return" character to help things
+			// along...
+			consecutiveEmptyReads++
+		}
+
+		if consecutiveEmptyReads == maxConsecutiveEmptyReads {
+			c.logger.Debug("encountered too many consecutive empty reads, sending return...")
+
+			consecutiveEmptyReads = 0
+
+			_ = c.c.Channel.WriteReturn()
 
 			continue
 		}
@@ -248,20 +253,26 @@ func (c *ScrapliConsole) login(
 		b = append(b, cr...)
 
 		if loginArgs.promptPatterns.Match(b) {
+			c.logger.Info("found device prompt, done handling login")
+
 			break
 		}
 
 		if loginArgs.loginPattern.Match(b) {
+			loginAttempts++
+
+			c.logger.Debugf("found login prompt sending username %s", loginArgs.username)
+
 			_ = c.c.Channel.WriteAndReturn([]byte(loginArgs.username), false)
 			b = make([]byte, 0)
 		}
 
 		if loginArgs.passwordPattern.Match(b) {
+			c.logger.Debugf("found password prompt sending password %s", loginArgs.password)
+
 			_ = c.c.Channel.WriteAndReturn([]byte(loginArgs.password), true)
 			b = make([]byte, 0)
 		}
-
-		loginAttempts++
 
 		if loginAttempts > defaultMaxLoginAttempts {
 			return fmt.Errorf("%w: console login failed", util.ErrConsoleError)
@@ -269,8 +280,6 @@ func (c *ScrapliConsole) login(
 
 		time.Sleep(1 * time.Second)
 	}
-
-	c.c.Transport.BaseTransportArgs.TimeoutTransport = 0
 
 	return nil
 }
@@ -300,20 +309,20 @@ func (c *ScrapliConsole) InstallConfig(f string, replace bool) error {
 		return err
 	}
 
-	cfgConn, err := cfg.NewCfgDriver(
+	cfgConn, err := scrapligocfg.NewCfg(
 		c.c,
 		c.pT,
 	)
 
 	if err != nil {
-		c.logger.Criticalf("failed creating scraplicfg driver: %s", err)
+		c.logger.Criticalf("failed creating scrapli cfg driver: %s", err)
 
 		return err
 	}
 
 	err = cfgConn.Prepare()
 	if err != nil {
-		c.logger.Criticalf("failed running prepare method of scrpalicfg driver: %s", err)
+		c.logger.Criticalf("failed running prepare method of scrapli cfg driver: %s", err)
 
 		return err
 	}
@@ -323,7 +332,7 @@ func (c *ScrapliConsole) InstallConfig(f string, replace bool) error {
 		replace,
 	)
 	if err != nil {
-		c.logger.Criticalf("failed creating scraplicfg driver: %s", err)
+		c.logger.Criticalf("failed creating scrapli cfg driver: %s", err)
 
 		return err
 	}
@@ -337,7 +346,7 @@ func (c *ScrapliConsole) InstallConfig(f string, replace bool) error {
 
 	err = cfgConn.Cleanup()
 	if err != nil {
-		c.logger.Criticalf("failed running cleanup method of scrpalicfg driver: %s", err)
+		c.logger.Criticalf("failed running cleanup method of scrapli cfg driver: %s", err)
 
 		return err
 	}
