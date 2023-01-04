@@ -11,8 +11,8 @@ import (
 
 const (
 	IPInfusionOcNOSScrapliPlatform = "ipinfusion_ocnos"
-	IPInfusionOcNOSDefaultUser     = "root"
-	IPInfusionOcNOSDefaultPass     = "root"
+	IPInfusionOcNOSDefaultUser     = "ocnos"
+	IPInfusionOcNOSDefaultPass     = "ocnos"
 )
 
 type IPInfusionOcNOS struct {
@@ -26,7 +26,7 @@ func (p *IPInfusionOcNOS) Package(
 	return nil, nil, err
 }
 
-func (p *IPInfusionOcNOS) Install(opts ...instance.Option) error { // nolint:dupl
+func (p *IPInfusionOcNOS) Install(opts ...instance.Option) error {
 	p.Loggers.Base.Info("install requested")
 
 	a, opts, err := setInstallArgs(opts...)
@@ -37,7 +37,7 @@ func (p *IPInfusionOcNOS) Install(opts ...instance.Option) error { // nolint:dup
 	c := make(chan error, 1)
 	stop := make(chan bool, 1)
 
-	go func() { //nolint:dupl
+	go func() {
 		err = p.Qemu.Start(opts...)
 		if err != nil {
 			c <- err
@@ -82,6 +82,10 @@ func (p *IPInfusionOcNOS) Install(opts ...instance.Option) error { // nolint:dup
 
 				c <- err
 			}
+
+			// issue a commit which is required by ocnos v5+, but is not needed in earlier version
+			// thus the error is not checked
+			p.Config([]string{"commit"}) // nolint:errcheck
 		}
 
 		p.Loggers.Base.Debug("initial installation complete")
@@ -113,7 +117,7 @@ func (p *IPInfusionOcNOS) Install(opts ...instance.Option) error { // nolint:dup
 	return p.Stop(opts...)
 }
 
-func (p *IPInfusionOcNOS) Start(opts ...instance.Option) error {
+func (p *IPInfusionOcNOS) Start(opts ...instance.Option) error { // nolint:dupl
 	p.Loggers.Base.Info("start platform instance requested")
 
 	a, opts, err := setStartArgs(opts...)
@@ -167,7 +171,7 @@ func (p *IPInfusionOcNOS) startReady() error {
 	}
 
 	err = p.readUntil(
-		[]byte("OcNOS login:"),
+		[]byte("Welcome to OcNOS"),
 		getPlatformBootTimeout(PlatformTypeIPInfusionOcNOS),
 	)
 
@@ -190,16 +194,34 @@ func (p *IPInfusionOcNOS) SaveConfig() error {
 func (p *IPInfusionOcNOS) SetUserPass(usr, pwd string) error {
 	p.Loggers.Base.Infof("set user/password for user '%s' requested", usr)
 
-	return p.Config([]string{fmt.Sprintf(
+	err := p.Config([]string{fmt.Sprintf(
 		"username %s role network-admin password %s",
 		usr,
 		pwd)})
+	if err != nil {
+		return err
+	}
+
+	// issue a commit which is required by ocnos v5+, but is not needed in earlier version
+	// thus the error is not checked
+	p.Config([]string{"commit"}) // nolint:errcheck
+
+	return err
 }
 
 func (p *IPInfusionOcNOS) SetHostname(h string) error {
 	p.Loggers.Base.Infof("set hostname '%s' requested", h)
 
-	return p.Config([]string{fmt.Sprintf(
+	err := p.Config([]string{fmt.Sprintf(
 		"hostname %s",
 		h)})
+	if err != nil {
+		return err
+	}
+
+	// issue a commit which is required by ocnos v5+, but is not needed in earlier version
+	// thus the error is not checked
+	p.Config([]string{"commit"}) // nolint:errcheck
+
+	return err
 }
