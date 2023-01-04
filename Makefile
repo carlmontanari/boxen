@@ -16,6 +16,12 @@ docker-lint: ## Run linters with docker
 	docker run -it --rm -v $$(pwd):/work ghcr.io/hellt/golines:0.8.0 golines -w .
 	docker run -it --rm -v $$(pwd):/app -w /app golangci/golangci-lint:v1.45.0 golangci-lint run --timeout 5m -v
 
+test: ## Run unit tests
+	gotestsum --format testname --hide-summary=skipped -- -coverprofile=cover.out ./...
+
+test-race: ## Run unit tests with race flag
+	gotestsum --format testname --hide-summary=skipped -- -coverprofile=cover.out ./... -race
+
 ttl-push: build ## push locally built binary to ttl.sh container registry
 	docker run --rm -v $$(pwd)/bin:/workspace ghcr.io/oras-project/oras:v0.12.0 push ttl.sh/boxen-$$(git rev-parse --short HEAD):1d ./boxen
 	@echo "download with: docker run --rm -v \$$(pwd):/workspace ghcr.io/oras-project/oras:v0.12.0 pull ttl.sh/boxen-$$(git rev-parse --short HEAD):1d"
