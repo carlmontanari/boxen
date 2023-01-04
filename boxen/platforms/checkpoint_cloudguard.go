@@ -29,7 +29,7 @@ func (p *CheckpointCloudguard) Package(
 	return nil, nil, err
 }
 
-func (p *CheckpointCloudguard) Install(opts ...instance.Option) error { // nolint:dupl
+func (p *CheckpointCloudguard) Install(opts ...instance.Option) error {
 	p.Loggers.Base.Info("install requested")
 
 	a, opts, err := setInstallArgs(opts...)
@@ -116,7 +116,7 @@ func (p *CheckpointCloudguard) Install(opts ...instance.Option) error { // nolin
 	return p.Stop(opts...)
 }
 
-func (p *CheckpointCloudguard) Start(opts ...instance.Option) error {
+func (p *CheckpointCloudguard) Start(opts ...instance.Option) error { // nolint:dupl
 	p.Loggers.Base.Info("start platform instance requested")
 
 	a, opts, err := setStartArgs(opts...)

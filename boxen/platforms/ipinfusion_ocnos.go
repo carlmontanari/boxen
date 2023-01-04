@@ -26,7 +26,7 @@ func (p *IPInfusionOcNOS) Package(
 	return nil, nil, err
 }
 
-func (p *IPInfusionOcNOS) Install(opts ...instance.Option) error { // nolint:dupl
+func (p *IPInfusionOcNOS) Install(opts ...instance.Option) error {
 	p.Loggers.Base.Info("install requested")
 
 	a, opts, err := setInstallArgs(opts...)
@@ -117,7 +117,7 @@ func (p *IPInfusionOcNOS) Install(opts ...instance.Option) error { // nolint:dup
 	return p.Stop(opts...)
 }
 
-func (p *IPInfusionOcNOS) Start(opts ...instance.Option) error {
+func (p *IPInfusionOcNOS) Start(opts ...instance.Option) error { // nolint:dupl
 	p.Loggers.Base.Info("start platform instance requested")
 
 	a, opts, err := setStartArgs(opts...)
