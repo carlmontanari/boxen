@@ -66,7 +66,7 @@ func pTDiskToVersionMap() map[string]*regexp.Regexp {
 			`(?i)(?:junos-media-vsrx-x86-64-vmdisk-|media-vsrx-vmdisk-)(\d+\.[\w-]+\.\d+).qcow2`,
 		),
 		PlatformTypePaloAltoPanos: regexp.MustCompile(
-			`(?i)(?:pa-vm-kvm-)(\d+\.\d+\.\d+).qcow2`),
+			`(?i)(?:pa-vm-kvm-)(\d+\.\d+\.\d+(?:-h\d+)?).qcow2`),
 		PlatformTypeCheckpointCloudguard: regexp.MustCompile(
 			`(?i)check_point_(r\d+\.\d+)_cloudguard_.*.qcow2`),
 	}
