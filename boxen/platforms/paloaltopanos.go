@@ -18,7 +18,7 @@ const (
 	PaloAltoPanosScrapliPlatform = "paloalto_panos"
 
 	paloAltoPanosDefaultBootTime   = 720
-	paloAltoPanosDefaultPromptWait = 30
+	paloAltoPanosDefaultPromptWait = 300
 	paloAltoPanosDefaultLoginWait  = 300
 )
 
