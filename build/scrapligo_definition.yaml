@@ -1,0 +1,6 @@
+---
+prompt_pattern: '.*'
+default_mode: 'cli'
+modes:
+  - name: 'cli'
+    prompt_pattern: '.*'

@@ -1,0 +1,5 @@
+---
+ignored:
+  - DL3008 # pinned apt packages
+  - DL3059 # multiple consecutive RUN directives
+  - DL3062 # its confused about go run wanting that to be pinned but its local files so w/e

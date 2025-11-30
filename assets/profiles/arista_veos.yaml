@@ -1,0 +1,159 @@
+---
+name: arista_veos
+diskPatterns:
+  - "(?i)vEOS-lab-.*.vmdk"
+scrapliDefinitionNameOrFile: arista_eos
+extraFiles:
+  - Aboot-veos-serial-8.0.0.iso
+virtualMachine:
+  emulate: ""
+  machine: ""
+  memory: 4096
+  cpuCores: 0
+  cpuThreads: 0
+  cpuSockets: 0
+  serialPortCount: 1
+  nicType: e1000
+  nicCount: 20
+  nicPerBus: 26
+  natPorts:
+    - type: tcp
+      localPort: 22
+    - type: tcp
+      localPort: 23
+    - type: tcp
+      localPort: 443
+    - type: tcp
+      localPort: 830
+    - type: udp
+      localPort: 161
+  mutators:
+    # pushes mgmt nic up a position on the bus, arista wants this for... reasons?
+    mgmtNIC: |
+      def mutate(items):
+          items[1] = items[1] + ",bus=pci.1,addr=0x2"
+          return items
+    # shifts all data nics up one address accounting for the shift from the mgmt nic,
+    # if you change nics per bus (probably dont do that?) make sure to change it in this
+    # starlark bit too
+    dataNICs: |
+      def mutate(items):
+        for idx, s in enumerate(items):
+            if "bus=pci." not in s or "addr=0x" not in s:
+                continue
+
+            parts = s.split(",")
+
+            new_parts = []
+
+            bus_id = None
+            addr = None
+
+            for p in parts:
+                if p.startswith("bus=pci."):
+                    bus_id = int(p[len("bus=pci."):])
+                elif p.startswith("addr=0x"):
+                    addr = int(p[len("addr=0x"):], 16)
+
+            if bus_id == None or addr == None:
+                continue
+
+            addr += 1
+
+            if addr > 26:
+                addr = 1
+                bus_id += 1
+
+            for p in parts:
+                if p.startswith("bus=pci."):
+                    new_parts.append("bus=pci.%d" % bus_id)
+                elif p.startswith("addr=0x"):
+                    new_parts.append("addr=0x%x" % addr)
+                else:
+                    new_parts.append(p)
+
+            items[idx] = ",".join(new_parts)
+
+        return items
+  extras:
+    - onPackage: true
+      val:
+        - -cdrom
+        - Aboot-veos-serial-8.0.0.iso
+packaging:
+  process:
+    # handle ztp login
+    - type: prompts
+      prompts:
+        # ~11m on my m3 max mbp -- so rosetta etc, should be faster for x86 id assume
+        timeout: 15m
+        prompts:
+          - prompt:
+              contains: "localhost ZeroTouch:"
+            response: admin
+          - prompt:
+              contains: "localhost>"
+            response: ""
+            completes: true
+    # disable ztp
+    - type: write
+      write:
+        content: |
+          zerotouch disable
+    # wait for the box to reload
+    - type: prompts
+      prompts:
+        timeout: 15m
+        prompts:
+          - prompt:
+              contains: "localhost login:"
+            response: admin
+          - prompt:
+              contains: "localhost>"
+            response: ""
+            completes: true
+    # acquire privileged exec and disable pagination
+    - type: write
+      write:
+        content: |
+          enable
+          term len 0
+          term width 32767
+    # base config and then save
+    - type: write
+      write:
+        content: |
+          configure terminal
+          username  admin secret 0 admin role network-admin
+          enable secret 0 admin
+          interface Management 1
+          ip address 10.0.0.15 255.255.255.0
+          no shutdown
+          exit
+          management api http-commands
+          protocol unix-socket
+          no shutdown
+          exit
+          management api gnmi
+          transport grpc default
+          no shutdown
+          exit
+          management api netconf
+          transport ssh default
+          end
+    - type: write
+      write:
+        content:
+          copy running-config startup-config
+    - type: readUntil
+      readUntil:
+        timeout: 1m
+        until:
+          contains: "localhost#"
+    # small delay to ensure everything saved nicely
+    - type: wait
+      wait:
+        duration: 10s
+run:
+  readyIndicator:
+    contains: "login:"

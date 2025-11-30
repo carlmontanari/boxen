@@ -1,0 +1,48 @@
+---
+name: test
+
+on:
+  workflow_call: {}
+  workflow_dispatch:
+    inputs:
+      debug_unit:
+        description: "start tmate before unit tests"
+        type: boolean
+        required: false
+        default: false
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: load env vars for workflow run
+        run: |
+          source .github/vars.env
+          echo "GO_VERSION=$GO_VERSION" >> "$GITHUB_ENV"
+
+      - name: set up go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: ensure libscrapli is available
+        run: |
+          go run build/write_libscrapli_to_cache/main.go
+
+      - name: install go test tools
+        run: |
+          go install gotest.tools/gotestsum@${{ env.GOTESTSUM_VERSION }}
+
+      - name: setup tmate session
+        uses: mxschmitt/action-tmate@v3
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_unit }}
+
+      - name: unit tests
+        run: |
+          make test-race
