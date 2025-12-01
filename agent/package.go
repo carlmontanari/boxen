@@ -131,6 +131,9 @@ func (a *Agent) runPackaging(ctx context.Context, errs chan error) {
 
 		return
 	}
+
+	fmt.Println("PACKAGING COMPLETE")
+	panic("poop")
 }
 
 func (a *Agent) packageGetProfile(ctx context.Context) error {
@@ -426,8 +429,26 @@ func (a *Agent) packageRunProcessStepPrompts(ctx context.Context, step *boxenpro
 
 		cbs[idx] = scrapligocli.NewReadCallback(
 			fmt.Sprintf("prompts step idx %d", idx),
-			func(_ context.Context, c *scrapligocli.Cli) error {
-				return c.WriteAndReturn(p.Response)
+			func(ctx context.Context, c *scrapligocli.Cli) error {
+				if p.Hidden {
+					return c.WriteAndReturn(p.Response)
+				}
+
+				err = c.Write(p.Response)
+				if err != nil {
+					return err
+				}
+
+				if p.Hidden {
+					return c.WriteReturn()
+				}
+
+				err = readUntil(ctx, c, p.Response)
+				if err != nil {
+					return err
+				}
+
+				return c.WriteReturn()
 			},
 			opts...,
 		)
@@ -491,6 +512,8 @@ func (a *Agent) packageRunProcessStepReadUntil(ctx context.Context, step *boxenp
 				return
 			}
 
+			a.l.Debug("reading until", "until", step.ReadUntil.Until, "content", string(b.Content))
+
 			check, err := step.ReadUntil.Until.Check(b.Content)
 			if err != nil {
 				doneOrErr <- err
@@ -520,7 +543,7 @@ func (a *Agent) packageRunProcessStepReadUntil(ctx context.Context, step *boxenp
 	}
 }
 
-func (a *Agent) packageRunProcessStepWrite(_ context.Context, step *boxenprofile.Step) error {
+func (a *Agent) packageRunProcessStepWrite(ctx context.Context, step *boxenprofile.Step) error {
 	a.l.Info("writing to console", "content", step.Write.Content)
 
 	iter := strings.SplitSeq(step.Write.Content, "\n")
@@ -528,7 +551,26 @@ func (a *Agent) packageRunProcessStepWrite(_ context.Context, step *boxenprofile
 	for s := range iter {
 		a.l.Info("writing to console", "content", s)
 
-		err := a.conn.WriteAndReturn(s)
+		if step.Write.Hidden {
+			err := a.conn.WriteAndReturn(s)
+			if err != nil {
+				return err
+			}
+
+			continue
+		}
+
+		err := a.conn.Write(s)
+		if err != nil {
+			return err
+		}
+
+		err = readUntil(ctx, a.conn, s)
+		if err != nil {
+			return err
+		}
+
+		err = a.conn.WriteReturn()
 		if err != nil {
 			return err
 		}

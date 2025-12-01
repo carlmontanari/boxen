@@ -52,10 +52,11 @@ func (a *Agent) openConsoleConn(ctx context.Context) error {
 		scrapligooptions.WithDefintionFileOrName(".scrapligo_definition.yaml"),
 		scrapligooptions.WithPort(5_001), //nolint: mnd
 		scrapligooptions.WithLogger(a.l.l),
-		scrapligooptions.WithLoggerLevel(scrapligologging.Trace),
+		scrapligooptions.WithLoggerLevel(scrapligologging.Debug),
 		scrapligooptions.WithTransportTelnet(),
 		scrapligooptions.WithReturnChar("\r\n"),
 		scrapligooptions.WithBypassInSessionAuth(),
+		scrapligooptions.WithSessionRecorderPath("console.log"),
 	)
 	if err != nil {
 		a.l.Error("failed creating console connection", "error", err.Error())

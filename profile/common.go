@@ -17,7 +17,7 @@ func (c *Contains) Check(b []byte) (bool, error) {
 	s := string(b)
 
 	if c.Contains != "" && strings.Contains(s, c.Contains) {
-		if strings.Contains(s, c.NotContains) {
+		if c.NotContains != "" && strings.Contains(s, c.NotContains) {
 			return false, nil
 		}
 
@@ -31,7 +31,7 @@ func (c *Contains) Check(b []byte) (bool, error) {
 		}
 
 		if p.MatchString(s) {
-			if strings.Contains(s, c.NotContains) {
+			if c.NotContains != "" && strings.Contains(s, c.NotContains) {
 				return false, nil
 			}
 
@@ -71,22 +71,28 @@ type StepPrompts struct {
 
 // Prompt defines how we match on a prompt and what we respond to it.
 type Prompt struct {
-	Prompt    Contains `yaml:"prompt"`
-	Response  string   `yaml:"response"`
-	Once      bool     `yaml:"once"`
-	Completes bool     `yaml:"completes"`
+	Prompt   Contains `yaml:"prompt"`
+	Response string   `yaml:"response"`
+	// if marked hidden we wont read the inputs we send off the channel, use this for
+	// passwords and the like
+	Hidden    bool `yaml:"hidden"`
+	Once      bool `yaml:"once"`
+	Completes bool `yaml:"completes"`
 }
 
 // StepReadUntil defines how we read until some output on the terminal.
 type StepReadUntil struct {
 	// something ParseDuration will accept, i.e. 5s, 1m, etc.
 	Timeout string   `yaml:"timeout"`
-	Until   Contains `yaml:"readUntil"`
+	Until   Contains `yaml:"until"`
 }
 
 // StepWrite holds things we want to write to the terminal during a package/run.
 type StepWrite struct {
 	Content string `yaml:"content"`
+	// if marked hidden we wont read the inputs we send off the channel, use this for
+	// passwords and the like
+	Hidden bool `yaml:"hidden"`
 }
 
 // StepWait tells the agent to wait during a package/run.

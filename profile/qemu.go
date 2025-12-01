@@ -47,9 +47,7 @@ func QemuArgsFromProfile(p *Profile, isPackaging bool) ([]string, error) {
 		uuid.NewString(),
 	}
 
-	for k, f := range map[string]func(
-		p *Profile,
-	) []string{
+	fs := map[string]func(p *Profile) []string{
 		cpu:          qemuCPU,
 		memory:       qemuMemory,
 		acceleration: qemuAccel,
@@ -61,6 +59,21 @@ func QemuArgsFromProfile(p *Profile, isPackaging bool) ([]string, error) {
 		pci:          qemuPCI,
 		mgmtNIC:      qemuMgmtNIC,
 		dataNICs:     qemuDataNICs,
+	}
+
+	// access via map but always iterate via slice because *must* be in correct order!
+	for _, k := range []string{
+		cpu,
+		memory,
+		acceleration,
+		machine,
+		disk,
+		serial,
+		monitor,
+		display,
+		pci,
+		mgmtNIC,
+		dataNICs,
 	} {
 		_, ok := p.VirtualMachine.Overrides[k]
 		if ok {
@@ -69,7 +82,7 @@ func QemuArgsFromProfile(p *Profile, isPackaging bool) ([]string, error) {
 			continue
 		}
 
-		args := f(p)
+		args := fs[k](p)
 
 		fBody, mutateOk := p.VirtualMachine.Mutators[k]
 		if !mutateOk {

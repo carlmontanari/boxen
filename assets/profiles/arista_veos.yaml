@@ -89,17 +89,25 @@ packaging:
         timeout: 15m
         prompts:
           - prompt:
-              contains: "localhost ZeroTouch:"
+              contains: "localhost login:"
             response: admin
+            once: true
           - prompt:
               contains: "localhost>"
             response: ""
+            once: true
             completes: true
     # disable ztp
     - type: write
       write:
         content: |
           zerotouch disable
+    # read things off the console until we see that its reloading
+    - type: readUntil
+      readUntil:
+        timeout: 1m
+        until:
+          contains: "Restarting system"
     # wait for the box to reload
     - type: prompts
       prompts:
@@ -108,9 +116,11 @@ packaging:
           - prompt:
               contains: "localhost login:"
             response: admin
+            once: true
           - prompt:
               contains: "localhost>"
             response: ""
+            once: true
             completes: true
     # acquire privileged exec and disable pagination
     - type: write
@@ -124,7 +134,7 @@ packaging:
       write:
         content: |
           configure terminal
-          username  admin secret 0 admin role network-admin
+          username admin secret 0 admin role network-admin
           enable secret 0 admin
           interface Management 1
           ip address 10.0.0.15 255.255.255.0
