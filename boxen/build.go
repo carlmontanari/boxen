@@ -3,6 +3,8 @@ package boxen
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
 
 	boxenconstants "github.com/carlmontanari/boxen/constants"
 	boxencontainertypes "github.com/carlmontanari/boxen/container/types"
@@ -73,16 +75,18 @@ func (b *Boxen) Build(
 		return err
 	}
 
-	err = b.c.Run(
+	containerID, err := b.c.Run(
 		ctx,
 		b.l,
 		boxencontainertypes.RunConfig{
 			Name:  fmt.Sprintf("boxen-%s-builder", b.p.Name),
-			Image: getBuilderImage(),
+			Image: buildGetBuilderImage(),
 			Env: []string{
 				fmt.Sprintf("%s=%s", boxenconstants.EnvServerHost, ourAddr),
 			},
-			Detached:   true,
+			Detached: true,
+			// dont remove! we'll be committing the image to our new final image
+			// once the packaging process is complete
 			Remove:     false,
 			Privileged: true,
 		},
@@ -105,15 +109,37 @@ func (b *Boxen) Build(
 
 		return ctx.Err()
 	case <-b.agentDone:
-		b.l.Info("done reported, exiting")
+		b.l.Info("done reported, finalizing image")
 
-		return nil
+		// tiny sleep to ensure container has exited
+		time.Sleep(time.Second)
 	case <-b.agentExited:
 		return fmt.Errorf("%w: agent exited, stopping boxen", boxenerrors.ErrBoxen)
 	}
+
+	var imageID strings.Builder
+
+	if imageRegistry != "" {
+		imageID.WriteString(imageRegistry)
+		imageID.WriteString("/")
+	}
+
+	imageID.WriteString(fmt.Sprintf("boxen-%s:%s", b.p.Name, imageTag))
+
+	err = b.c.Commit(ctx, b.l, containerID, imageID.String())
+	if err != nil {
+		return err
+	}
+
+	err = b.c.Rm(ctx, b.l, containerID)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func getBuilderImage() string {
+func buildGetBuilderImage() string {
 	defaultImage := fmt.Sprintf("ghcr.io/carlmontanari/boxen:%s", boxenconstants.Version)
 
 	return boxenutil.GetEnvStrOrDefault(boxenconstants.EnvBuilderImage, defaultImage)

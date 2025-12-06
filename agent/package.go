@@ -23,12 +23,14 @@ import (
 )
 
 const (
-	qemuImgBinary = "qemu-img"
-	qemuBinary    = "qemu-system-x86_64"
+	qemuImgBinary  = "qemu-img"
+	qemuBinary     = "qemu-system-x86_64"
+	sparsifyBinary = "virt-sparsify"
 
 	stderrCheckInterval = time.Second
 	stderrCheckDuration = 10 * time.Second
 
+	readUntilSearchDepth = 256
 	readUntilRingBufSize = 1_000
 )
 
@@ -111,7 +113,7 @@ func (a *Agent) runPackaging(ctx context.Context, errs chan error) {
 		return
 	}
 
-	err = a.packageStartInstance(ctx)
+	p, err := a.packageStartInstance(ctx)
 	if err != nil {
 		errs <- err
 
@@ -132,8 +134,39 @@ func (a *Agent) runPackaging(ctx context.Context, errs chan error) {
 		return
 	}
 
-	fmt.Println("PACKAGING COMPLETE")
-	panic("poop")
+	err = p.Kill()
+	if err != nil {
+		errs <- err
+
+		return
+	}
+
+	if a.p.Packaging.Shrinkify {
+		err = a.packageShrinkify(ctx)
+		if err != nil {
+			errs <- err
+
+			return
+		}
+	}
+
+	_, err = a.s.Builder(
+		ctx,
+		&boxenprotov1.BuilderRequest{
+			Request: &boxenprotov1.BuilderRequest_PackageCompleteRequest{
+				PackageCompleteRequest: &boxenprotov1.PackageCompleteRequest{},
+			},
+		},
+	)
+	if err != nil {
+		a.l.Error("failed builder response from server", "error", err.Error())
+
+		errs <- err
+
+		return
+	}
+
+	a.done <- struct{}{}
 }
 
 func (a *Agent) packageGetProfile(ctx context.Context) error {
@@ -142,8 +175,8 @@ func (a *Agent) packageGetProfile(ctx context.Context) error {
 	packagingInfoResp, err := a.s.Builder(
 		ctx,
 		&boxenprotov1.BuilderRequest{
-			Request: &boxenprotov1.BuilderRequest_PackageRequest{
-				PackageRequest: &boxenprotov1.PackageInfoRequest{},
+			Request: &boxenprotov1.BuilderRequest_PackageInfoRequest{
+				PackageInfoRequest: &boxenprotov1.PackageInfoRequest{},
 			},
 		},
 	)
@@ -155,7 +188,7 @@ func (a *Agent) packageGetProfile(ctx context.Context) error {
 
 	a.l.s = a.s
 
-	r := packagingInfoResp.GetPackageResponse()
+	r := packagingInfoResp.GetPackageInfoResponse()
 
 	p := &boxenprofile.Profile{}
 
@@ -256,17 +289,17 @@ func (a *Agent) packageConvertDisk(ctx context.Context) error {
 	return nil
 }
 
-func (a *Agent) packageStartInstance(ctx context.Context) error {
+func (a *Agent) packageStartInstance(ctx context.Context) (*os.Process, error) {
 	var err error
 
 	a.stdoutF, err = os.Create("instance_stdout.log")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	launchArgs, err := boxenprofile.QemuArgsFromProfile(a.p, true)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	a.l.Info("starting vm", "command", qemuBinary, "args", launchArgs)
@@ -279,7 +312,7 @@ func (a *Agent) packageStartInstance(ctx context.Context) error {
 
 	err = cmd.Start()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	errs := make(chan error, 1)
@@ -321,9 +354,9 @@ func (a *Agent) packageStartInstance(ctx context.Context) error {
 
 	select {
 	case err := <-errs:
-		return err
+		return nil, err
 	case <-time.After(stderrCheckDuration):
-		return nil
+		return cmd.Process, nil
 	}
 }
 
@@ -389,7 +422,13 @@ func (a *Agent) packageRunProcessStepPrompts(ctx context.Context, step *boxenpro
 
 		opts = append(
 			opts,
-			scrapligocli.WithSearchDepth(256),
+			// because of the way we read off the console the individual reads are *very* likely
+			// to be just like a handful of characters, meaning we would very infrequently have the
+			// whole thing we are looking for in a single read, so, we need to ensure we are
+			// looking back far enough.
+			scrapligocli.WithSearchDepth(
+				uint64(max(len(p.Prompt.Contains)*2, readUntilSearchDepth)), //nolint:mnd,gosec
+			),
 		)
 
 		if p.Prompt.Contains != "" {
@@ -443,7 +482,7 @@ func (a *Agent) packageRunProcessStepPrompts(ctx context.Context, step *boxenpro
 					return c.WriteReturn()
 				}
 
-				err = readUntil(ctx, c, p.Response)
+				err = readUntil(ctx, a.l, c, p.Response)
 				if err != nil {
 					return err
 				}
@@ -565,7 +604,7 @@ func (a *Agent) packageRunProcessStepWrite(ctx context.Context, step *boxenprofi
 			return err
 		}
 
-		err = readUntil(ctx, a.conn, s)
+		err = readUntil(ctx, a.l, a.conn, s)
 		if err != nil {
 			return err
 		}
@@ -601,4 +640,29 @@ func (a *Agent) packageRunProcessStepWait(ctx context.Context, step *boxenprofil
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+}
+
+func (a *Agent) packageShrinkify(ctx context.Context) error {
+	err := os.Rename("disk.qcow2", "fat.qcow2")
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		_ = os.Remove("fat.qcow2")
+		_ = os.RemoveAll("/var/tmp/.guestfs-0")
+	}()
+
+	args := []string{"fat.qcow2", "--compress", "disk.qcow2"}
+
+	a.l.Info("starting sparsify", "command", sparsifyBinary, "args", args)
+
+	cmd := exec.CommandContext(ctx, sparsifyBinary, args...)
+
+	err = cmd.Run()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

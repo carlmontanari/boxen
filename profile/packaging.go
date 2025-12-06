@@ -6,4 +6,5 @@ type Packaging struct {
 	// when we see anything on stderr when launching a box
 	StdErrIgnore []string `yaml:"stdErrIgnore"`
 	Process      []Step   `yaml:"process"`
+	Shrinkify    bool     `yaml:"shrinkify"`
 }

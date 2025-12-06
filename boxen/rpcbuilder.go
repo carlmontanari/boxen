@@ -16,27 +16,39 @@ func (b *Boxen) Builder(
 
 	b.l.Debug("builder request received")
 
-	switch req.GetRequest().(type) { //nolint: gocritic
-	case *boxenprotov1.BuilderRequest_PackageRequest:
-		return b.sendPackageInfo()
+	switch req.GetRequest().(type) {
+	case *boxenprotov1.BuilderRequest_PackageInfoRequest:
+		return b.buildSendPackageInfo()
+	case *boxenprotov1.BuilderRequest_PackageCompleteRequest:
+		return b.buildProcessPackageDone()
 	}
 
 	// we just send empty response for log things of course
 	return &boxenprotov1.BuilderResponse{}, nil
 }
 
-func (b *Boxen) sendPackageInfo() (*boxenprotov1.BuilderResponse, error) {
+func (b *Boxen) buildSendPackageInfo() (*boxenprotov1.BuilderResponse, error) {
 	d, err := yaml.Marshal(b.p)
 	if err != nil {
 		return nil, err
 	}
 
 	return &boxenprotov1.BuilderResponse{
-		Response: &boxenprotov1.BuilderResponse_PackageResponse{
-			PackageResponse: &boxenprotov1.PackageInfoResponse{
+		Response: &boxenprotov1.BuilderResponse_PackageInfoResponse{
+			PackageInfoResponse: &boxenprotov1.PackageInfoResponse{
 				Profile: d,
 				Disk:    b.disk,
 			},
+		},
+	}, nil
+}
+
+func (b *Boxen) buildProcessPackageDone() (*boxenprotov1.BuilderResponse, error) {
+	b.agentDone <- struct{}{}
+
+	return &boxenprotov1.BuilderResponse{
+		Response: &boxenprotov1.BuilderResponse_PackageCompleteResponse{
+			PackageCompleteResponse: &boxenprotov1.PackageCompleteResponse{},
 		},
 	}, nil
 }

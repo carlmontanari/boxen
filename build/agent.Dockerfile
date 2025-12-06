@@ -33,6 +33,7 @@ RUN apt-get update && \
     socat \
     qemu-utils \
     qemu-system-x86 \
+    libguestfs-tools \
     curl \
     vim \
     telnet \

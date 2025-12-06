@@ -85,8 +85,8 @@ packaging:
     # handle ztp login
     - type: prompts
       prompts:
-        # ~11m on my m3 max mbp -- so rosetta etc, should be faster for x86 id assume
-        timeout: 15m
+        # ~10-15m on my m3 max mbp -- so rosetta etc, should be faster for x86 id assume
+        timeout: 20m
         prompts:
           - prompt:
               contains: "localhost login:"
@@ -111,7 +111,7 @@ packaging:
     # wait for the box to reload
     - type: prompts
       prompts:
-        timeout: 15m
+        timeout: 20m
         prompts:
           - prompt:
               contains: "localhost login:"
@@ -164,6 +164,7 @@ packaging:
     - type: wait
       wait:
         duration: 10s
+  sparsify: false
 run:
   readyIndicator:
     contains: "login:"

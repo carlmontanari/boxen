@@ -2,8 +2,11 @@ package docker
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
+	"os"
 	"os/exec"
+	"strings"
 
 	boxencontainertypes "github.com/carlmontanari/boxen/container/types"
 )
@@ -13,9 +16,22 @@ func (r *Runtime) Run(
 	ctx context.Context,
 	l *slog.Logger,
 	cfg boxencontainertypes.RunConfig,
-) error {
+) (string, error) {
+	tmpDir, err := os.MkdirTemp("", "boxen")
+	if err != nil {
+		return "", err
+	}
+
+	cidFileName := fmt.Sprintf("%s/boxenbuild", tmpDir)
+
+	defer func() {
+		_ = os.RemoveAll(tmpDir)
+	}()
+
 	args := []string{
 		"run",
+		"--cidfile",
+		cidFileName,
 	}
 
 	if cfg.Name != "" {
@@ -42,16 +58,23 @@ func (r *Runtime) Run(
 
 	l.Info("running container", "command", docker, "with args", args)
 
-	cmd := exec.CommandContext(ctx, docker, args...)
+	cmd := exec.CommandContext(ctx, docker, args...) //nolint: gosec
 
 	b, err := cmd.CombinedOutput()
 	if err != nil {
 		l.Error("running container failed", "output", string(b), "error", err.Error())
 
-		return err
+		return "", err
 	}
 
 	l.Debug("running container succeeded", "output", string(b))
 
-	return nil
+	cidFileContent, err := os.ReadFile(cidFileName) //nolint: gosec
+	if err != nil {
+		l.Error("failed reading cidfile", "error", err.Error())
+
+		return "", err
+	}
+
+	return strings.TrimSpace(string(cidFileContent)), nil
 }

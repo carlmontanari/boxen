@@ -21,15 +21,19 @@ message LoggerResponse {}
 // Builder RPC
 message BuilderRequest {
   oneof request {
-    PackageInfoRequest package_request = 1;
+    PackageInfoRequest package_info_request = 1;
+    PackageCompleteRequest package_complete_request = 2;
   }
 }
 
 message PackageInfoRequest {}
 
+message PackageCompleteRequest {}
+
 message BuilderResponse {
   oneof response {
-    PackageInfoResponse package_response = 1;
+    PackageInfoResponse package_info_response = 1;
+    PackageCompleteResponse package_complete_response = 2;
   }
 }
 
@@ -37,6 +41,8 @@ message PackageInfoResponse {
   bytes profile = 1;
   string disk = 2;
 }
+
+message PackageCompleteResponse {}
 
 // Filer RPC
 message FilerRequest {
