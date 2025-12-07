@@ -61,7 +61,7 @@ func (rb *RingBuffer) Write(b []byte) (int, error) {
 		headChunk := b[remainingPositions:]
 
 		rb.Content = append(rb.Content[:rb.WritePos], tailChunk...)
-		rb.WritePos = uint32(len(headChunk)) //nolint:gosec
+		rb.WritePos = uint32(len(headChunk))
 		rb.Content = append(headChunk, rb.Content[rb.WritePos:]...)
 
 		rb.updateReadPos(lb)
@@ -111,7 +111,7 @@ func (rb *RingBuffer) Read(b []byte) (int, error) {
 
 	if remainingPositions <= lb {
 		n := copy(b, rb.Content[rb.ReadPos:])
-		n += copy(b[n:], rb.Content[:lb-uint32(n)]) //nolint:gosec
+		n += copy(b[n:], rb.Content[:lb-uint32(n)])
 
 		rb.updateReadPos(lb)
 

@@ -1,13 +1,11 @@
 package agent
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 
@@ -43,7 +41,10 @@ func (a *Agent) Package(ctx context.Context, host string) error {
 			return
 		}
 
+		// close and remove the stdout log since we dont want this leftover in
+		// the committed image
 		_ = a.stdoutF.Close()
+		_ = os.Remove(a.stdoutF.Name())
 	}()
 
 	var err error
@@ -73,7 +74,7 @@ func (a *Agent) Package(ctx context.Context, host string) error {
 
 	errs := make(chan error, 1)
 
-	go a.runPackaging(ctx, errs)
+	go a.startPackage(ctx, errs)
 
 	select {
 	case err = <-errs:
@@ -91,7 +92,7 @@ func (a *Agent) Package(ctx context.Context, host string) error {
 	}
 }
 
-func (a *Agent) runPackaging(ctx context.Context, errs chan error) {
+func (a *Agent) startPackage(ctx context.Context, errs chan error) {
 	err := a.packageGetProfile(ctx)
 	if err != nil {
 		errs <- err
@@ -113,7 +114,7 @@ func (a *Agent) runPackaging(ctx context.Context, errs chan error) {
 		return
 	}
 
-	p, err := a.packageStartInstance(ctx)
+	p, err := a.startInstance(ctx, true)
 	if err != nil {
 		errs <- err
 
@@ -192,7 +193,15 @@ func (a *Agent) packageGetProfile(ctx context.Context) error {
 
 	p := &boxenprofile.Profile{}
 
-	err = yaml.Unmarshal(r.GetProfile(), p)
+	b := r.GetProfile()
+
+	err = yaml.Unmarshal(b, p)
+	if err != nil {
+		return err
+	}
+
+	// also write it to disk so its available in the final committed image
+	err = os.WriteFile(profileFilename, b, profilePermissions)
 	if err != nil {
 		return err
 	}
@@ -289,77 +298,6 @@ func (a *Agent) packageConvertDisk(ctx context.Context) error {
 	return nil
 }
 
-func (a *Agent) packageStartInstance(ctx context.Context) (*os.Process, error) {
-	var err error
-
-	a.stdoutF, err = os.Create("instance_stdout.log")
-	if err != nil {
-		return nil, err
-	}
-
-	launchArgs, err := boxenprofile.QemuArgsFromProfile(a.p, true)
-	if err != nil {
-		return nil, err
-	}
-
-	a.l.Info("starting vm", "command", qemuBinary, "args", launchArgs)
-
-	var stderrBuf bytes.Buffer
-
-	cmd := exec.CommandContext(ctx, qemuBinary, launchArgs...) //nolint: gosec
-	cmd.Stdout = a.stdoutF
-	cmd.Stderr = &stderrBuf
-
-	err = cmd.Start()
-	if err != nil {
-		return nil, err
-	}
-
-	errs := make(chan error, 1)
-
-	go func() {
-		for {
-			time.Sleep(stderrCheckInterval)
-
-			stderrOut := stderrBuf.String()
-
-			if stderrOut == "" {
-				continue
-			}
-
-			a.l.Debug("read from stderr", "content", stderrOut)
-
-			lines := strings.Split(stderrOut, "\n") //nolint: modernize
-
-			for _, line := range lines {
-				if slices.ContainsFunc(
-					a.p.Packaging.StdErrIgnore,
-					func(sub string) bool {
-						return strings.Contains(line, sub)
-					},
-				) {
-					break
-				}
-
-				errs <- fmt.Errorf(
-					"%w: stderr contains output, assuming failure. stderr: %q",
-					boxenerrors.ErrBoxen,
-					stderrOut,
-				)
-
-				return
-			}
-		}
-	}()
-
-	select {
-	case err := <-errs:
-		return nil, err
-	case <-time.After(stderrCheckDuration):
-		return cmd.Process, nil
-	}
-}
-
 func (a *Agent) packageRunProcess(ctx context.Context) error {
 	for idx := range a.p.Packaging.Process {
 		step := &a.p.Packaging.Process[idx]
@@ -427,7 +365,7 @@ func (a *Agent) packageRunProcessStepPrompts(ctx context.Context, step *boxenpro
 			// whole thing we are looking for in a single read, so, we need to ensure we are
 			// looking back far enough.
 			scrapligocli.WithSearchDepth(
-				uint64(max(len(p.Prompt.Contains)*2, readUntilSearchDepth)), //nolint:mnd,gosec
+				uint64(max(len(p.Prompt.Contains)*2, readUntilSearchDepth)), //nolint:mnd
 			),
 		)
 

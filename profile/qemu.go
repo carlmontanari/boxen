@@ -152,7 +152,7 @@ func qemuCPU(p *Profile) []string {
 func qemuMemory(p *Profile) []string {
 	return []string{
 		"-m",
-		strconv.Itoa(int(p.VirtualMachine.Memory)), //nolint:gosec
+		strconv.Itoa(int(p.VirtualMachine.Memory)),
 	}
 }
 

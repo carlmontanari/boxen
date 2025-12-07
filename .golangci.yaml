@@ -68,6 +68,10 @@ linters:
         text: meaningless package names
       - linters:
           - revive
+        path: errors/
+        text: avoid package names that conflict
+      - linters:
+          - revive
         path: container/types
         text: meaningless package names
       - linters:

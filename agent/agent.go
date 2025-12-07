@@ -14,6 +14,11 @@ import (
 	"google.golang.org/grpc"
 )
 
+const (
+	profileFilename    = "profile.yaml"
+	profilePermissions = 0o644
+)
+
 // Agent is process that runs the container half of things for boxen -- its the thing that the main
 // boxen process talks with during the packaging process, and it also runs the vm inside the built
 // image for working with containerlab in "normal" run operations.
