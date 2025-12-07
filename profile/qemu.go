@@ -12,7 +12,9 @@ import (
 	"strconv"
 	"strings"
 
+	boxenconstants "github.com/carlmontanari/boxen/constants"
 	boxenerrors "github.com/carlmontanari/boxen/errors"
+	boxenutil "github.com/carlmontanari/boxen/util"
 	"github.com/google/uuid"
 	"go.starlark.net/starlark"
 	"go.starlark.net/syntax"
@@ -284,9 +286,9 @@ func buildDataNic(
 	busAddr int,
 	paddedNicID string,
 ) []string {
-	// TODO we need to (not here, but in agent) do the wait for nic provisioning thing too i think
-	// TODO needs to check EnvClabIntfcPrefix
-	_, err := os.Stat(fmt.Sprintf("/sys/class/net/eth%d", nicID))
+	intfPrefix := boxenutil.GetEnvStrOrDefault(boxenconstants.EnvClabIntfPrefix, "eth")
+
+	_, err := os.Stat(fmt.Sprintf("/sys/class/net/%s%d", intfPrefix, nicID))
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return []string{

@@ -140,6 +140,8 @@ func (a *Agent) runClabNICProvisionDelay(ctx context.Context) error {
 		return nil
 	}
 
+	intfPrefix := boxenutil.GetEnvStrOrDefault(boxenconstants.EnvClabIntfPrefix, "eth")
+
 	a.l.Info("waiting for clab nics to be priviosined", "count", clabIntfCount)
 
 	ticker := time.NewTicker(time.Second)
@@ -150,7 +152,7 @@ func (a *Agent) runClabNICProvisionDelay(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
-			provisionedNics, err := filepath.Glob("/sys/class/net/eth*")
+			provisionedNics, err := filepath.Glob(fmt.Sprintf("/sys/class/net/%s*", intfPrefix))
 			if err != nil {
 				return err
 			}
