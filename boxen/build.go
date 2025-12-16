@@ -19,7 +19,8 @@ func (b *Boxen) Build(
 	imageRegistry,
 	imageTag,
 	diskImage,
-	profile string,
+	profile,
+	platform string,
 ) error {
 	b.l.Info("boxen build starting...")
 
@@ -33,6 +34,8 @@ func (b *Boxen) Build(
 		diskImage,
 		"profile",
 		profile,
+		"platform",
+		platform,
 	)
 
 	b.disk = diskImage
@@ -79,8 +82,9 @@ func (b *Boxen) Build(
 		ctx,
 		b.l,
 		boxencontainertypes.RunConfig{
-			Name:  fmt.Sprintf("boxen-%s-builder", b.p.Name),
-			Image: buildGetBuilderImage(),
+			Name:     fmt.Sprintf("boxen-%s-builder", b.p.Name),
+			Image:    buildGetBuilderImage(),
+			Platform: platform,
 			Env: []string{
 				fmt.Sprintf("%s=%s", boxenconstants.EnvServerHost, ourAddr),
 			},

@@ -90,6 +90,12 @@ type StepReadUntil struct {
 // StepWrite holds things we want to write to the terminal during a package/run.
 type StepWrite struct {
 	Content string `yaml:"content"`
+	// write content line-by-line from the file set here.
+	ContentFromFile string `yaml:"contentFromFile"`
+	// write content line-by-line from the default clab startup config file
+	// (/config/startup-config.cfg), this should only be used in the "run" stage because the startup
+	// config won't be present in the packaging stage.
+	ContentFromStartupConfig bool `yaml:"contentFromStartupConfig"`
 	// if marked hidden we wont read the inputs we send off the channel, use this for
 	// passwords and the like
 	Hidden bool `yaml:"hidden"`

@@ -166,5 +166,34 @@ packaging:
         duration: 10s
   sparsify: false
 run:
-  readyIndicator:
-    contains: "login:"
+  process:
+    - type: readUntil
+      readUntil:
+        timeout: 20m
+        until:
+          contains: "login:"
+  configProcess:
+    - type: write
+      write:
+        content: |
+          configure terminal
+    - type: write
+      write:
+        contentFromStartupConfig: true
+    - type: write
+      write:
+        content:
+          copy running-config startup-config
+    - type: write
+      write:
+        content: |
+          end
+    - type: readUntil
+      readUntil:
+        timeout: 1m
+        until:
+          contains: "localhost#"
+    # small delay to ensure everything saved nicely
+    - type: wait
+      wait:
+        duration: 10s

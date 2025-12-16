@@ -1,7 +1,6 @@
 package agent
 
 import (
-	"context"
 	"log/slog"
 	"os"
 
@@ -9,8 +8,6 @@ import (
 	boxenprofile "github.com/carlmontanari/boxen/profile"
 	boxenprotov1 "github.com/carlmontanari/boxen/proto/v1"
 	scrapligocli "github.com/scrapli/scrapligo/cli"
-	scrapligologging "github.com/scrapli/scrapligo/logging"
-	scrapligooptions "github.com/scrapli/scrapligo/options"
 	"google.golang.org/grpc"
 )
 
@@ -45,38 +42,4 @@ func NewAgent(
 		done: make(chan struct{}),
 		l:    adaptSlog(boxenlogging.NewLogger(logLevel)),
 	}
-}
-
-func (a *Agent) openConsoleConn(ctx context.Context) error {
-	a.l.Info("opening console connection...")
-
-	var err error
-
-	a.conn, err = scrapligocli.NewCli(
-		"localhost",
-		scrapligooptions.WithDefintionFileOrName(".scrapligo_definition.yaml"),
-		scrapligooptions.WithPort(5_001), //nolint: mnd
-		scrapligooptions.WithLogger(a.l.l),
-		scrapligooptions.WithLoggerLevel(scrapligologging.Debug),
-		scrapligooptions.WithTransportTelnet(),
-		scrapligooptions.WithReturnChar("\r\n"),
-		scrapligooptions.WithBypassInSessionAuth(),
-		scrapligooptions.WithSessionRecorderPath("console.log"),
-	)
-	if err != nil {
-		a.l.Error("failed creating console connection", "error", err.Error())
-
-		return err
-	}
-
-	_, err = a.conn.Open(ctx)
-	if err != nil {
-		a.l.Error("failed opening console connection", "error", err.Error())
-
-		return err
-	}
-
-	a.l.Info("console connection opened")
-
-	return nil
 }

@@ -43,4 +43,8 @@ build:
 
 ## Build the base boxen agent container image
 build-image:
-	docker build -f build/agent.Dockerfile -t ghcr.io/carlmontanari/boxen:dev-latest .
+	docker build \
+        -f build/agent.Dockerfile \
+        -t ghcr.io/carlmontanari/boxen:dev-latest \
+        --platform \
+        linux/amd64 .

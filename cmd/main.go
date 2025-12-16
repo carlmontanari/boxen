@@ -92,6 +92,13 @@ func buildCommand() *urfavecli.Command {
 					" if unset, will attempt to auto select based on provided image",
 				Required: false,
 			},
+			&urfavecli.StringFlag{
+				Name:     boxenconstants.FlagTargetPlatform,
+				Usage:    "the docker platform to target, defaulting to x86 linux",
+				Required: false,
+				Value:    boxenconstants.DockerLinuxX86Platform,
+				Sources:  urfavecli.EnvVars(boxenconstants.EnvTargetPlatform),
+			},
 		},
 		Action: func(ctx context.Context, cmd *urfavecli.Command) error {
 			b, err := boxen.NewBoxen(
@@ -108,6 +115,7 @@ func buildCommand() *urfavecli.Command {
 				cmd.String(boxenconstants.FlagImageTag),
 				cmd.String(boxenconstants.FlagDiskImage),
 				cmd.String(boxenconstants.FlagProfileNameOrPath),
+				cmd.String(boxenconstants.FlagTargetPlatform),
 			)
 		},
 	}

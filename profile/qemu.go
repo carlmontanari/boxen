@@ -154,7 +154,7 @@ func qemuCPU(p *Profile) []string {
 func qemuMemory(p *Profile) []string {
 	return []string{
 		"-m",
-		strconv.Itoa(int(p.VirtualMachine.Memory)),
+		strconv.Itoa(int(p.VirtualMachine.Memory)), //nolint:gosec
 	}
 }
 
@@ -308,7 +308,7 @@ func buildDataNic(
 	}
 
 	// try to get the mac from the container interface so things match in bridge mode
-	mac := getIntfMac(context.Background(), fmt.Sprintf("eth%d", nicID))
+	mac := getIntfMac(context.Background(), fmt.Sprintf("%s%d", intfPrefix, nicID))
 	if mac == "" {
 		mac = generateMac(nicID)
 	}

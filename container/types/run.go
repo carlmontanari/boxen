@@ -4,6 +4,7 @@ package types
 type RunConfig struct {
 	Name       string
 	Image      string
+	Platform   string
 	Env        []string
 	Detached   bool
 	Remove     bool

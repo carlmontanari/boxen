@@ -6,6 +6,8 @@ const (
 
 	FlagServerHost = "server"
 
+	FlagTargetPlatform = "platform"
+
 	FlagImageRegistry      = "imageRegistry"
 	FlagImageRegistryShort = "reg"
 	FlagImageTag           = "imageTag"

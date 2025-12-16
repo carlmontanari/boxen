@@ -6,4 +6,6 @@ const (
 	EnvClabIntfPrefix      = "CLAB_INTF_PREFIX"
 	EnvClabIntfs           = "CLAB_INTFS"
 	EnvClabBootDelay       = "BOOT_DELAY"
+
+	StartupConfigFilePath = "/config/startup-config.cfg"
 )

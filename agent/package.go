@@ -6,15 +6,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"time"
 
 	boxenconstants "github.com/carlmontanari/boxen/constants"
-	boxenerrors "github.com/carlmontanari/boxen/errors"
 	boxenprofile "github.com/carlmontanari/boxen/profile"
 	boxenprotov1 "github.com/carlmontanari/boxen/proto/v1"
-	boxenutilringbuffer "github.com/carlmontanari/boxen/util/ringbuffer"
-	scrapligocli "github.com/scrapli/scrapligo/cli"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"gopkg.in/yaml.v3"
@@ -24,6 +20,7 @@ const (
 	qemuImgBinary  = "qemu-img"
 	qemuBinary     = "qemu-system-x86_64"
 	sparsifyBinary = "virt-sparsify"
+	commandBinary  = "/bin/bash"
 
 	stderrCheckInterval = time.Second
 	stderrCheckDuration = 10 * time.Second
@@ -92,7 +89,7 @@ func (a *Agent) Package(ctx context.Context, host string) error {
 	}
 }
 
-func (a *Agent) startPackage(ctx context.Context, errs chan error) {
+func (a *Agent) startPackage(ctx context.Context, errs chan error) { //nolint: funlen
 	err := a.packageGetProfile(ctx)
 	if err != nil {
 		errs <- err
@@ -114,6 +111,13 @@ func (a *Agent) startPackage(ctx context.Context, errs chan error) {
 		return
 	}
 
+	err = a.packagePreCommands(ctx)
+	if err != nil {
+		errs <- err
+
+		return
+	}
+
 	p, err := a.startInstance(ctx, true)
 	if err != nil {
 		errs <- err
@@ -121,14 +125,21 @@ func (a *Agent) startPackage(ctx context.Context, errs chan error) {
 		return
 	}
 
-	err = a.openConsoleConn(ctx)
+	err = a.openConsoleConn(ctx, "package.console.log")
 	if err != nil {
 		errs <- err
 
 		return
 	}
 
-	err = a.packageRunProcess(ctx)
+	err = a.packageProcess(ctx)
+	if err != nil {
+		errs <- err
+
+		return
+	}
+
+	err = a.closeConsoleConn(ctx)
 	if err != nil {
 		errs <- err
 
@@ -149,6 +160,13 @@ func (a *Agent) startPackage(ctx context.Context, errs chan error) {
 
 			return
 		}
+	}
+
+	err = a.packagePostCommands(ctx)
+	if err != nil {
+		errs <- err
+
+		return
 	}
 
 	_, err = a.s.Builder(
@@ -298,7 +316,20 @@ func (a *Agent) packageConvertDisk(ctx context.Context) error {
 	return nil
 }
 
-func (a *Agent) packageRunProcess(ctx context.Context) error {
+func (a *Agent) packagePreCommands(ctx context.Context) error {
+	a.l.Info("handling package pre commands")
+
+	for _, command := range a.p.PrePackagingCommands {
+		err := a.invokeCommand(ctx, command)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (a *Agent) packageProcess(ctx context.Context) error {
 	for idx := range a.p.Packaging.Process {
 		step := &a.p.Packaging.Process[idx]
 
@@ -308,13 +339,13 @@ func (a *Agent) packageRunProcess(ctx context.Context) error {
 
 		switch step.Type {
 		case boxenprofile.StepTypePrompts:
-			err = a.packageRunProcessStepPrompts(ctx, step)
+			err = a.processStepPrompts(ctx, step)
 		case boxenprofile.StepTypeReadUntil:
-			err = a.packageRunProcessStepReadUntil(ctx, step)
+			err = a.processStepReadUntil(ctx, step)
 		case boxenprofile.StepTypeWrite:
-			err = a.packageRunProcessStepWrite(ctx, step)
+			err = a.processStepWrite(ctx, step)
 		case boxenprofile.StepTypeWait:
-			err = a.packageRunProcessStepWait(ctx, step)
+			err = a.processStepWait(ctx, step)
 		default:
 			panic("unimplemented step type")
 		}
@@ -325,259 +356,6 @@ func (a *Agent) packageRunProcess(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-func (a *Agent) packageRunProcessStepPrompts(ctx context.Context, step *boxenprofile.Step) error {
-	t, err := time.ParseDuration(step.Prompts.Timeout)
-	if err != nil {
-		a.l.Error(
-			"failed parsing timeout duration for prompt step",
-			"timeout",
-			step.Prompts.Timeout,
-			"error",
-			err.Error(),
-		)
-
-		return err
-	}
-
-	a.l.Info("handling prompts", "prompts", step.Prompts.Prompts, "timeout", step.Prompts.Timeout)
-
-	cbs := make([]*scrapligocli.ReadCallback, len(step.Prompts.Prompts))
-
-	for idx, p := range step.Prompts.Prompts {
-		a.l.Debug(
-			"building prompts callback",
-			"prompt",
-			p.Prompt,
-			"response",
-			p.Response,
-			"completes",
-			p.Completes,
-		)
-
-		var opts []scrapligocli.Option
-
-		opts = append(
-			opts,
-			// because of the way we read off the console the individual reads are *very* likely
-			// to be just like a handful of characters, meaning we would very infrequently have the
-			// whole thing we are looking for in a single read, so, we need to ensure we are
-			// looking back far enough.
-			scrapligocli.WithSearchDepth(
-				uint64(max(len(p.Prompt.Contains)*2, readUntilSearchDepth)), //nolint:mnd
-			),
-		)
-
-		if p.Prompt.Contains != "" {
-			opts = append(
-				opts,
-				scrapligocli.WithContains(p.Prompt.Contains),
-			)
-		}
-
-		if p.Prompt.ContainsPattern != "" {
-			opts = append(
-				opts,
-				scrapligocli.WithContainsPattern(p.Prompt.ContainsPattern),
-			)
-		}
-
-		if p.Prompt.NotContains != "" {
-			opts = append(
-				opts,
-				scrapligocli.WithNotContains(p.Prompt.NotContains),
-			)
-		}
-
-		if p.Once {
-			opts = append(
-				opts,
-				scrapligocli.WithOnce(),
-			)
-		}
-
-		if p.Completes {
-			opts = append(
-				opts,
-				scrapligocli.WithCompletes(),
-			)
-		}
-
-		cbs[idx] = scrapligocli.NewReadCallback(
-			fmt.Sprintf("prompts step idx %d", idx),
-			func(ctx context.Context, c *scrapligocli.Cli) error {
-				if p.Hidden {
-					return c.WriteAndReturn(p.Response)
-				}
-
-				err = c.Write(p.Response)
-				if err != nil {
-					return err
-				}
-
-				if p.Hidden {
-					return c.WriteReturn()
-				}
-
-				err = readUntil(ctx, a.l, c, p.Response)
-				if err != nil {
-					return err
-				}
-
-				return c.WriteReturn()
-			},
-			opts...,
-		)
-	}
-
-	taskCtx, cancel := context.WithTimeout(ctx, t)
-	defer cancel()
-
-	_, err = a.conn.ReadWithCallbacks(taskCtx, "", cbs...)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (a *Agent) packageRunProcessStepReadUntil(ctx context.Context, step *boxenprofile.Step) error {
-	b := boxenutilringbuffer.NewRingBuffer(readUntilRingBufSize)
-
-	t, err := time.ParseDuration(step.ReadUntil.Timeout)
-	if err != nil {
-		a.l.Error(
-			"failed parsing timeout duration for read until step",
-			"timeout",
-			step.ReadUntil.Timeout,
-			"error",
-			err.Error(),
-		)
-
-		return err
-	}
-
-	a.l.Info("reading until", "until", step.ReadUntil.Until, "timeout", step.ReadUntil.Timeout)
-
-	start := time.Now()
-	end := start.Add(t)
-	doneOrErr := make(chan error)
-
-	go func() {
-		for {
-			time.Sleep(time.Second)
-
-			// ensure this goroutine exits. we cant have this continue reading from the
-			// session buf screwing up other reads (esp since this is going around the
-			// operation loop in libscrapli ffi bits)
-			if time.Now().After(end) {
-				return
-			}
-
-			r, err := a.conn.Read()
-			if err != nil {
-				doneOrErr <- err
-
-				return
-			}
-
-			_, err = b.Write(r)
-			if err != nil {
-				doneOrErr <- err
-
-				return
-			}
-
-			a.l.Debug("reading until", "until", step.ReadUntil.Until, "content", string(b.Content))
-
-			check, err := step.ReadUntil.Until.Check(b.Content)
-			if err != nil {
-				doneOrErr <- err
-
-				return
-			}
-
-			if check {
-				doneOrErr <- err
-
-				return
-			}
-		}
-	}()
-
-	select {
-	case err = <-doneOrErr:
-		if err != nil {
-			return err
-		}
-
-		return nil
-	case <-time.After(t):
-		return fmt.Errorf("%w: read until timeout expired", boxenerrors.ErrBoxen)
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-}
-
-func (a *Agent) packageRunProcessStepWrite(ctx context.Context, step *boxenprofile.Step) error {
-	a.l.Info("writing to console", "content", step.Write.Content)
-
-	iter := strings.SplitSeq(step.Write.Content, "\n")
-
-	for s := range iter {
-		a.l.Info("writing to console", "content", s)
-
-		if step.Write.Hidden {
-			err := a.conn.WriteAndReturn(s)
-			if err != nil {
-				return err
-			}
-
-			continue
-		}
-
-		err := a.conn.Write(s)
-		if err != nil {
-			return err
-		}
-
-		err = readUntil(ctx, a.l, a.conn, s)
-		if err != nil {
-			return err
-		}
-
-		err = a.conn.WriteReturn()
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (a *Agent) packageRunProcessStepWait(ctx context.Context, step *boxenprofile.Step) error {
-	d, err := time.ParseDuration(step.Wait.Duration)
-	if err != nil {
-		a.l.Error(
-			"failed parsing duration for wait step",
-			"timeout",
-			step.Wait.Duration,
-			"error",
-			err.Error(),
-		)
-
-		return err
-	}
-
-	a.l.Info("waiting", "duration", step.Wait.Duration)
-
-	select {
-	case <-time.After(d):
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
 }
 
 func (a *Agent) packageShrinkify(ctx context.Context) error {
@@ -600,6 +378,19 @@ func (a *Agent) packageShrinkify(ctx context.Context) error {
 	err = cmd.Run()
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (a *Agent) packagePostCommands(ctx context.Context) error {
+	a.l.Info("handling package post commands")
+
+	for _, command := range a.p.PostPackagingCommands {
+		err := a.invokeCommand(ctx, command)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

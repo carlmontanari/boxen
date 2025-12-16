@@ -12,4 +12,6 @@ const (
 
 	// DefaultBoxenListenPort, so fun, 98 111 120 == box in decimal ascii, so 98+111+120 = 329.
 	DefaultBoxenListenPort = 10329
+
+	DockerLinuxX86Platform = "linux/amd64"
 )

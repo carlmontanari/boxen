@@ -14,5 +14,14 @@ type Profile struct {
 
 	ScrapliDefinitionNameOrFile string `yaml:"scrapliDefinitionNameOrFile"`
 
-	Packaging *Packaging `yaml:"packaging"`
+	// commands that are executed before the packaging process is kicked off -- this can be used
+	// to create new files/disks/etc. (i.e. csr1000v genisoimage for the initial config). if you
+	// want to do more elaborate shell script type things its probably nicer to put that script
+	// in "extra files" and invoke that -- all "commands" are invoked like `/bin/bash -c XXX`.
+	PrePackagingCommands  []string   `yaml:"prePackagingCommands"`
+	Packaging             *Packaging `yaml:"packaging"`
+	PostPackagingCommands []string   `yaml:"postPackagingCommands"`
+
+	PreRunCommands []string `yaml:"preRunCommands"`
+	Run            *Run     `yaml:"run"`
 }

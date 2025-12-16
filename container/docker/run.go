@@ -38,6 +38,10 @@ func (r *Runtime) Run(
 		args = append(args, "--name", cfg.Name)
 	}
 
+	if cfg.Platform != "" {
+		args = append(args, "--platform", cfg.Platform)
+	}
+
 	for _, env := range cfg.Env {
 		args = append(args, "-e", env)
 	}

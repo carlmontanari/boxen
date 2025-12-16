@@ -2,7 +2,9 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +14,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	boxenconstants "github.com/carlmontanari/boxen/constants"
+	boxenprofile "github.com/carlmontanari/boxen/profile"
 	boxenutil "github.com/carlmontanari/boxen/util"
 )
 
@@ -78,6 +81,13 @@ func (a *Agent) startRun(ctx context.Context, errs chan error) {
 		return
 	}
 
+	err = a.runPreCommands(ctx)
+	if err != nil {
+		errs <- err
+
+		return
+	}
+
 	// no need to capture the process to kill as we passed the root ctx so itll cancel anyway
 	// if we catch a sigint/sigkill
 	_, err = a.startInstance(ctx, false)
@@ -87,8 +97,33 @@ func (a *Agent) startRun(ctx context.Context, errs chan error) {
 		return
 	}
 
-	// TODO wait for console ready i think
-	// TODO install startup config (is this only from og boxen things or does clab do this too?)
+	err = a.openConsoleConn(ctx, "run.console.log")
+	if err != nil {
+		errs <- err
+
+		return
+	}
+
+	err = a.runProcesses(ctx)
+	if err != nil {
+		errs <- err
+
+		return
+	}
+
+	err = a.runStartupConfig(ctx)
+	if err != nil {
+		errs <- err
+
+		return
+	}
+
+	err = a.closeConsoleConn(ctx)
+	if err != nil {
+		errs <- err
+
+		return
+	}
 
 	<-ctx.Done()
 
@@ -131,6 +166,19 @@ func (a *Agent) runClabStartDelay(ctx context.Context) error {
 
 		return nil
 	}
+}
+
+func (a *Agent) runPreCommands(ctx context.Context) error {
+	a.l.Info("handling run pre commands")
+
+	for _, command := range a.p.PreRunCommands {
+		err := a.invokeCommand(ctx, command)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (a *Agent) runClabNICProvisionDelay(ctx context.Context) error {
@@ -190,6 +238,73 @@ func (a *Agent) runSocatProcesses(ctx context.Context) error {
 		cmd := exec.CommandContext(ctx, socatBinary, args...) //nolint: gosec
 
 		err := cmd.Start()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (a *Agent) runProcesses(ctx context.Context) error {
+	for idx := range a.p.Run.Process {
+		step := &a.p.Run.Process[idx]
+
+		a.l.Info("starting run process", "step", idx, "type", step.Type)
+
+		var err error
+
+		switch step.Type {
+		case boxenprofile.StepTypePrompts:
+			err = a.processStepPrompts(ctx, step)
+		case boxenprofile.StepTypeReadUntil:
+			err = a.processStepReadUntil(ctx, step)
+		case boxenprofile.StepTypeWrite:
+			err = a.processStepWrite(ctx, step)
+		case boxenprofile.StepTypeWait:
+			err = a.processStepWait(ctx, step)
+		default:
+			panic("unimplemented step type")
+		}
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (a *Agent) runStartupConfig(ctx context.Context) error {
+	a.l.Info("handling startup config")
+
+	_, err := os.Stat(boxenconstants.StartupConfigFilePath)
+	if errors.Is(err, fs.ErrNotExist) {
+		a.l.Debug("startup config file not present, nothing to do")
+
+		return nil
+	}
+
+	for idx := range a.p.Run.ConfigProcess {
+		step := &a.p.Run.ConfigProcess[idx]
+
+		a.l.Info("starting run configProcess", "step", idx, "type", step.Type)
+
+		var err error
+
+		switch step.Type {
+		case boxenprofile.StepTypePrompts:
+			err = a.processStepPrompts(ctx, step)
+		case boxenprofile.StepTypeReadUntil:
+			err = a.processStepReadUntil(ctx, step)
+		case boxenprofile.StepTypeWrite:
+			err = a.processStepWrite(ctx, step)
+		case boxenprofile.StepTypeWait:
+			err = a.processStepWait(ctx, step)
+		default:
+			panic("unimplemented step type")
+		}
+
 		if err != nil {
 			return err
 		}

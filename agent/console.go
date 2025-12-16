@@ -6,9 +6,56 @@ import (
 	"time"
 
 	scrapligocli "github.com/scrapli/scrapligo/cli"
+	scrapligologging "github.com/scrapli/scrapligo/logging"
+	scrapligooptions "github.com/scrapli/scrapligo/options"
 )
 
-func readUntil(ctx context.Context, l *wrappedSlogger, c *scrapligocli.Cli, s string) error {
+func (a *Agent) openConsoleConn(ctx context.Context, logFilename string) error {
+	a.l.Info("opening console connection...")
+
+	var err error
+
+	a.conn, err = scrapligocli.NewCli(
+		"localhost",
+		scrapligooptions.WithDefintionFileOrName(".scrapligo_definition.yaml"),
+		scrapligooptions.WithPort(5_001), //nolint: mnd
+		scrapligooptions.WithLogger(a.l.l),
+		scrapligooptions.WithLoggerLevel(scrapligologging.Debug),
+		scrapligooptions.WithTransportTelnet(),
+		scrapligooptions.WithReturnChar("\r\n"),
+		scrapligooptions.WithBypassInSessionAuth(),
+		scrapligooptions.WithSessionRecorderPath(logFilename),
+	)
+	if err != nil {
+		a.l.Error("failed creating console connection", "error", err.Error())
+
+		return err
+	}
+
+	_, err = a.conn.Open(ctx)
+	if err != nil {
+		a.l.Error("failed opening console connection", "error", err.Error())
+
+		return err
+	}
+
+	a.l.Info("console connection opened")
+
+	return nil
+}
+
+func (a *Agent) closeConsoleConn(ctx context.Context) error {
+	a.l.Info("closing console connection...")
+
+	_, err := a.conn.Close(ctx)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *Agent) readUntil(ctx context.Context, s string) error {
 	var buf bytes.Buffer
 
 	for {
@@ -20,7 +67,7 @@ func readUntil(ctx context.Context, l *wrappedSlogger, c *scrapligocli.Cli, s st
 
 		// this read cant block because its only reading off the internally buffered
 		// bits that the session has already read
-		b, err := c.Read()
+		b, err := a.conn.Read()
 		if err != nil {
 			return err
 		}
@@ -32,7 +79,7 @@ func readUntil(ctx context.Context, l *wrappedSlogger, c *scrapligocli.Cli, s st
 
 		contents := buf.Bytes()
 
-		l.Debug("checking contents", "until", s, "contents", string(contents))
+		a.l.Debug("checking contents", "until", s, "contents", string(contents))
 
 		if bytes.Contains(contents, []byte(s)) {
 			return nil
