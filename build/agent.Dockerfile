@@ -1,6 +1,6 @@
 ARG VERSION=0.0.0
 
-FROM golang:1.25.4-bookworm AS builder
+FROM golang:1.25-trixie AS builder
 
 WORKDIR /boxen
 COPY . .
@@ -10,6 +10,8 @@ RUN go mod download
 RUN CGO_ENABLED=0 \
     go run \
     build/write-libscrapli-to-cache/main.go
+
+RUN cp /root/.cache/scrapli/libscrapli.so.* /root/.cache/scrapli/libscrapli.so
 
 RUN CGO_ENABLED=0 \
     go build \
@@ -52,7 +54,7 @@ RUN chmod 0777 /etc/tc-tap-ifup
 
 COPY build/scrapligo_definition.yaml .scrapligo_definition.yaml
 
-COPY --from=builder /root/.cache/scrapli/libscrapli.so.* /boxen/.libscrapli.so
-COPY --from=builder /boxen/out/boxen /boxen/
+COPY --from=builder /root/.cache/scrapli/libscrapli.so /boxen/.libscrapli.so
+COPY --from=builder /boxen/out/boxen /boxen/boxen
 
 ENTRYPOINT ["/boxen/boxen", "package"]

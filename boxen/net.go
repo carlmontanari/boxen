@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"os"
 
 	boxenconstants "github.com/carlmontanari/boxen/constants"
 	boxenerrors "github.com/carlmontanari/boxen/errors"
@@ -37,31 +36,47 @@ func (b *Boxen) getListener(ctx context.Context) (net.Listener, error) {
 	return lis, nil
 }
 
-func (b *Boxen) getAddr(ctx context.Context) (string, error) {
-	host, err := os.Hostname()
+func (b *Boxen) getAddr() (string, error) {
+	ifaces, err := net.Interfaces()
 	if err != nil {
 		return "", err
 	}
 
-	addrs, err := net.DefaultResolver.LookupIP(ctx, "ip", host)
-	if err != nil {
-		return "", err
-	}
-
-	for _, addr := range addrs {
-		if !addr.IsGlobalUnicast() {
-			// obviously we need something reachable, this should eliminate loopbacks/multicast
-			// etc so the container can reach back to us
+	for _, iface := range ifaces {
+		if iface.Flags&(net.FlagUp|net.FlagLoopback) != net.FlagUp {
 			continue
 		}
 
-		res := addr.String()
-
-		if res == "<nil>" {
+		addrs, err := iface.Addrs()
+		if err != nil {
 			continue
 		}
 
-		return res, nil
+		for _, a := range addrs {
+			var ip net.IP
+
+			switch v := a.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+
+			if ip == nil {
+				continue
+			}
+
+			ip = ip.To4()
+			if ip == nil {
+				continue
+			}
+
+			if !ip.IsGlobalUnicast() {
+				continue
+			}
+
+			return ip.String(), nil
+		}
 	}
 
 	return "", fmt.Errorf("%w: failed finding a reachable local address", boxenerrors.ErrBoxen)

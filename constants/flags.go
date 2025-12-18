@@ -18,3 +18,11 @@ const (
 	FlagProfileNameOrPath      = "profile"
 	FlagProfileNameOrPathShort = "prof"
 )
+
+const (
+	FlagContainerlabUsername       = "username"
+	FlagContainerlabPassword       = "password"
+	FlagContainerlabHostname       = "hostname"
+	FlagContainerlabConnectionMode = "connection-mode"
+	FlagContainerlabTrace          = "trace"
+)

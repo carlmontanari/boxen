@@ -71,7 +71,7 @@ func (b *Boxen) Build(
 		}
 	}()
 
-	ourAddr, err := b.getAddr(ctx)
+	ourAddr, err := b.getAddr()
 	if err != nil {
 		b.l.Error("failed gleaning usable address to pass to builder", "error", err.Error())
 
@@ -81,10 +81,10 @@ func (b *Boxen) Build(
 	containerID, err := b.c.Run(
 		ctx,
 		b.l,
-		boxencontainertypes.RunConfig{
-			Name:     fmt.Sprintf("boxen-%s-builder", b.p.Name),
-			Image:    buildGetBuilderImage(),
-			Platform: platform,
+		&boxencontainertypes.RunConfig{
+			Name:  fmt.Sprintf("boxen-%s-builder", b.p.Name),
+			Image: buildGetBuilderImage(),
+			// Platform: platform,
 			Env: []string{
 				fmt.Sprintf("%s=%s", boxenconstants.EnvServerHost, ourAddr),
 			},

@@ -3,9 +3,8 @@ package profile
 // VirtualMachine defines the qemu settings/profile for an endpoint, this will generally come from
 // yaml "profile" manifests that we load or users provide to tell us how to configure the vm.
 type VirtualMachine struct {
-	Emulation    string `yaml:"emulation"`
-	Machine      string `yaml:"machine"`
-	Acceleration string `yaml:"acceleration"`
+	Emulation string `yaml:"emulation"`
+	Machine   string `yaml:"machine"`
 
 	Memory uint `yaml:"memory"`
 

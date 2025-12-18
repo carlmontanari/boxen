@@ -41,5 +41,6 @@ func NewAgent(
 	return &Agent{
 		done: make(chan struct{}),
 		l:    adaptSlog(boxenlogging.NewLogger(logLevel)),
+		p:    &boxenprofile.Profile{},
 	}
 }

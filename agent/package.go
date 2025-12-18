@@ -343,7 +343,7 @@ func (a *Agent) packageProcess(ctx context.Context) error {
 		case boxenprofile.StepTypeReadUntil:
 			err = a.processStepReadUntil(ctx, step)
 		case boxenprofile.StepTypeWrite:
-			err = a.processStepWrite(ctx, step)
+			err = a.processStepWrite(ctx, step, nil)
 		case boxenprofile.StepTypeWait:
 			err = a.processStepWait(ctx, step)
 		default:

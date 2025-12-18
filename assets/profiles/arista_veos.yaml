@@ -167,16 +167,68 @@ packaging:
   sparsify: false
 run:
   process:
-    - type: readUntil
-      readUntil:
+    - type: prompts
+      prompts:
         timeout: 20m
-        until:
-          contains: "login:"
+        prompts:
+          - prompt:
+              contains: "localhost login:"
+            response: admin
+            hidden: true
+            once: true
+          - prompt:
+              contains: "Password:"
+            response: admin
+            hidden: true
+            once: true
+          - prompt:
+              contains: "localhost>"
+            response: ""
+            once: true
+            completes: true
   configProcess:
+    # acquire privileged exec and disable pagination
+    - type: write
+      write:
+        content: enable
+    - type: prompts
+      prompts:
+        timeout: 1m
+        prompts:
+          - prompt:
+              contains: "Password:"
+            response: admin
+            hidden: true
+            once: true
+          - prompt:
+              contains: "localhost#"
+            response: ""
+            once: true
+            completes: true
+    - type: write
+      write:
+        content: |
+          term len 0
+          term width 32767
+    # config mode so we can set username/password/hostname
     - type: write
       write:
         content: |
           configure terminal
+    - type: write
+      write:
+        contentFromContainerlabFlags:
+          content: username %s secret 0 %s role network-admin
+          formatters:
+            - username
+            - password
+    - type: write
+      write:
+        contentFromContainerlabFlags:
+          content: hostname %s
+          formatters:
+            - hostname
+    # load any user provided startup config
     - type: write
       write:
         contentFromStartupConfig: true
@@ -184,16 +236,8 @@ run:
       write:
         content:
           copy running-config startup-config
+    # ensure we are out of config mode
     - type: write
       write:
         content: |
           end
-    - type: readUntil
-      readUntil:
-        timeout: 1m
-        until:
-          contains: "localhost#"
-    # small delay to ensure everything saved nicely
-    - type: wait
-      wait:
-        duration: 10s

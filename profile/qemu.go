@@ -37,7 +37,8 @@ const (
 	serialPortBaseIdx = 5_001
 
 	defaultSocketPad = 10_000
-	accelerationKVM  = "kvm"
+
+	accelerationKVM = "kvm"
 )
 
 // QemuArgsFromProfile builds the qemu launch args from the given profile/disk.
@@ -158,13 +159,15 @@ func qemuMemory(p *Profile) []string {
 	}
 }
 
-func qemuAccel(p *Profile) []string {
-	switch p.VirtualMachine.Acceleration {
-	case accelerationKVM:
+func qemuAccel(_ *Profile) []string {
+	_, err := os.Stat("/dev/kvm")
+	if err == nil {
+		// if kvm available (and this is kind a janky check, but... probably good enough),
+		// we'll always enable it
 		return []string{"-accel", accelerationKVM}
-	default:
-		return []string{}
 	}
+
+	return []string{}
 }
 
 func qemuMachine(p *Profile) []string {

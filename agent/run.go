@@ -22,8 +22,21 @@ const (
 	socatBinary = "socat"
 )
 
+type containerlabArgs struct {
+	username       string
+	password       string
+	hostname       string
+	connectionMode string
+}
+
 // Run runs the packaged container -- starting the vm, handling containerlab inputs, etc.
-func (a *Agent) Run(ctx context.Context) error {
+func (a *Agent) Run(
+	ctx context.Context,
+	username,
+	password,
+	hostname,
+	connectionMode string,
+) error {
 	a.l.Info("boxen run starting...")
 
 	defer func() {
@@ -36,7 +49,16 @@ func (a *Agent) Run(ctx context.Context) error {
 
 	errs := make(chan error, 1)
 
-	go a.startRun(ctx, errs)
+	go a.startRun(
+		ctx,
+		errs,
+		containerlabArgs{
+			username:       username,
+			password:       password,
+			hostname:       hostname,
+			connectionMode: connectionMode,
+		},
+	)
 
 	select {
 	// here we just wait for the error or done, because we block on the context in the run
@@ -52,7 +74,7 @@ func (a *Agent) Run(ctx context.Context) error {
 	}
 }
 
-func (a *Agent) startRun(ctx context.Context, errs chan error) {
+func (a *Agent) startRun(ctx context.Context, errs chan error, args containerlabArgs) {
 	err := a.runLoadProfile()
 	if err != nil {
 		errs <- err
@@ -111,7 +133,7 @@ func (a *Agent) startRun(ctx context.Context, errs chan error) {
 		return
 	}
 
-	err = a.runStartupConfig(ctx)
+	err = a.runStartupConfig(ctx, args)
 	if err != nil {
 		errs <- err
 
@@ -260,7 +282,7 @@ func (a *Agent) runProcesses(ctx context.Context) error {
 		case boxenprofile.StepTypeReadUntil:
 			err = a.processStepReadUntil(ctx, step)
 		case boxenprofile.StepTypeWrite:
-			err = a.processStepWrite(ctx, step)
+			err = a.processStepWrite(ctx, step, nil)
 		case boxenprofile.StepTypeWait:
 			err = a.processStepWait(ctx, step)
 		default:
@@ -275,7 +297,7 @@ func (a *Agent) runProcesses(ctx context.Context) error {
 	return nil
 }
 
-func (a *Agent) runStartupConfig(ctx context.Context) error {
+func (a *Agent) runStartupConfig(ctx context.Context, args containerlabArgs) error {
 	a.l.Info("handling startup config")
 
 	_, err := os.Stat(boxenconstants.StartupConfigFilePath)
@@ -298,7 +320,7 @@ func (a *Agent) runStartupConfig(ctx context.Context) error {
 		case boxenprofile.StepTypeReadUntil:
 			err = a.processStepReadUntil(ctx, step)
 		case boxenprofile.StepTypeWrite:
-			err = a.processStepWrite(ctx, step)
+			err = a.processStepWrite(ctx, step, &args)
 		case boxenprofile.StepTypeWait:
 			err = a.processStepWait(ctx, step)
 		default:

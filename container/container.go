@@ -20,7 +20,7 @@ const (
 
 // Runtime is the interface a container runtime needs to satisfy to work with boxen.
 type Runtime interface {
-	Run(ctx context.Context, l *slog.Logger, cfg boxencontainertypes.RunConfig) (string, error)
+	Run(ctx context.Context, l *slog.Logger, cfg *boxencontainertypes.RunConfig) (string, error)
 	Commit(ctx context.Context, l *slog.Logger, containerID, imageID string) error
 	Rm(ctx context.Context, l *slog.Logger, containerID string) error
 }

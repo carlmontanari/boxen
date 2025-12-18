@@ -155,7 +155,37 @@ func packageCommand() *urfavecli.Command {
 
 func runCommand() *urfavecli.Command {
 	return &urfavecli.Command{
-		Name: "run",
+		Name:  "run",
+		Usage: "run the packaged image under containerlab",
+		Flags: []urfavecli.Flag{
+			&urfavecli.StringFlag{
+				Name:     boxenconstants.FlagLogLevel,
+				Usage:    "log level, one of: debug, info, warn, error",
+				Required: false,
+				Value:    boxenconstants.DefaultLogLevel,
+				Sources:  urfavecli.EnvVars(boxenconstants.EnvLoggingLevel),
+			},
+			&urfavecli.StringFlag{
+				Name:  boxenconstants.FlagContainerlabUsername,
+				Usage: "the username to configure on the host",
+			},
+			&urfavecli.StringFlag{
+				Name:  boxenconstants.FlagContainerlabPassword,
+				Usage: "the password to configure on the host",
+			},
+			&urfavecli.StringFlag{
+				Name:  boxenconstants.FlagContainerlabHostname,
+				Usage: "the hostname to configure on the host",
+			},
+			&urfavecli.StringFlag{
+				Name:  boxenconstants.FlagContainerlabConnectionMode,
+				Usage: "the interface connection mode",
+			},
+			&urfavecli.BoolFlag{
+				Name:  boxenconstants.FlagContainerlabTrace,
+				Usage: "trace flag is ignored, but exists for containerlab compatibility",
+			},
+		},
 		Action: func(ctx context.Context, cmd *urfavecli.Command) error {
 			a := boxenagent.NewAgent(
 				boxenlogging.LevelFromString(cmd.String(boxenconstants.FlagLogLevel)),
@@ -163,6 +193,10 @@ func runCommand() *urfavecli.Command {
 
 			return a.Run(
 				ctx,
+				cmd.String(boxenconstants.FlagContainerlabUsername),
+				cmd.String(boxenconstants.FlagContainerlabPassword),
+				cmd.String(boxenconstants.FlagContainerlabHostname),
+				cmd.String(boxenconstants.FlagContainerlabConnectionMode),
 			)
 		},
 	}

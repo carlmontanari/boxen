@@ -39,12 +39,13 @@ test-race:
 ## Build the boxen binary
 .PHONY: build
 build:
-	GOOS=linux GOARCH=amd64 go build -trimpath -a -o out/boxen cmd/main.go
+	GOOS=linux GOARCH=amd64 go build -trimpath -a -o dist/boxen cmd/main.go
 
 ## Build the base boxen agent container image
 build-image:
 	docker build \
         -f build/agent.Dockerfile \
-        -t ghcr.io/carlmontanari/boxen:dev-latest \
-        --platform \
-        linux/amd64 .
+        -t ghcr.io/carlmontanari/boxen:dev-latest .
+        # .	\
+        # --platform \
+        # linux/amd64 .

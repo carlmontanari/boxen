@@ -15,7 +15,7 @@ import (
 func (r *Runtime) Run(
 	ctx context.Context,
 	l *slog.Logger,
-	cfg boxencontainertypes.RunConfig,
+	cfg *boxencontainertypes.RunConfig,
 ) (string, error) {
 	tmpDir, err := os.MkdirTemp("", "boxen")
 	if err != nil {
