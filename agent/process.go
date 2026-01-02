@@ -208,10 +208,10 @@ func (a *Agent) processStepReadUntil(ctx context.Context, step *boxenprofile.Ste
 	}
 }
 
-func (a *Agent) processStepWrite( //nolint: funlen,gocyclo
+func (a *Agent) processStepWrite(
 	ctx context.Context,
 	step *boxenprofile.Step,
-	args *containerlabArgs,
+	formatters *boxenprofile.Formatters,
 ) error {
 	var writeIterator iter.Seq[string]
 
@@ -243,7 +243,7 @@ func (a *Agent) processStepWrite( //nolint: funlen,gocyclo
 
 		writeIterator = strings.SplitSeq(s, "\n")
 	case step.Write.ContentFromContainerlabFlags != nil:
-		if args == nil {
+		if formatters == nil {
 			return fmt.Errorf(
 				"%w: contentFromContainerlabFlags set, but no args provided, "+
 					"this is only supported during the `configProcess` phase",
@@ -251,23 +251,13 @@ func (a *Agent) processStepWrite( //nolint: funlen,gocyclo
 			)
 		}
 
-		var formatters []any
-
-		for _, formatter := range step.Write.ContentFromContainerlabFlags.Formatters {
-			switch formatter {
-			case "username":
-				formatters = append(formatters, args.username)
-			case "password":
-				formatters = append(formatters, args.password)
-			case "hostname":
-				formatters = append(formatters, args.hostname)
-			default:
-				return fmt.Errorf("%w: invalid formatter %q", boxenerrors.ErrBoxen, formatter)
-			}
+		fs, err := formatters.UnpackFormatters(step.Write.ContentFromContainerlabFlags.Formatters)
+		if err != nil {
+			return err
 		}
 
 		writeIterator = strings.SplitSeq(
-			fmt.Sprintf(step.Write.ContentFromContainerlabFlags.Content, formatters...),
+			fmt.Sprintf(step.Write.ContentFromContainerlabFlags.Content, fs...),
 			"\n",
 		)
 	default:

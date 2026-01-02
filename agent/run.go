@@ -22,13 +22,6 @@ const (
 	socatBinary = "socat"
 )
 
-type containerlabArgs struct {
-	username       string
-	password       string
-	hostname       string
-	connectionMode string
-}
-
 // Run runs the packaged container -- starting the vm, handling containerlab inputs, etc.
 func (a *Agent) Run(
 	ctx context.Context,
@@ -38,6 +31,13 @@ func (a *Agent) Run(
 	connectionMode string,
 ) error {
 	a.l.Info("boxen run starting...")
+
+	err := a.runLoadProfile()
+	if err != nil {
+		return err
+	}
+
+	a.f = boxenprofile.NewFormatters(username, password, hostname, connectionMode, a.p)
 
 	defer func() {
 		if a.stdoutF == nil {
@@ -49,16 +49,7 @@ func (a *Agent) Run(
 
 	errs := make(chan error, 1)
 
-	go a.startRun(
-		ctx,
-		errs,
-		containerlabArgs{
-			username:       username,
-			password:       password,
-			hostname:       hostname,
-			connectionMode: connectionMode,
-		},
-	)
+	go a.startRun(ctx, errs)
 
 	select {
 	// here we just wait for the error or done, because we block on the context in the run
@@ -74,15 +65,8 @@ func (a *Agent) Run(
 	}
 }
 
-func (a *Agent) startRun(ctx context.Context, errs chan error, args containerlabArgs) {
-	err := a.runLoadProfile()
-	if err != nil {
-		errs <- err
-
-		return
-	}
-
-	err = a.runClabNICProvisionDelay(ctx)
+func (a *Agent) startRun(ctx context.Context, errs chan error) {
+	err := a.runClabNICProvisionDelay(ctx)
 	if err != nil {
 		errs <- err
 
@@ -133,7 +117,7 @@ func (a *Agent) startRun(ctx context.Context, errs chan error, args containerlab
 		return
 	}
 
-	err = a.runStartupConfig(ctx, args)
+	err = a.runStartupConfig(ctx)
 	if err != nil {
 		errs <- err
 
@@ -297,7 +281,7 @@ func (a *Agent) runProcesses(ctx context.Context) error {
 	return nil
 }
 
-func (a *Agent) runStartupConfig(ctx context.Context, args containerlabArgs) error {
+func (a *Agent) runStartupConfig(ctx context.Context) error {
 	a.l.Info("handling startup config")
 
 	_, err := os.Stat(boxenconstants.StartupConfigFilePath)
@@ -320,7 +304,7 @@ func (a *Agent) runStartupConfig(ctx context.Context, args containerlabArgs) err
 		case boxenprofile.StepTypeReadUntil:
 			err = a.processStepReadUntil(ctx, step)
 		case boxenprofile.StepTypeWrite:
-			err = a.processStepWrite(ctx, step, &args)
+			err = a.processStepWrite(ctx, step, a.f)
 		case boxenprofile.StepTypeWait:
 			err = a.processStepWait(ctx, step)
 		default:

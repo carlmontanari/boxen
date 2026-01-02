@@ -9,6 +9,7 @@ type Profile struct {
 	// profile should be used for a given disk image -- this is only checked if the user doesnt
 	// explicitly tell us what profile to use when packaging a disk.
 	DiskPatterns   []string        `yaml:"diskPatterns"`
+	ResolvedDisk   string          `yaml:"-"`
 	ExtraFiles     []string        `yaml:"extraFiles"`
 	VirtualMachine *VirtualMachine `yaml:"virtualMachine"`
 

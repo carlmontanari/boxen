@@ -69,6 +69,13 @@ func (a *Agent) Package(ctx context.Context, host string) error {
 		_, err = a.l.stream.CloseAndRecv()
 	}()
 
+	err = a.packageGetProfile(ctx)
+	if err != nil {
+		return err
+	}
+
+	a.f = boxenprofile.NewFormatters("", "", "", "", a.p)
+
 	errs := make(chan error, 1)
 
 	go a.startPackage(ctx, errs)
@@ -89,15 +96,8 @@ func (a *Agent) Package(ctx context.Context, host string) error {
 	}
 }
 
-func (a *Agent) startPackage(ctx context.Context, errs chan error) { //nolint: funlen
-	err := a.packageGetProfile(ctx)
-	if err != nil {
-		errs <- err
-
-		return
-	}
-
-	err = a.packageGetFiles(ctx)
+func (a *Agent) startPackage(ctx context.Context, errs chan error) {
+	err := a.packageGetFiles(ctx)
 	if err != nil {
 		errs <- err
 
@@ -225,9 +225,11 @@ func (a *Agent) packageGetProfile(ctx context.Context) error {
 	}
 
 	a.p = p
-	a.disk = r.GetDisk()
+	a.p.ResolvedDisk = r.GetDisk()
 
-	a.l.Info("packaging info received", "profile", a.p.Name, "disk", filepath.Base(a.disk))
+	a.l.Info(
+		"packaging info received", "profile", a.p.Name, "disk", filepath.Base(a.p.ResolvedDisk),
+	)
 
 	return nil
 }
@@ -235,7 +237,7 @@ func (a *Agent) packageGetProfile(ctx context.Context) error {
 func (a *Agent) packageGetFiles(ctx context.Context) error {
 	a.l.Info("requesting files from server")
 
-	err := a.packageGetFile(ctx, a.disk)
+	err := a.packageGetFile(ctx, a.p.ResolvedDisk)
 	if err != nil {
 		return err
 	}
@@ -295,7 +297,7 @@ func (a *Agent) packageGetFile(ctx context.Context, filename string) error {
 
 func (a *Agent) packageConvertDisk(ctx context.Context) error {
 	defer func() {
-		_ = os.Remove(filepath.Base(a.disk))
+		_ = os.Remove(filepath.Base(a.p.ResolvedDisk))
 	}()
 
 	cmd := exec.CommandContext( //nolint: gosec
@@ -304,7 +306,7 @@ func (a *Agent) packageConvertDisk(ctx context.Context) error {
 		"convert",
 		"-O",
 		"qcow2",
-		filepath.Base(a.disk),
+		filepath.Base(a.p.ResolvedDisk),
 		"disk.qcow2",
 	)
 

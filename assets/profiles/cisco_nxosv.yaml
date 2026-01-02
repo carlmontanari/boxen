@@ -1,0 +1,54 @@
+---
+name: cisco_n9kv
+diskPatterns:
+  - "(?i)nxosv.*.qcow2"
+scrapliDefinitionNameOrFile: cisco_nxos
+extraFiles:
+  - OVMF.fd
+virtualMachine:
+  emulate: max
+  memory: 8192
+  serialPortCount: 1
+  nicType: e1000
+  nicCount: 8
+  nicPerBus: 26
+  natPorts:
+    - type: tcp
+      localPort: 22
+    - type: tcp
+      localPort: 23
+    - type: tcp
+      localPort: 443
+    - type: tcp
+      localPort: 830
+    - type: udp
+      localPort: 161
+  mutators: {}
+  extras:
+    - onPackage: true
+      onRun: true
+      val:
+        - content: -drive
+        - content: if=none,file=%s,format=qcow2,id=drive-sata-disk0
+          formatters:
+            - disk
+        - content: -device
+        - contet: ahci,id=ahci0,bus=pci.0
+        - content: -device
+        - content: ide-hd,drive=drive-sata-disk0,bus=ahci0.0,id=drive-sata-disk0,bootindex=1
+    - onPackage: true
+      onRun: true
+      val:
+        - content: -bios
+        - content: OVMF.fd
+    - onPackage: true
+      onRun: true
+      val:
+        - content: -boot
+        - content: c
+packaging:
+  process: []
+  sparsify: false
+run:
+  process: []
+  configProcess: []

@@ -102,11 +102,19 @@ type StepWrite struct {
 	// hostname if that was the hostname clab provided) into the formatted string, for example,
 	// you could set a hostname like so:
 	// contentFromContainerlabFlags:
-	//   content: username %s password %s privilege 15
+	//   content: my disk is %s, username %s password %s, my hostname is %s, extra disk 2 is %s
 	//   formatters:
+	// 	   - disk
 	// 	   - username
 	//     - password
-	// Allowed "formatters" are only "username", "password", and "hostname".
+	// 	   - hostname
+	// 	   - extraFile[1]
+	// Allowed "formatters":
+	// 	- disk
+	// 	- username
+	// 	- password
+	// 	- hostname
+	// 	- extraFile[n] <- where n is the index (zero indexed) of the extra file you want to use
 	ContentFromContainerlabFlags *struct {
 		Content    string   `yaml:"content"`
 		Formatters []string `yaml:"formatters"`

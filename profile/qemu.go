@@ -42,7 +42,11 @@ const (
 )
 
 // QemuArgsFromProfile builds the qemu launch args from the given profile/disk.
-func QemuArgsFromProfile(p *Profile, isPackaging bool) ([]string, error) {
+func QemuArgsFromProfile(
+	p *Profile,
+	formatters *Formatters,
+	isPackaging bool,
+) ([]string, error) {
 	out := []string{
 		"-name",
 		p.Name,
@@ -104,10 +108,30 @@ func QemuArgsFromProfile(p *Profile, isPackaging bool) ([]string, error) {
 
 	for _, e := range p.VirtualMachine.Extras {
 		if isPackaging && e.OnPackage {
-			out = append(out, e.Val...)
+			for _, ev := range e.Val {
+				fs, err := formatters.UnpackFormatters(ev.Formatters)
+				if err != nil {
+					return nil, err
+				}
+
+				out = append(out, fmt.Sprintf(ev.Content, fs...))
+			}
 		} else if e.OnRun {
-			out = append(out, e.Val...)
+			for _, ev := range e.Val {
+				fs, err := formatters.UnpackFormatters(ev.Formatters)
+				if err != nil {
+					return nil, err
+				}
+
+				out = append(out, fmt.Sprintf(ev.Content, fs...))
+			}
 		}
+	}
+
+	qemuAdditionalArgs := os.Getenv(boxenconstants.EnvClabQemuAdditionalArgs)
+
+	if qemuAdditionalArgs != "" {
+		out = append(out, strings.Split(qemuAdditionalArgs, " ")...)
 	}
 
 	return out, nil
@@ -116,7 +140,12 @@ func QemuArgsFromProfile(p *Profile, isPackaging bool) ([]string, error) {
 func qemuCPU(p *Profile) []string {
 	cpuCmd := []string{}
 
-	if p.VirtualMachine.CPUEmulation != "" {
+	cpuOverride := os.Getenv(boxenconstants.EnvClabQemuCPU)
+	smpOverride := os.Getenv(boxenconstants.EnvClabQemuSMP)
+
+	if cpuOverride != "" {
+		cpuCmd = append(cpuCmd, "-cpu", cpuOverride)
+	} else if p.VirtualMachine.CPUEmulation != "" {
 		cpuCmd = append(cpuCmd, "-cpu", p.VirtualMachine.CPUEmulation)
 	}
 
@@ -129,7 +158,14 @@ func qemuCPU(p *Profile) []string {
 			)
 		}
 
-		if p.VirtualMachine.CPUThreads != 0 && p.VirtualMachine.CPUSockets != 0 {
+		switch {
+		case smpOverride != "":
+			cpuCmd = append(
+				cpuCmd,
+				"-smp",
+				smpOverride,
+			)
+		case p.VirtualMachine.CPUThreads != 0 && p.VirtualMachine.CPUSockets != 0:
 			cpuCmd = append(
 				cpuCmd,
 				"-smp",
@@ -140,7 +176,7 @@ func qemuCPU(p *Profile) []string {
 					p.VirtualMachine.CPUSockets,
 				),
 			)
-		} else {
+		default:
 			cpuCmd = append(
 				cpuCmd,
 				"-smp",
@@ -153,6 +189,15 @@ func qemuCPU(p *Profile) []string {
 }
 
 func qemuMemory(p *Profile) []string {
+	memOverride := os.Getenv(boxenconstants.EnvClabQemuMemory)
+
+	if memOverride != "" {
+		return []string{
+			"-m",
+			memOverride,
+		}
+	}
+
 	return []string{
 		"-m",
 		strconv.Itoa(int(p.VirtualMachine.Memory)), //nolint:gosec

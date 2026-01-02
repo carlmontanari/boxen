@@ -51,9 +51,15 @@ type VirtualMachine struct {
 // Extra represents an extra qemu arg -- it holds the actual arg(s) to pass and some flags to
 // define if it should be at packaging, runtime, or both.
 type Extra struct {
-	OnPackage bool     `yaml:"onPackage"`
-	OnRun     bool     `yaml:"onRun"`
-	Val       []string `yaml:"val"`
+	OnPackage bool       `yaml:"onPackage"`
+	OnRun     bool       `yaml:"onRun"`
+	Val       []ExtraVal `yaml:"val"`
+}
+
+// ExtraVal represents an extra string and any formatters that should be applied to it.
+type ExtraVal struct {
+	Content    string   `yaml:"content"`
+	Formatters []string `yaml:"formatters"`
 }
 
 // ManagementNIC defines the management nic config for the vm.

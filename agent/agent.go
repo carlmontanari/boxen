@@ -26,8 +26,8 @@ type Agent struct {
 	c *grpc.ClientConn
 	s boxenprotov1.BoxenServiceClient
 
-	p    *boxenprofile.Profile
-	disk string
+	p *boxenprofile.Profile
+	f *boxenprofile.Formatters
 
 	stdoutF *os.File
 

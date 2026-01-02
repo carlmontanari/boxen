@@ -78,8 +78,8 @@ virtualMachine:
   extras:
     - onPackage: true
       val:
-        - -cdrom
-        - Aboot-veos-serial-8.0.0.iso
+        - content: -cdrom
+        - content: Aboot-veos-serial-8.0.0.iso
 packaging:
   process:
     # handle ztp login
