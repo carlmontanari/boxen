@@ -17,16 +17,16 @@ virtualMachine:
   nicCount: 20
   nicPerBus: 26
   natPorts:
-    - type: tcp
-      localPort: 22
-    - type: tcp
-      localPort: 23
-    - type: tcp
-      localPort: 443
-    - type: tcp
-      localPort: 830
-    - type: udp
-      localPort: 161
+  - type: tcp
+    localPort: 22
+  - type: tcp
+    localPort: 23
+  - type: tcp
+    localPort: 443
+  - type: tcp
+    localPort: 830
+  - type: udp
+    localPort: 161
   mutators:
     # pushes mgmt nic up a position on the bus, arista wants this for... reasons?
     mgmtNIC: |

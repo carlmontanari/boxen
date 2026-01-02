@@ -128,9 +128,15 @@ func (b *Boxen) Build(
 		imageID.WriteString("/")
 	}
 
-	imageID.WriteString(fmt.Sprintf("boxen-%s:%s", b.p.Name, imageTag))
+	fmt.Fprintf(&imageID, "boxen-%s:%s", b.p.Name, imageTag)
 
-	err = b.c.Commit(ctx, b.l, containerID, imageID.String())
+	err = b.c.Commit(
+		ctx,
+		b.l,
+		containerID,
+		imageID.String(),
+		b.p.VirtualMachine.NatPorts,
+	)
 	if err != nil {
 		return err
 	}

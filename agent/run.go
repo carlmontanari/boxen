@@ -221,23 +221,23 @@ func (a *Agent) runClabNICProvisionDelay(ctx context.Context) error {
 }
 
 func (a *Agent) runSocatProcesses(ctx context.Context) error {
-	for idx := range a.p.VirtualMachine.Management.NatPorts {
+	for idx := range a.p.VirtualMachine.NatPorts {
 		args := make([]string, 2) //nolint: mnd
 
 		args[0] = fmt.Sprintf(
 			"%s-LISTEN:%d,fork",
-			strings.ToUpper(string(a.p.VirtualMachine.Management.NatPorts[idx].Type)),
-			a.p.VirtualMachine.Management.NatPorts[idx].LocalPort,
+			strings.ToUpper(string(a.p.VirtualMachine.NatPorts[idx].Type)),
+			a.p.VirtualMachine.NatPorts[idx].LocalPort,
 		)
 
-		externalPort := a.p.VirtualMachine.Management.NatPorts[idx].ExternalPort
+		externalPort := a.p.VirtualMachine.NatPorts[idx].ExternalPort
 		if externalPort == 0 {
-			externalPort = a.p.VirtualMachine.Management.NatPorts[idx].LocalPort
+			externalPort = a.p.VirtualMachine.NatPorts[idx].LocalPort
 		}
 
 		args[1] = fmt.Sprintf(
-			"%s:127.0.01:%d",
-			strings.ToUpper(string(a.p.VirtualMachine.Management.NatPorts[idx].Type)),
+			"%s:127.0.0.1:%d",
+			strings.ToUpper(string(a.p.VirtualMachine.NatPorts[idx].Type)),
 			externalPort,
 		)
 

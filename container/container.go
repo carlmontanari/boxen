@@ -8,6 +8,7 @@ import (
 	boxencontainerdocker "github.com/carlmontanari/boxen/container/docker"
 	boxencontainertypes "github.com/carlmontanari/boxen/container/types"
 	boxenerrors "github.com/carlmontanari/boxen/errors"
+	boxenprofile "github.com/carlmontanari/boxen/profile"
 )
 
 // RuntimeKind is an enum-ish for the supported container runtimes, for now its just docker.
@@ -20,9 +21,23 @@ const (
 
 // Runtime is the interface a container runtime needs to satisfy to work with boxen.
 type Runtime interface {
-	Run(ctx context.Context, l *slog.Logger, cfg *boxencontainertypes.RunConfig) (string, error)
-	Commit(ctx context.Context, l *slog.Logger, containerID, imageID string) error
-	Rm(ctx context.Context, l *slog.Logger, containerID string) error
+	Run(
+		ctx context.Context,
+		l *slog.Logger,
+		cfg *boxencontainertypes.RunConfig,
+	) (string, error)
+	Commit(
+		ctx context.Context,
+		l *slog.Logger,
+		containerID,
+		imageID string,
+		natPorts []boxenprofile.NatPort,
+	) error
+	Rm(
+		ctx context.Context,
+		l *slog.Logger,
+		containerID string,
+	) error
 }
 
 // NewRuntime dispatches a runtime based on the provided kind.

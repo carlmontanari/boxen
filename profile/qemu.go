@@ -278,7 +278,7 @@ func qemuPCI(p *Profile) []string {
 }
 
 func qemuMgmtNIC(p *Profile) []string {
-	if p.VirtualMachine.Management.Passthrough {
+	if p.VirtualMachine.ManagementPassthrough {
 		panic("not implemented")
 	}
 
@@ -290,14 +290,14 @@ func qemuMgmtNIC(p *Profile) []string {
 
 	mgmtIntf := "user,id=mgmt,net=10.0.0.0/24,tftp=/tftpboot"
 
-	nats := make([]string, len(p.VirtualMachine.Management.NatPorts))
+	nats := make([]string, len(p.VirtualMachine.NatPorts))
 
-	for idx := range p.VirtualMachine.Management.NatPorts {
+	for idx := range p.VirtualMachine.NatPorts {
 		nats[idx] = fmt.Sprintf(
 			"hostfwd=%s::%d-10.0.0.15:%d",
-			p.VirtualMachine.Management.NatPorts[idx].Type,
-			p.VirtualMachine.Management.NatPorts[idx].ExternalPort,
-			p.VirtualMachine.Management.NatPorts[idx].LocalPort,
+			p.VirtualMachine.NatPorts[idx].Type,
+			p.VirtualMachine.NatPorts[idx].ExternalPort,
+			p.VirtualMachine.NatPorts[idx].LocalPort,
 		)
 	}
 

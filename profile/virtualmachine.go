@@ -21,7 +21,8 @@ type VirtualMachine struct {
 	NicCount  uint16 `yaml:"nicCount"`
 	NicPerBus uint8  `yaml:"nicPerBus"`
 
-	Management ManagementNIC `yaml:"management"`
+	NatPorts              []NatPort `yaml:"natPorts"`
+	ManagementPassthrough bool      `yaml:"managementPassthrough"`
 
 	// Overrides allows for completely overriding any of the individual qemu settings that would
 	// otherwise be generated from this struct, the options are:
@@ -60,12 +61,6 @@ type Extra struct {
 type ExtraVal struct {
 	Content    string   `yaml:"content"`
 	Formatters []string `yaml:"formatters"`
-}
-
-// ManagementNIC defines the management nic config for the vm.
-type ManagementNIC struct {
-	Passthrough bool      `yaml:"passthrough"`
-	NatPorts    []NatPort `yaml:"natPorts"`
 }
 
 // NatType is an enum-ish value for the type of NAT port -- tcp or udp.
