@@ -86,7 +86,7 @@ func (a *Agent) readUntil(ctx context.Context, s string) error {
 			return err
 		}
 
-		contents := buf.Bytes()
+		contents := bytes.ReplaceAll(buf.Bytes(), []byte{0}, nil)
 
 		a.l.Debug("checking contents", "until", s, "contents", string(contents))
 
