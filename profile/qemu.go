@@ -85,7 +85,9 @@ func QemuArgsFromProfile(
 		kOverrides, ok := p.VirtualMachine.Overrides[k]
 		if ok {
 			for _, o := range kOverrides {
-				err := o.Apply(formatters, isPackaging, out)
+				var err error
+
+				out, err = o.Apply(formatters, isPackaging, out)
 				if err != nil {
 					return nil, err
 				}
@@ -112,7 +114,9 @@ func QemuArgsFromProfile(
 	}
 
 	for _, e := range p.VirtualMachine.Extras {
-		err := e.Apply(formatters, isPackaging, out)
+		var err error
+
+		out, err = e.Apply(formatters, isPackaging, out)
 		if err != nil {
 			return nil, err
 		}

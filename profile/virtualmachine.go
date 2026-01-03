@@ -60,19 +60,19 @@ type QemuConfigField struct {
 }
 
 // Apply applies this ConfigField to the list of qemu commands in `o`.
-func (c QemuConfigField) Apply(f *Formatters, isPackaging bool, o []string) error {
+func (c QemuConfigField) Apply(f *Formatters, isPackaging bool, o []string) ([]string, error) {
 	if (isPackaging && c.OnPackage) || (!isPackaging && c.OnRun) {
 		for _, v := range c.Val {
 			fs, err := f.UnpackFormatters(v.Formatters)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			o = append(o, fmt.Sprintf(v.Content, fs...))
 		}
 	}
 
-	return nil
+	return o, nil
 }
 
 // QemuConfigVal represents an extra string and any formatters that should be applied to it.
