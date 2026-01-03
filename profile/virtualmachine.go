@@ -1,5 +1,7 @@
 package profile
 
+import "fmt"
+
 // VirtualMachine defines the qemu settings/profile for an endpoint, this will generally come from
 // yaml "profile" manifests that we load or users provide to tell us how to configure the vm.
 type VirtualMachine struct {
@@ -37,7 +39,7 @@ type VirtualMachine struct {
 	// - pci
 	// - mgmtNIC
 	// - dataNICs
-	Overrides map[string][]string `yaml:"overrides"`
+	Overrides map[string][]QemuConfigField `yaml:"overrides"`
 
 	// Mutators is the same mapping as overrides, but instead of directly overriding a value the
 	// value in this map is a valid starlark (python-like) script that will accept the []string of
@@ -46,19 +48,35 @@ type VirtualMachine struct {
 	// command.
 	Mutators map[string]string `yaml:"mutators"`
 
-	Extras []Extra `yaml:"extras"`
+	Extras []QemuConfigField `yaml:"extras"`
 }
 
-// Extra represents an extra qemu arg -- it holds the actual arg(s) to pass and some flags to
-// define if it should be at packaging, runtime, or both.
-type Extra struct {
-	OnPackage bool       `yaml:"onPackage"`
-	OnRun     bool       `yaml:"onRun"`
-	Val       []ExtraVal `yaml:"val"`
+// QemuConfigField represents an extra qemu arg -- it holds the actual arg(s) to pass and some
+// flags to define if it should be at packaging, runtime, or both.
+type QemuConfigField struct {
+	OnPackage bool            `yaml:"onPackage"`
+	OnRun     bool            `yaml:"onRun"`
+	Val       []QemuConfigVal `yaml:"val"`
 }
 
-// ExtraVal represents an extra string and any formatters that should be applied to it.
-type ExtraVal struct {
+// Apply applies this ConfigField to the list of qemu commands in `o`.
+func (c QemuConfigField) Apply(f *Formatters, isPackaging bool, o []string) error {
+	if (isPackaging && c.OnPackage) || (!isPackaging && c.OnRun) {
+		for _, v := range c.Val {
+			fs, err := f.UnpackFormatters(v.Formatters)
+			if err != nil {
+				return err
+			}
+
+			o = append(o, fmt.Sprintf(v.Content, fs...))
+		}
+	}
+
+	return nil
+}
+
+// QemuConfigVal represents an extra string and any formatters that should be applied to it.
+type QemuConfigVal struct {
 	Content    string   `yaml:"content"`
 	Formatters []string `yaml:"formatters"`
 }

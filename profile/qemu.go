@@ -82,9 +82,14 @@ func QemuArgsFromProfile(
 		mgmtNIC,
 		dataNICs,
 	} {
-		_, ok := p.VirtualMachine.Overrides[k]
+		kOverrides, ok := p.VirtualMachine.Overrides[k]
 		if ok {
-			out = append(out, p.VirtualMachine.Overrides[k]...)
+			for _, o := range kOverrides {
+				err := o.Apply(formatters, isPackaging, out)
+				if err != nil {
+					return nil, err
+				}
+			}
 
 			continue
 		}
@@ -107,24 +112,9 @@ func QemuArgsFromProfile(
 	}
 
 	for _, e := range p.VirtualMachine.Extras {
-		if isPackaging && e.OnPackage {
-			for _, ev := range e.Val {
-				fs, err := formatters.UnpackFormatters(ev.Formatters)
-				if err != nil {
-					return nil, err
-				}
-
-				out = append(out, fmt.Sprintf(ev.Content, fs...))
-			}
-		} else if e.OnRun {
-			for _, ev := range e.Val {
-				fs, err := formatters.UnpackFormatters(ev.Formatters)
-				if err != nil {
-					return nil, err
-				}
-
-				out = append(out, fmt.Sprintf(ev.Content, fs...))
-			}
+		err := e.Apply(formatters, isPackaging, out)
+		if err != nil {
+			return nil, err
 		}
 	}
 

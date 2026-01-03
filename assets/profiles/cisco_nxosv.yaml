@@ -24,17 +24,19 @@ virtualMachine:
   - type: udp
     localPort: 161
   mutators: {}
+  overrides:
+    disk:
+      - onPackage: true
+        onRun: true
+        val:
+          - content: -drive
+          # will already be converted from the "raw" disk -> "disk.qcow2"
+          - content: if=none,file=disk.qcow2,format=qcow2,id=drive-sata-disk0
+          - content: -device
+          - contet: ahci,id=ahci0,bus=pci.0
+          - content: -device
+          - content: ide-hd,drive=drive-sata-disk0,bus=ahci0.0,id=drive-sata-disk0,bootindex=1
   extras:
-    - onPackage: true
-      onRun: true
-      val:
-        - content: -drive
-        # will already be converted from the "raw" disk -> "disk.qcow2"
-        - content: if=none,file=disk.qcow2,format=qcow2,id=drive-sata-disk0
-        - content: -device
-        - contet: ahci,id=ahci0,bus=pci.0
-        - content: -device
-        - content: ide-hd,drive=drive-sata-disk0,bus=ahci0.0,id=drive-sata-disk0,bootindex=1
     - onPackage: true
       onRun: true
       val:
