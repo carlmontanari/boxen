@@ -7,7 +7,8 @@ extraFiles:
   - OVMF.fd
 virtualMachine:
   emulate: max
-  memory: 8192
+  memory: 10240
+  cpuCores: 4
   serialPortCount: 1
   nicType: e1000
   nicCount: 8
