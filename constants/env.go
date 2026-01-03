@@ -17,4 +17,6 @@ const (
 
 	EnvImageRegistry = "BOXEN_IMAGE_REGISTRY"
 	EnvImageTag      = "BOXEN_IMAGE_TAG"
+
+	EnvScrapliLogLevel = "BOXEN_SCRAPLI_LOG_LEVEL"
 )

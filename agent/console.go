@@ -5,6 +5,8 @@ import (
 	"context"
 	"time"
 
+	boxenconstants "github.com/carlmontanari/boxen/constants"
+	boxenutil "github.com/carlmontanari/boxen/util"
 	scrapligocli "github.com/scrapli/scrapligo/cli"
 	scrapligologging "github.com/scrapli/scrapligo/logging"
 	scrapligooptions "github.com/scrapli/scrapligo/options"
@@ -20,7 +22,14 @@ func (a *Agent) openConsoleConn(ctx context.Context, logFilename string) error {
 		scrapligooptions.WithDefintionFileOrName(".scrapligo_definition.yaml"),
 		scrapligooptions.WithPort(5_001), //nolint: mnd
 		scrapligooptions.WithLogger(a.l.l),
-		scrapligooptions.WithLoggerLevel(scrapligologging.Debug),
+		scrapligooptions.WithLoggerLevel(
+			scrapligologging.LogLevel(
+				boxenutil.GetEnvStrOrDefault(
+					boxenconstants.EnvScrapliLogLevel,
+					string(scrapligologging.Debug),
+				),
+			),
+		),
 		scrapligooptions.WithTransportTelnet(),
 		scrapligooptions.WithReturnChar("\r\n"),
 		scrapligooptions.WithBypassInSessionAuth(),

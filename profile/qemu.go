@@ -288,15 +288,16 @@ func qemuMgmtNIC(p *Profile) []string {
 		"-netdev",
 	}
 
-	mgmtIntf := "user,id=mgmt,net=10.0.0.0/24,tftp=/tftpboot"
+	mgmtIntf := "user,id=mgmt,net=10.0.0.0/24,host=10.0.0.2," +
+		"dns=10.0.0.3,dhcpstart=10.0.0.15,tftp=/tftpboot"
 
 	nats := make([]string, len(p.VirtualMachine.NatPorts))
 
 	for idx := range p.VirtualMachine.NatPorts {
 		nats[idx] = fmt.Sprintf(
-			"hostfwd=%s::%d-10.0.0.15:%d",
+			"hostfwd=%s:0.0.0.0:%d-10.0.0.15:%d",
 			p.VirtualMachine.NatPorts[idx].Type,
-			p.VirtualMachine.NatPorts[idx].ExternalPort,
+			p.VirtualMachine.NatPorts[idx].LocalPort,
 			p.VirtualMachine.NatPorts[idx].LocalPort,
 		)
 	}
