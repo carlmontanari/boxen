@@ -29,9 +29,8 @@ virtualMachine:
       onRun: true
       val:
         - content: -drive
-        - content: if=none,file=%s,format=qcow2,id=drive-sata-disk0
-          formatters:
-            - disk
+        # will already be converted from the "raw" disk -> "disk.qcow2"
+        - content: if=none,file=disk.qcow2,format=qcow2,id=drive-sata-disk0
         - content: -device
         - contet: ahci,id=ahci0,bus=pci.0
         - content: -device

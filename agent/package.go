@@ -265,7 +265,9 @@ func (a *Agent) packageGetFile(ctx context.Context, filename string) error {
 		return err
 	}
 
-	f, err := os.Create(filepath.Base(filename))
+	localFilename := filepath.Base(filename)
+
+	f, err := os.Create(localFilename) //nolint: gosec
 	if err != nil {
 		return err
 	}
@@ -290,14 +292,18 @@ func (a *Agent) packageGetFile(ctx context.Context, filename string) error {
 		}
 	}
 
-	a.l.Debug("received file from server", "file", filename)
+	a.l.Debug("received file from server", "file", localFilename)
 
 	return nil
 }
 
 func (a *Agent) packageConvertDisk(ctx context.Context) error {
+	localFilename := filepath.Base(a.p.ResolvedDisk)
+
+	a.l.Debug("converting disk to qcow2", "file", localFilename)
+
 	defer func() {
-		_ = os.Remove(filepath.Base(a.p.ResolvedDisk))
+		_ = os.Remove(localFilename)
 	}()
 
 	cmd := exec.CommandContext( //nolint: gosec
@@ -306,7 +312,7 @@ func (a *Agent) packageConvertDisk(ctx context.Context) error {
 		"convert",
 		"-O",
 		"qcow2",
-		filepath.Base(a.p.ResolvedDisk),
+		localFilename,
 		"disk.qcow2",
 	)
 

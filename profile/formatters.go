@@ -2,6 +2,7 @@ package profile
 
 import (
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -31,12 +32,20 @@ func NewFormatters(
 	disk := "disk.qcow2"
 
 	if p.ResolvedDisk != "" {
-		disk = p.ResolvedDisk
+		// resolved disk we received from boxen builder (the main cli) will be fully qualified,
+		// but that file will just be in . on the agent container; same applies to extra files
+		disk = filepath.Base(p.ResolvedDisk)
+	}
+
+	extraFiles := make([]string, len(p.ExtraFiles))
+
+	for idx := range p.ExtraFiles {
+		extraFiles[idx] = filepath.Base(p.ExtraFiles[idx])
 	}
 
 	return &Formatters{
 		disk:           disk,
-		extraFiles:     p.ExtraFiles,
+		extraFiles:     extraFiles,
 		username:       username,
 		password:       password,
 		hostname:       hostname,
