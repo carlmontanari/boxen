@@ -12,6 +12,7 @@ import (
 // Formatters holds all the valid "formatter" options for string interpolation in profile content.
 type Formatters struct {
 	disk           string
+	version        string
 	extraFiles     []string
 	username       string
 	password       string
@@ -45,6 +46,7 @@ func NewFormatters(
 
 	return &Formatters{
 		disk:           disk,
+		version:        p.ResolvedVersion,
 		extraFiles:     extraFiles,
 		username:       username,
 		password:       password,
@@ -61,6 +63,8 @@ func (f *Formatters) UnpackFormatters(inputs []string) ([]any, error) {
 		switch {
 		case formatter == "disk":
 			formatters = append(formatters, f.disk)
+		case formatter == "version":
+			formatters = append(formatters, f.version)
 		case strings.HasPrefix(formatter, "extraFile"):
 			idxStr := strings.TrimRight(strings.TrimLeft("extraFile[", formatter), "]")
 

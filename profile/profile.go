@@ -8,8 +8,15 @@ type Profile struct {
 	// DiskPatterns is an array of strings that will be compiled with ?im and used to check if this
 	// profile should be used for a given disk image -- this is only checked if the user doesnt
 	// explicitly tell us what profile to use when packaging a disk.
-	DiskPatterns   []string        `yaml:"diskPatterns"`
-	ResolvedDisk   string          `yaml:"-"`
+	DiskPatterns []string `yaml:"diskPatterns"`
+	ResolvedDisk string   `yaml:"-"`
+
+	// VersionPattern is used to snag the version from the resolved disk (assuming the disk name
+	// includes the version of course... which... lets hope it does!); this is then set and is
+	// made available as a `formatter`.
+	VersionPattern  string `yaml:"versionPattern"`
+	ResolvedVersion string `yaml:"-"`
+
 	ExtraFiles     []string        `yaml:"extraFiles"`
 	VirtualMachine *VirtualMachine `yaml:"virtualMachine"`
 

@@ -2,6 +2,7 @@
 name: cisco_n9kv
 diskPatterns:
   - "(?i)nxosv.*.qcow2"
+versionPattern: "(?i)\\d\\.\\d\\.\\d"
 scrapliDefinitionNameOrFile: cisco_nxos
 extraFiles:
   - OVMF.fd
@@ -49,7 +50,84 @@ virtualMachine:
         - content: -boot
         - content: c
 packaging:
-  process: []
+  process:
+    # handle initial poap/provisioning dialog
+    - type: prompts
+      prompts:
+        timeout: 20m
+        prompts:
+          - prompt:
+              contains: "(yes/skip/no)[no]:"
+            response: yes
+            once: true
+          - prompt:
+              contains: "Do you want to enforce secure password standard (yes/no) [y]:"
+            response: "no"
+            hidden: true
+            once: true
+          - prompt:
+              contains: "Enter the password for \"admin\""
+            response: "admin"
+            once: true
+          - prompt:
+              contains: "Confirm the password for \"admin\""
+            response: "admin"
+            once: true
+          - prompt:
+              contains: "Would you like to enter the basic configuration dialog (yes/no):"
+            response: "no"
+            once: true
+          - prompt:
+              contains: "login:"
+            response: "admin"
+            once: true
+          - prompt:
+              contains: "Password:"
+            response: "admin"
+            once: true
+          - prompt:
+              contains: "switch#"
+            response: ""
+            once: true
+            completes: true
+    # disable pagination
+    - type: write
+      write:
+        content: |
+          term len 0
+          term width 511
+    # base config, then save
+    - type: write
+      write:
+        content: |
+          configure terminal
+          no password strength-check
+          username admin password 0 admin role network-admin
+          interface mgmt0
+          ip address 10.0.0.15/24
+          no shutdown
+          exit
+          feature scp-server
+          feature nxapi
+          feature netconf
+          feature grpc
+          boot nxos bootflash:///nxos.%s.bin
+          end
+        formatters:
+          - version
+    - type: write
+      write:
+        content:
+          copy running-config startup-config
+    - type: readUntil
+      readUntil:
+        timeout: 3m
+        until:
+          contains: "switch#"
+    # small delay to ensure everything saved nicely
+    - type: wait
+      wait:
+        duration: 10s
   sparsify: false
 run:
   process: []

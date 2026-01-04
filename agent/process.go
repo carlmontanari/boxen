@@ -95,10 +95,6 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 		cbs[idx] = scrapligocli.NewReadCallback(
 			fmt.Sprintf("prompts step idx %d", idx),
 			func(ctx context.Context, c *scrapligocli.Cli) error {
-				if p.Hidden {
-					return c.WriteAndReturn(p.Response)
-				}
-
 				err = c.Write(p.Response)
 				if err != nil {
 					return err
