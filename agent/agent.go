@@ -8,7 +8,7 @@ import (
 	boxenlogging "github.com/carlmontanari/boxen/logging"
 	boxenprofile "github.com/carlmontanari/boxen/profile"
 	boxenprotov1 "github.com/carlmontanari/boxen/proto/v1"
-	scrapligocli "github.com/scrapli/scrapligo/cli"
+	scrapligocli "github.com/scrapli/scrapligo/v2/cli"
 	"google.golang.org/grpc"
 )
 

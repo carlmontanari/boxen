@@ -12,7 +12,7 @@ import (
 	boxenerrors "github.com/carlmontanari/boxen/errors"
 	boxenprofile "github.com/carlmontanari/boxen/profile"
 	boxenutilringbuffer "github.com/carlmontanari/boxen/util/ringbuffer"
-	scrapligocli "github.com/scrapli/scrapligo/cli"
+	scrapligocli "github.com/scrapli/scrapligo/v2/cli"
 )
 
 func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step) error {

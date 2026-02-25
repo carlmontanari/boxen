@@ -63,7 +63,6 @@ packaging:
           - prompt:
               contains: "Do you want to enforce secure password standard (yes/no) [y]:"
             response: "no"
-            hidden: true
             once: true
           - prompt:
               contains: "Enter the password for \"admin\""

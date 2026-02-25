@@ -7,9 +7,9 @@ import (
 
 	boxenconstants "github.com/carlmontanari/boxen/constants"
 	boxenutil "github.com/carlmontanari/boxen/util"
-	scrapligocli "github.com/scrapli/scrapligo/cli"
-	scrapligologging "github.com/scrapli/scrapligo/logging"
-	scrapligooptions "github.com/scrapli/scrapligo/options"
+	scrapligocli "github.com/scrapli/scrapligo/v2/cli"
+	scrapligologging "github.com/scrapli/scrapligo/v2/logging"
+	scrapligooptions "github.com/scrapli/scrapligo/v2/options"
 )
 
 func (a *Agent) openConsoleConn(ctx context.Context, logFilename string) error {

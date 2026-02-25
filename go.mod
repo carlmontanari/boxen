@@ -1,6 +1,6 @@
 module github.com/carlmontanari/boxen
 
-go 1.25.4
+go 1.26.0
 
 tool (
 	github.com/daixiang0/gci
@@ -10,7 +10,7 @@ tool (
 
 require (
 	github.com/google/uuid v1.6.0
-	github.com/scrapli/scrapligo v1.3.4-0.20251130232909-278626c1c93d
+	github.com/scrapli/scrapligo/v2 v2.0.0-rc.2
 	github.com/urfave/cli/v3 v3.6.1
 	go.starlark.net v0.0.0-20251109183026-be02852a5e1f
 	google.golang.org/grpc v1.77.0
@@ -23,7 +23,7 @@ require (
 	github.com/alecthomas/units v0.0.0-20240927000941-0f3dac36c52b // indirect
 	github.com/daixiang0/gci v0.13.7 // indirect
 	github.com/dave/dst v0.27.3 // indirect
-	github.com/ebitengine/purego v0.9.1 // indirect
+	github.com/ebitengine/purego v0.10.0 // indirect
 	github.com/golangci/golines v0.14.0 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/hexops/gotextdiff v1.0.3 // indirect
@@ -40,7 +40,7 @@ require (
 	golang.org/x/mod v0.31.0 // indirect
 	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
-	golang.org/x/sys v0.39.0 // indirect
+	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/term v0.38.0 // indirect
 	golang.org/x/text v0.32.0 // indirect
 	golang.org/x/tools v0.40.0 // indirect

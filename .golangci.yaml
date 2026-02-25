@@ -34,6 +34,8 @@ linters:
           alias: boxen
         - pkg: github.com/carlmontanari/boxen/(\w+)
           alias: boxen$1
+        - pkg: github.com/scrapli/scrapligo/v2/(\w+)
+          alias: scrapligo$1
       no-unaliased: true
     lll:
       line-length: 100
