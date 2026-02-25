@@ -11,10 +11,10 @@ tool (
 require (
 	github.com/google/uuid v1.6.0
 	github.com/scrapli/scrapligo/v2 v2.0.0-rc.2
-	github.com/urfave/cli/v3 v3.6.1
-	go.starlark.net v0.0.0-20251109183026-be02852a5e1f
-	google.golang.org/grpc v1.77.0
-	google.golang.org/protobuf v1.36.10
+	github.com/urfave/cli/v3 v3.6.2
+	go.starlark.net v0.0.0-20260210143700-b62fd896b91b
+	google.golang.org/grpc v1.79.1
+	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -44,6 +44,6 @@ require (
 	golang.org/x/term v0.38.0 // indirect
 	golang.org/x/text v0.32.0 // indirect
 	golang.org/x/tools v0.40.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20251022142026-3a174f9686a8 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
 	mvdan.cc/gofumpt v0.9.2 // indirect
 )

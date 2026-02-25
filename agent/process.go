@@ -53,7 +53,7 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 			// whole thing we are looking for in a single read, so, we need to ensure we are
 			// looking back far enough.
 			scrapligocli.WithSearchDepth(
-				uint64(max(len(p.Prompt.Contains)*2, readUntilSearchDepth)), //nolint:gosec,mnd
+				uint64(max(len(p.Prompt.Contains)*2, readUntilSearchDepth)), //nolint:mnd
 			),
 		)
 

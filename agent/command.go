@@ -8,7 +8,7 @@ import (
 func (a *Agent) invokeCommand(ctx context.Context, command string) error {
 	a.l.Info("invoking command...")
 
-	cmd := exec.CommandContext(ctx, commandBinary, "-c", command)
+	cmd := exec.CommandContext(ctx, commandBinary, "-c", command) //nolint: gosec
 
 	b, err := cmd.CombinedOutput()
 	if err != nil {

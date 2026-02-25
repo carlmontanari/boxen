@@ -18,7 +18,7 @@ func (r *Runtime) Commit(
 	imageID string,
 	natPorts []boxenprofile.NatPort,
 ) error {
-	args := []string{
+	args := []string{ //nolint: prealloc
 		"commit",
 		"--change",
 		`ENTRYPOINT ["/boxen/boxen", "run"]`,

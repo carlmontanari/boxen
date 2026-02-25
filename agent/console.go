@@ -19,7 +19,7 @@ func (a *Agent) openConsoleConn(ctx context.Context, logFilename string) error {
 
 	a.conn, err = scrapligocli.NewCli(
 		"localhost",
-		scrapligooptions.WithDefintionFileOrName(".scrapligo_definition.yaml"),
+		scrapligooptions.WithDefinitionFileOrName(".scrapligo_definition.yaml"),
 		scrapligooptions.WithPort(5_001), //nolint: mnd
 		scrapligooptions.WithLogger(a.l.l),
 		scrapligooptions.WithLoggerLevel(

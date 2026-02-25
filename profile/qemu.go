@@ -280,6 +280,7 @@ func qemuMgmtNIC(p *Profile) []string {
 		"-device",
 		fmt.Sprintf("%s,netdev=mgmt", p.VirtualMachine.NicType),
 		"-netdev",
+		"",
 	}
 
 	mgmtIntf := "user,id=mgmt,net=10.0.0.0/24,host=10.0.0.2," +
@@ -300,7 +301,7 @@ func qemuMgmtNIC(p *Profile) []string {
 		mgmtIntf = mgmtIntf + "," + strings.Join(nats, ",")
 	}
 
-	nicCmd = append(nicCmd, mgmtIntf)
+	nicCmd[3] = mgmtIntf
 
 	return nicCmd
 }
@@ -379,7 +380,7 @@ func generateMac(lastOctet int) string {
 	_, _ = rand.Read(buf)
 
 	if lastOctet > 0 {
-		buf[2] = byte(lastOctet)
+		buf[2] = byte(lastOctet) //nolint: gosec
 	}
 
 	return fmt.Sprintf("52:54:00:%02x:%02x:%02x", buf[0], buf[1], buf[2])
@@ -390,7 +391,7 @@ type ipLinkShowOutput []struct {
 }
 
 func getIntfMac(ctx context.Context, intf string) string {
-	cmd := exec.CommandContext(ctx, "ip", "--json", "link", "show", "dev", intf)
+	cmd := exec.CommandContext(ctx, "ip", "--json", "link", "show", "dev", intf) //nolint: gosec
 
 	err := cmd.Run()
 	if err != nil {
