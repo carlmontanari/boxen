@@ -1,6 +1,6 @@
 ARG VERSION=0.0.0
 
-FROM golang:1.25-trixie AS builder
+FROM golang:1.26-trixie AS builder
 
 WORKDIR /boxen
 COPY . .

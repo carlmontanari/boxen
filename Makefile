@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
- ## Show this help
+## Show this help
 help:
 	@awk -f build/makefile-doc.awk $(MAKEFILE_LIST)
 
