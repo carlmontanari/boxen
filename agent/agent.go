@@ -3,7 +3,6 @@ package agent
 import (
 	"log/slog"
 	"os"
-	"regexp"
 
 	boxenlogging "github.com/carlmontanari/boxen/logging"
 	boxenprofile "github.com/carlmontanari/boxen/profile"
@@ -44,22 +43,4 @@ func NewAgent(
 		l:    adaptSlog(boxenlogging.NewLogger(logLevel)),
 		p:    &boxenprofile.Profile{},
 	}
-}
-
-func (a *Agent) resolveVersion() error {
-	if a.p.VersionPattern == "" {
-		// its valid for users to not care about this
-		return nil
-	}
-
-	versionRe, err := regexp.Compile(a.p.VersionPattern)
-	if err != nil {
-		a.l.Warn("pattern failed to compile, skipping", "pattern", versionRe)
-
-		return err
-	}
-
-	a.p.ResolvedVersion = versionRe.FindString(a.p.ResolvedDisk)
-
-	return nil
 }

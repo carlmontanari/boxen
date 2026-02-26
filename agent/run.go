@@ -134,11 +134,6 @@ func (a *Agent) runLoadProfile() error {
 		return err
 	}
 
-	err = a.resolveVersion()
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 

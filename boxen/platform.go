@@ -106,3 +106,21 @@ func (b *Boxen) resolveProfile(
 		b.disk,
 	)
 }
+
+func (b *Boxen) resolveVersion() error {
+	if b.p.VersionPattern == "" {
+		// its valid for users to not care about this
+		return nil
+	}
+
+	versionRe, err := regexp.Compile(b.p.VersionPattern)
+	if err != nil {
+		b.l.Warn("pattern failed to compile, skipping", "pattern", versionRe)
+
+		return err
+	}
+
+	b.p.ResolvedVersion = versionRe.FindString(b.p.ResolvedDisk)
+
+	return nil
+}

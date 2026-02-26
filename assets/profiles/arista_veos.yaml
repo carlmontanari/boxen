@@ -2,6 +2,7 @@
 name: arista_veos
 diskPatterns:
   - "(?i)vEOS-lab-.*.vmdk"
+versionPattern: "(?i)\\d\\.\\d\\.\\w+"
 scrapliDefinitionNameOrFile: arista_eos
 extraFiles:
   - Aboot-veos-serial-8.0.0.iso

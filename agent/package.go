@@ -227,11 +227,6 @@ func (a *Agent) packageGetProfile(ctx context.Context) error {
 	a.p = p
 	a.p.ResolvedDisk = r.GetDisk()
 
-	err = a.resolveVersion()
-	if err != nil {
-		return err
-	}
-
 	a.l.Info(
 		"packaging info received", "profile", a.p.Name, "disk", filepath.Base(a.p.ResolvedDisk),
 	)

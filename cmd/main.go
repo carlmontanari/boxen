@@ -70,7 +70,8 @@ func buildCommand() *urfavecli.Command {
 				Aliases: []string{
 					boxenconstants.FlagImageTagShort,
 				},
-				Usage:    "the tag to set in the image reference, latest if unset",
+				Usage: "the tag to set in the image reference, latest if unset *and* " +
+					"no version is parsable from the disk image (based on versionPattern setting)",
 				Required: false,
 				Value:    "latest",
 				Sources:  urfavecli.EnvVars(boxenconstants.EnvImageTag),

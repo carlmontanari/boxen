@@ -15,7 +15,7 @@ type Profile struct {
 	// includes the version of course... which... lets hope it does!); this is then set and is
 	// made available as a `formatter`.
 	VersionPattern  string `yaml:"versionPattern"`
-	ResolvedVersion string `yaml:"-"`
+	ResolvedVersion string `yaml:"resolvedVersion"`
 
 	ExtraFiles     []string        `yaml:"extraFiles"`
 	VirtualMachine *VirtualMachine `yaml:"virtualMachine"`

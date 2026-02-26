@@ -49,6 +49,9 @@ func (b *Boxen) Build(
 		return err
 	}
 
+	// we'll emit a warning log if we cant compile the pattern
+	_ = b.resolveVersion()
+
 	lis, err := b.getListener(ctx)
 	if err != nil {
 		b.l.Error("failed creating listener", "error", err.Error())
@@ -126,6 +129,10 @@ func (b *Boxen) Build(
 	if imageRegistry != "" {
 		imageID.WriteString(imageRegistry)
 		imageID.WriteString("/")
+	}
+
+	if imageTag == "latest" && b.p.ResolvedVersion != "" {
+		imageTag = b.p.ResolvedVersion
 	}
 
 	fmt.Fprintf(&imageID, "boxen-%s:%s", b.p.Name, imageTag)
