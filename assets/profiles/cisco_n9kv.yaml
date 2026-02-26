@@ -4,6 +4,7 @@ diskPatterns:
   - "(?i)nxosv.*.qcow2"
 versionPattern: "(?i)\\d\\.\\d\\.\\d"
 scrapliDefinitionNameOrFile: cisco_nxos
+scrapliReturnChar: "\r"
 extraFiles:
   - OVMF.fd
 virtualMachine:
@@ -68,10 +69,12 @@ packaging:
               contains: "Enter the password for \"admin\""
             response: "admin"
             once: true
+            hidden: true
           - prompt:
               contains: "Confirm the password for \"admin\""
             response: "admin"
             once: true
+            hidden: true
           - prompt:
               contains: "Would you like to enter the basic configuration dialog (yes/no):"
             response: "no"
@@ -84,6 +87,7 @@ packaging:
               contains: "Password:"
             response: "admin"
             once: true
+            hidden: true
           - prompt:
               contains: "switch#"
             response: ""

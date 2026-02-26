@@ -21,6 +21,9 @@ type Profile struct {
 	VirtualMachine *VirtualMachine `yaml:"virtualMachine"`
 
 	ScrapliDefinitionNameOrFile string `yaml:"scrapliDefinitionNameOrFile"`
+	// ScrapliReturnChar if unset will be \r\n -- your platform may not enjoy that, so you can
+	// override it here.
+	ScrapliReturnChar string `yaml:"scrapliReturnChar"`
 
 	// commands that are executed before the packaging process is kicked off -- this can be used
 	// to create new files/disks/etc. (i.e. csr1000v genisoimage for the initial config). if you

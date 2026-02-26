@@ -17,6 +17,11 @@ func (a *Agent) openConsoleConn(ctx context.Context, logFilename string) error {
 
 	var err error
 
+	returnChar := "\r\n"
+	if a.p.ScrapliReturnChar != "" {
+		returnChar = a.p.ScrapliReturnChar
+	}
+
 	a.conn, err = scrapligocli.NewCli(
 		"localhost",
 		scrapligooptions.WithDefinitionFileOrName(".scrapligo_definition.yaml"),
@@ -31,7 +36,7 @@ func (a *Agent) openConsoleConn(ctx context.Context, logFilename string) error {
 			),
 		),
 		scrapligooptions.WithTransportTelnet(),
-		scrapligooptions.WithReturnChar("\r\n"),
+		scrapligooptions.WithReturnChar(returnChar),
 		scrapligooptions.WithBypassInSessionAuth(),
 		scrapligooptions.WithSessionRecorderPath(logFilename),
 	)

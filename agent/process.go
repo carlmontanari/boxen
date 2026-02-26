@@ -92,9 +92,23 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 			)
 		}
 
+		cbName := fmt.Sprintf("prompts step idx %d", idx)
+
 		cbs[idx] = scrapligocli.NewReadCallback(
-			fmt.Sprintf("prompts step idx %d", idx),
+			cbName,
 			func(ctx context.Context, c *scrapligocli.Cli) error {
+				a.l.Info("callback triggered", "callback name", cbName)
+
+				a.l.Debug(
+					"writing response",
+					"response",
+					p.Response,
+					"hidden",
+					p.Hidden,
+					"reading until response",
+					p.Response,
+				)
+
 				err = c.Write(p.Response)
 				if err != nil {
 					return err
