@@ -120,7 +120,7 @@ func (b *Boxen) resolveVersion() error {
 		return err
 	}
 
-	b.p.ResolvedVersion = versionRe.FindString(b.p.ResolvedDisk)
+	b.p.ResolvedVersion = versionRe.FindString(filepath.Base(b.disk))
 
 	return nil
 }

@@ -187,7 +187,13 @@ func (a *Agent) processStepReadUntil(ctx context.Context, step *boxenprofile.Ste
 				return
 			}
 
-			a.l.Debug("reading until", "until", step.ReadUntil.Until, "content", string(b.Content))
+			a.l.Debug(
+				"reading until",
+				"until",
+				step.ReadUntil.Until,
+				"content",
+				string(b.GetContent()),
+			)
 
 			check, err := step.ReadUntil.Until.Check(b.Content)
 			if err != nil {
