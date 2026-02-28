@@ -9,6 +9,7 @@ import (
 // RingBuffer is a circular buffer for bytes.
 type RingBuffer struct {
 	lock     *sync.Mutex
+	isFull   bool
 	Size     uint32
 	ReadPos  uint32
 	WritePos uint32
@@ -47,6 +48,8 @@ func (rb *RingBuffer) Write(b []byte) (int, error) {
 		rb.WritePos = 0
 		rb.ReadPos = 0
 
+		rb.isFull = true
+
 		return int(lb), nil
 	}
 
@@ -65,6 +68,8 @@ func (rb *RingBuffer) Write(b []byte) (int, error) {
 		rb.Content = append(headChunk, rb.Content[rb.WritePos:]...)
 
 		rb.updateReadPos(lb)
+
+		rb.isFull = true
 
 		return int(lb), nil
 	}
@@ -133,7 +138,12 @@ func (rb *RingBuffer) GetContent() []byte {
 	rb.lock.Lock()
 	defer rb.lock.Unlock()
 
-	out := make([]byte, len(rb.Content))
+	size := len(rb.Content)
+	if !rb.isFull {
+		size = int(rb.ReadPos)
+	}
+
+	out := make([]byte, size)
 	copy(out, rb.Content)
 
 	return out
@@ -146,7 +156,12 @@ func (rb *RingBuffer) GetOrderedContent() []byte {
 	rb.lock.Lock()
 	defer rb.lock.Unlock()
 
-	out := make([]byte, len(rb.Content))
+	size := len(rb.Content)
+	if !rb.isFull {
+		size = int(rb.ReadPos)
+	}
+
+	out := make([]byte, size)
 
 	// take write pos +1 and go to end of buffer
 	// then take zero and go to write position
@@ -164,6 +179,7 @@ func (rb *RingBuffer) Reset() {
 	rb.Content = make([]byte, rb.Size)
 	rb.ReadPos = 0
 	rb.WritePos = 0
+	rb.isFull = false
 }
 
 // SetReadPos updates the read position pointer to the given value, it fatals if the given position

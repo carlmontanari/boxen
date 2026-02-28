@@ -288,3 +288,59 @@ func TestRingBufferRead(t *testing.T) {
 		)
 	}
 }
+
+func TestRingBufferGetContentProperlySized(t *testing.T) {
+	rb := boxenutilringbuffer.NewRingBuffer(100)
+
+	assertInitialState(t, rb, 100)
+
+	content := []byte{1, 2, 3}
+
+	n, err := rb.Write(content)
+	if err != nil {
+		t.Fatalf("write caused error %v", err)
+	}
+
+	if n != len(content) {
+		t.Fatalf("write length incorrect, got %d, want %d", n, len(content))
+	}
+
+	getContentLen := len(rb.GetContent())
+	expectedContentLen := len(content)
+
+	if getContentLen != expectedContentLen {
+		t.Fatalf(
+			"returned buffer size, not content size, got %d, want %d",
+			getContentLen,
+			expectedContentLen,
+		)
+	}
+}
+
+func TestRingBufferGetOrderedContentProperlySized(t *testing.T) {
+	rb := boxenutilringbuffer.NewRingBuffer(100)
+
+	assertInitialState(t, rb, 100)
+
+	content := []byte{1, 2, 3}
+
+	n, err := rb.Write(content)
+	if err != nil {
+		t.Fatalf("write caused error %v", err)
+	}
+
+	if n != len(content) {
+		t.Fatalf("write length incorrect, got %d, want %d", n, len(content))
+	}
+
+	getContentLen := len(rb.GetOrderedContent())
+	expectedContentLen := len(content)
+
+	if getContentLen != expectedContentLen {
+		t.Fatalf(
+			"returned buffer size, not content size, got %d, want %d",
+			getContentLen,
+			expectedContentLen,
+		)
+	}
+}
