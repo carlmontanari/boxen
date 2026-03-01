@@ -221,7 +221,7 @@ func (a *Agent) runProcesses(ctx context.Context) error {
 		case boxenprofile.StepTypeReadUntil:
 			err = a.processStepReadUntil(ctx, step)
 		case boxenprofile.StepTypeWrite:
-			err = a.processStepWrite(ctx, step, nil)
+			err = a.processStepWrite(ctx, step)
 		case boxenprofile.StepTypeWait:
 			err = a.processStepWait(ctx, step)
 		default:
@@ -259,7 +259,7 @@ func (a *Agent) runStartupConfig(ctx context.Context) error {
 		case boxenprofile.StepTypeReadUntil:
 			err = a.processStepReadUntil(ctx, step)
 		case boxenprofile.StepTypeWrite:
-			err = a.processStepWrite(ctx, step, a.f)
+			err = a.processStepWrite(ctx, step)
 		case boxenprofile.StepTypeWait:
 			err = a.processStepWait(ctx, step)
 		default:

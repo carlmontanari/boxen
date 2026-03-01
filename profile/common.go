@@ -89,6 +89,7 @@ type StepReadUntil struct {
 
 // StepWrite holds things we want to write to the terminal during a package/run.
 type StepWrite struct {
+	// write this content.
 	Content string `yaml:"content"`
 	// write content line-by-line from the file set here.
 	ContentFromFile string `yaml:"contentFromFile"`
@@ -97,28 +98,19 @@ type StepWrite struct {
 	// config won't be present in the packaging stage.
 	ContentFromStartupConfig bool `yaml:"contentFromStartupConfig"`
 
-	// the following args are *only* honored during the `configProcess` phase; they write the value
-	// of the respective arg passed from containerlab to the boxen process (i.e. writes "srl1"
-	// hostname if that was the hostname clab provided) into the formatted string, for example,
-	// you could set a hostname like so:
-	// contentFromContainerlabFlags:
-	//   content: my disk is %s, username %s password %s, my hostname is %s, extra disk 2 is %s
-	//   formatters:
-	// 	   - disk
-	// 	   - username
-	//     - password
-	// 	   - hostname
-	// 	   - extraFile[1]
+	// Formatters holds the formatters you want to apply to the content -- note that the
+	// "containerlab" formatters (username/password/hostname) are only available during the run
+	// process since of course they are only passed when boxen is invoked from containerlab.
+	// The disk, extraFiles, and version formatters, however, are available for both the package
+	// and run processes since those are boxen known.
 	// Allowed "formatters":
-	// 	- disk
 	// 	- username
 	// 	- password
 	// 	- hostname
 	// 	- extraFile[n] <- where n is the index (zero indexed) of the extra file you want to use
-	ContentFromContainerlabFlags *struct {
-		Content    string   `yaml:"content"`
-		Formatters []string `yaml:"formatters"`
-	} `yaml:"contentFromContainerlabFlags"`
+	// 	- disk
+	//  - version (as matched via the version pattern at profile root)
+	Formatters []string `yaml:"formatters"`
 
 	// if marked hidden we wont read the inputs we send off the channel, use this for
 	// passwords and the like

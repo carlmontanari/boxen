@@ -3,7 +3,6 @@ package agent
 import (
 	"context"
 	"fmt"
-	"iter"
 	"os"
 	"strings"
 	"time"
@@ -227,58 +226,42 @@ func (a *Agent) processStepReadUntil(ctx context.Context, step *boxenprofile.Ste
 func (a *Agent) processStepWrite(
 	ctx context.Context,
 	step *boxenprofile.Step,
-	formatters *boxenprofile.Formatters,
 ) error {
-	var writeIterator iter.Seq[string]
+	var c string
+
+	fs, err := a.f.UnpackFormatters(step.Write.Formatters)
+	if err != nil {
+		return err
+	}
 
 	switch {
 	case step.Write.Content != "":
-		a.l.Info("writing to console", "content", step.Write.Content)
+		c = step.Write.Content
 
-		writeIterator = strings.SplitSeq(step.Write.Content, "\n")
 	case step.Write.ContentFromFile != "":
 		b, err := os.ReadFile(step.Write.ContentFromFile)
 		if err != nil {
 			return err
 		}
 
-		s := string(b)
-
-		a.l.Info("writing to console", "content", s)
-
-		writeIterator = strings.SplitSeq(s, "\n")
+		c = string(b)
 	case step.Write.ContentFromStartupConfig:
 		b, err := os.ReadFile(boxenconstants.StartupConfigFilePath)
 		if err != nil {
 			return err
 		}
 
-		s := string(b)
-
-		a.l.Info("writing to console", "content", s)
-
-		writeIterator = strings.SplitSeq(s, "\n")
-	case step.Write.ContentFromContainerlabFlags != nil:
-		if formatters == nil {
-			return fmt.Errorf(
-				"%w: contentFromContainerlabFlags set, but no args provided, "+
-					"this is only supported during the `configProcess` phase",
-				boxenerrors.ErrBoxen,
-			)
-		}
-
-		fs, err := formatters.UnpackFormatters(step.Write.ContentFromContainerlabFlags.Formatters)
-		if err != nil {
-			return err
-		}
-
-		writeIterator = strings.SplitSeq(
-			fmt.Sprintf(step.Write.ContentFromContainerlabFlags.Content, fs...),
-			"\n",
-		)
+		c = string(b)
 	default:
 		panic("unimplemented write type")
 	}
+
+	a.l.Info("writing to console", "content", c)
+
+	writeIterator := strings.SplitSeq(
+		fmt.Sprintf(c, fs...),
+		"\n",
+	)
 
 	for s := range writeIterator {
 		a.l.Debug("writing to console", "content", s)

@@ -202,7 +202,7 @@ run:
             hidden: true
             once: true
           - prompt:
-              contains: "localhost#"
+              containss: "localhost#"
             response: ""
             once: true
             completes: true
@@ -218,17 +218,15 @@ run:
           configure terminal
     - type: write
       write:
-        contentFromContainerlabFlags:
-          content: username %s secret 0 %s role network-admin
-          formatters:
-            - username
-            - password
+        content: username %s secret 0 %s role network-admin
+        formatters:
+          - username
+          - password
     - type: write
       write:
-        contentFromContainerlabFlags:
-          content: hostname %s
-          formatters:
-            - hostname
+        content: hostname %s
+        formatters:
+          - hostname
     # load any user provided startup config
     - type: write
       write:
