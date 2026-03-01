@@ -1,0 +1,4 @@
+platform console serial
+do clear platform software vnic-if nvtable
+do wr
+do reload

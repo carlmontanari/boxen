@@ -231,12 +231,17 @@ run:
     - type: write
       write:
         contentFromStartupConfig: true
-    - type: write
-      write:
-        content:
-          copy running-config startup-config
     # ensure we are out of config mode
     - type: write
       write:
         content: |
           end
+    - type: write
+      write:
+        content:
+          copy running-config startup-config
+    - type: readUntil
+      readUntil:
+        timeout: 3m
+        until:
+          contains: "localhost#"

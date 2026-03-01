@@ -43,7 +43,8 @@ RUN apt-get update && \
     procps \
     openssh-client \
     inetutils-ping \
-    traceroute && \
+    traceroute \
+    genisoimage && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/cache/apt/archive/*.deb
 

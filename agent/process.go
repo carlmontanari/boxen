@@ -95,7 +95,7 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 
 		cbs[idx] = scrapligocli.NewReadCallback(
 			cbName,
-			func(ctx context.Context, c *scrapligocli.Cli) error {
+			func(ctx context.Context, c *scrapligocli.Cli, searchBuf, _ string) error {
 				a.l.Info("callback triggered", "callback name", cbName)
 
 				a.l.Debug(
@@ -106,6 +106,8 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 					p.Hidden,
 					"reading until response",
 					p.Response,
+					"searchBuf",
+					searchBuf,
 				)
 
 				err = c.Write(p.Response)
@@ -229,7 +231,7 @@ func (a *Agent) processStepWrite(
 ) error {
 	var c string
 
-	fs, err := a.f.UnpackFormatters(step.Write.Formatters)
+	formatters, err := a.f.UnpackFormatters(step.Write.Formatters)
 	if err != nil {
 		return err
 	}
@@ -259,7 +261,7 @@ func (a *Agent) processStepWrite(
 	a.l.Info("writing to console", "content", c)
 
 	writeIterator := strings.SplitSeq(
-		fmt.Sprintf(c, fs...),
+		fmt.Sprintf(c, formatters...),
 		"\n",
 	)
 

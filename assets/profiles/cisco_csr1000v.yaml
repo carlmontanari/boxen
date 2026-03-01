@@ -1,19 +1,18 @@
 ---
-name: cisco_n9kv
+name: cisco_csr1000v
 diskPatterns:
-  - "(?i)nxosv.*.qcow2"
+  - "(?i)csr1000v-universalk9.*.qcow2"
 versionPattern: "(?i)\\d+\\.\\d+\\.\\d+"
-scrapliDefinitionNameOrFile: cisco_nxos
-scrapliReturnChar: "\r"
+scrapliDefinitionNameOrFile: cisco_iosxe
+scrapliReturnChar: "\r\n"
 extraFiles:
-  - OVMF.fd
+  - iosxe_config.txt
 virtualMachine:
-  emulate: max
-  memory: 10240
-  cpuCores: 4
+  memory: 4096
+  cpuCores: 1
   serialPortCount: 1
-  nicType: e1000
-  nicCount: 8
+  nicType: virtio-net-pci
+  nicCount: 9
   nicPerBus: 26
   natPorts:
   - type: tcp
@@ -27,29 +26,15 @@ virtualMachine:
   - type: udp
     localPort: 161
   mutators: {}
-  overrides:
-    disk:
-      - onPackage: true
-        onRun: true
-        val:
-          - content: -drive
-          # will already be converted from the "raw" disk -> "disk.qcow2"
-          - content: if=none,file=disk.qcow2,format=qcow2,id=drive-sata-disk0
-          - content: -device
-          - content: ahci,id=ahci0,bus=pci.0
-          - content: -device
-          - content: ide-hd,drive=drive-sata-disk0,bus=ahci0.0,id=drive-sata-disk0,bootindex=1
+  overrides: {}
   extras:
     - onPackage: true
-      onRun: true
+      onRun: false
       val:
-        - content: -bios
-        - content: OVMF.fd
-    - onPackage: true
-      onRun: true
-      val:
-        - content: -boot
-        - content: c
+        - content: -cdrom
+        - content: config.iso
+prePackagingCommands:
+  - "genisoimage -l -o config.iso iosxe_config.txt"
 packaging:
   process:
     # handle initial poap/provisioning dialog
@@ -58,38 +43,15 @@ packaging:
         timeout: 20m
         prompts:
           - prompt:
-              contains: "(yes/skip/no)[no]:"
-            response: yes
+              contains: "Press RETURN to get started"
+            response: ""
             once: true
           - prompt:
-              contains: "Do you want to enforce secure password standard (yes/no) [y]:"
-            response: "no"
+              contains: "Router>"
+            response: "enable"
             once: true
           - prompt:
-              contains: "Enter the password for \"admin\""
-            response: "admin"
-            once: true
-            hidden: true
-          - prompt:
-              contains: "Confirm the password for \"admin\""
-            response: "admin"
-            once: true
-            hidden: true
-          - prompt:
-              contains: "Would you like to enter the basic configuration dialog (yes/no):"
-            response: "no"
-            once: true
-          - prompt:
-              contains: "login:"
-            response: "admin"
-            once: true
-          - prompt:
-              contains: "Password:"
-            response: "admin"
-            once: true
-            hidden: true
-          - prompt:
-              contains: "switch#"
+              contains: "Router#"
             response: ""
             once: true
             completes: true
@@ -104,20 +66,20 @@ packaging:
       write:
         content: |
           configure terminal
-          no password strength-check
-          username admin password 0 admin role network-admin
-          interface mgmt0
-          ip address 10.0.0.15/24
+          username admin privilege 15 password admin
+          enable secret 0 admin
+          interface GigabitEthernet1
+          ip address 10.0.0.15 255.255.255.0
           no shutdown
           exit
-          feature scp-server
-          feature nxapi
-          feature netconf
-          feature grpc
-          boot nxos bootflash:///nxos.%s.bin
+          hostname router
+          crypto key generate rsa modulus 2048
+          restconf
+          netconf-yang
+          line vty 0 4
+          login local
+          transport input all
           end
-        formatters:
-          - version
     - type: write
       write:
         content:
@@ -126,7 +88,7 @@ packaging:
       readUntil:
         timeout: 3m
         until:
-          contains: "switch#"
+          contains: "router#"
     # small delay to ensure everything saved nicely
     - type: wait
       wait:
@@ -139,6 +101,10 @@ run:
         timeout: 20m
         prompts:
           - prompt:
+              contains: "Press RETURN to get started"
+            response: ""
+            once: true
+          - prompt:
               contains: "login:"
             response: "admin"
             once: true
@@ -148,12 +114,29 @@ run:
             once: true
             hidden: true
           - prompt:
-              contains: "switch#"
+              contains: "router>"
             response: ""
             once: true
             completes: true
   configProcess:
-    # disable pagination
+    # acquire privileged exec and disable pagination
+    - type: write
+      write:
+        content: enable
+    - type: prompts
+      prompts:
+        timeout: 1m
+        prompts:
+          - prompt:
+              contains: "Password:"
+            response: admin
+            hidden: true
+            once: true
+          - prompt:
+              contains: "router#"
+            response: ""
+            once: true
+            completes: true
     - type: write
       write:
         content: |
@@ -166,7 +149,7 @@ run:
           configure terminal
     - type: write
       write:
-        content: username %s secret 0 %s role network-admin
+        content: username %s privilege 15 password %s
         formatters:
           - username
           - password
@@ -179,7 +162,7 @@ run:
     - type: write
       write:
         contentFromStartupConfig: true
-    # get outa config mode
+    # ensure we are out of config mode
     - type: write
       write:
         content: |
@@ -192,4 +175,4 @@ run:
       readUntil:
         timeout: 3m
         until:
-          contains: "switch#"
+          contains: "router#"
