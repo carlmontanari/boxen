@@ -62,8 +62,20 @@ func (f *Formatters) UnpackFormatters(inputs []string) ([]any, error) {
 	for _, formatter := range inputs {
 		switch {
 		case formatter == "disk":
+			if f.disk == "" {
+				return nil, fmt.Errorf(
+					"%w: disk unset but disk formatter requested", boxenerrors.ErrBoxen,
+				)
+			}
+
 			formatters = append(formatters, f.disk)
 		case formatter == "version":
+			if f.version == "" {
+				return nil, fmt.Errorf(
+					"%w: version unset but version formatter requested", boxenerrors.ErrBoxen,
+				)
+			}
+
 			formatters = append(formatters, f.version)
 		case strings.HasPrefix(formatter, "extraFile"):
 			idxStr := strings.TrimRight(strings.TrimLeft("extraFile[", formatter), "]")
@@ -75,10 +87,28 @@ func (f *Formatters) UnpackFormatters(inputs []string) ([]any, error) {
 
 			formatters = append(formatters, f.extraFiles[idx])
 		case formatter == "username":
+			if f.username == "" {
+				return nil, fmt.Errorf(
+					"%w: username unset but username formatter requested", boxenerrors.ErrBoxen,
+				)
+			}
+
 			formatters = append(formatters, f.username)
 		case formatter == "password":
+			if f.password == "" {
+				return nil, fmt.Errorf(
+					"%w: password unset but password formatter requested", boxenerrors.ErrBoxen,
+				)
+			}
+
 			formatters = append(formatters, f.password)
 		case formatter == "hostname":
+			if f.hostname == "" {
+				return nil, fmt.Errorf(
+					"%w: hostname unset but hostname formatter requested", boxenerrors.ErrBoxen,
+				)
+			}
+
 			formatters = append(formatters, f.hostname)
 		default:
 			return nil, fmt.Errorf("%w: invalid formatter %q", boxenerrors.ErrBoxen, formatter)
