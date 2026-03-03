@@ -175,4 +175,4 @@ run:
       readUntil:
         timeout: 3m
         until:
-          contains: "router#"
+          containsPattern: "^.*[>#$]\\s?+$"

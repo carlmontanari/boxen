@@ -250,4 +250,4 @@ run:
       readUntil:
         timeout: 3m
         until:
-          contains: "localhost#"
+          containsPattern: "^[^<\\r\\n]{1,}[>#$]\\s?$"

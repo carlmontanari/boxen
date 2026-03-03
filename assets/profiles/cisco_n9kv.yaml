@@ -199,11 +199,12 @@ run:
         initialInput: copy running-config startup-config
         prompts:
           - prompt:
-              containsPattern: "(?ims)configuration update aborted: system not ready.*^.*[>#$]\\s?+$"
+              containsPattern: "^.*[>#$]\\s?+$"
             response: copy running-config startup-config
             once: false
           - prompt:
               containsPattern: "^.*[>#$]\\s?+$"
+              notContains: "system not ready"
             response: ""
             once: true
             completes: true
