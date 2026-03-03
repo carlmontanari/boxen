@@ -59,6 +59,8 @@ func (b *Boxen) resolveProfile(
 	}
 
 	for _, assetFile := range assetFiles {
+		p = &boxenprofile.Profile{}
+
 		if assetFile.IsDir() {
 			continue
 		}
@@ -120,7 +122,13 @@ func (b *Boxen) resolveVersion() error {
 		return err
 	}
 
-	b.p.ResolvedVersion = versionRe.FindString(filepath.Base(b.disk))
+	matches := versionRe.FindStringSubmatch(filepath.Base(b.disk))
+
+	if len(matches) > 1 {
+		b.p.ResolvedVersion = matches[1]
+	} else {
+		b.p.ResolvedVersion = matches[0]
+	}
 
 	return nil
 }

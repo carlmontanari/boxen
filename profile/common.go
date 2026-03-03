@@ -65,8 +65,10 @@ type Step struct {
 // StepPrompts is a step that lets us handle some prompt(s) from a device.
 type StepPrompts struct {
 	// something ParseDuration will accept, i.e. 5s, 1m, etc.
-	Timeout string   `yaml:"timeout"`
-	Prompts []Prompt `yaml:"prompts"`
+	Timeout string `yaml:"timeout"`
+	// optional, otherwise we'll just start reading looking for things in the prompts slice
+	InitialInput string   `yaml:"initialInput"`
+	Prompts      []Prompt `yaml:"prompts"`
 }
 
 // Prompt defines how we match on a prompt and what we respond to it.

@@ -133,7 +133,7 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 	taskCtx, cancel := context.WithTimeout(ctx, t)
 	defer cancel()
 
-	_, err = a.conn.ReadWithCallbacks(taskCtx, "", cbs...)
+	_, err = a.conn.ReadWithCallbacks(taskCtx, step.Prompts.InitialInput, cbs...)
 	if err != nil {
 		return err
 	}
@@ -239,7 +239,6 @@ func (a *Agent) processStepWrite(
 	switch {
 	case step.Write.Content != "":
 		c = step.Write.Content
-
 	case step.Write.ContentFromFile != "":
 		b, err := os.ReadFile(step.Write.ContentFromFile)
 		if err != nil {
@@ -258,7 +257,7 @@ func (a *Agent) processStepWrite(
 		panic("unimplemented write type")
 	}
 
-	a.l.Info("writing to console", "content", c)
+	a.l.Info("writing to console", "content", c, "formatters", formatters)
 
 	writeIterator := strings.SplitSeq(
 		fmt.Sprintf(c, formatters...),

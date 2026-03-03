@@ -126,6 +126,11 @@ packaging:
       readUntil:
         timeout: 3m
         until:
+          contains: "100%"
+    - type: readUntil
+      readUntil:
+        timeout: 1m
+        until:
           contains: "switch#"
     # small delay to ensure everything saved nicely
     - type: wait
@@ -166,7 +171,7 @@ run:
           configure terminal
     - type: write
       write:
-        content: username %s secret 0 %s role network-admin
+        content: username %s password 0 %s role network-admin
         formatters:
           - username
           - password
@@ -184,12 +189,21 @@ run:
       write:
         content: |
           end
-    - type: write
-      write:
-        content:
-          copy running-config startup-config
-    - type: readUntil
-      readUntil:
-        timeout: 3m
-        until:
-          contains: "switch#"
+    # n9kv can let us do the copy run start but then poop out on us with a message
+    # "configuraiton update aborted" -- so we'll ship it, then watch for that or completion;
+    # we also cant wait till we see "switch#" or something because the user may have configured
+    # a different hostname... so gotta check for pattern, not a static "switch#" or whatever
+    - type: prompts
+      prompts:
+        timeout: 5m
+        initialInput: copy running-config startup-config
+        prompts:
+          - prompt:
+              containsPattern: "(?ims)configuration update aborted: system not ready.*^.*[>#$]\\s?+$"
+            response: copy running-config startup-config
+            once: false
+          - prompt:
+              containsPattern: "^.*[>#$]\\s?+$"
+            response: ""
+            once: true
+            completes: true

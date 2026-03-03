@@ -2,7 +2,7 @@
 name: cisco_csr1000v
 diskPatterns:
   - "(?i)csr1000v-universalk9.*.qcow2"
-versionPattern: "(?i)\\d+\\.\\d+\\.\\d+"
+versionPattern: "(?i)universalk9\\.(\\d+\\.\\d+\\.\\d+)"
 scrapliDefinitionNameOrFile: cisco_iosxe
 scrapliReturnChar: "\r\n"
 extraFiles:
