@@ -65,18 +65,6 @@ linters:
         path: constants/env.go
         text: exported const
       - linters:
-          - revive
-        path: util/
-        text: meaningless package names
-      - linters:
-          - revive
-        path: errors/
-        text: avoid package names that conflict
-      - linters:
-          - revive
-        path: container/types
-        text: meaningless package names
-      - linters:
           - goconst
           - gocognit
         path: _test\.go
