@@ -10,10 +10,10 @@ tool (
 
 require (
 	github.com/google/uuid v1.6.0
-	github.com/scrapli/scrapligo/v2 v2.0.0-rc.3
-	github.com/urfave/cli/v3 v3.6.2
-	go.starlark.net v0.0.0-20260210143700-b62fd896b91b
-	google.golang.org/grpc v1.79.1
+	github.com/scrapli/scrapligo/v2 v2.0.0-rc.6
+	github.com/urfave/cli/v3 v3.8.0
+	go.starlark.net v0.0.0-20260326113308-fadfc96def35
+	google.golang.org/grpc v1.80.0
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -38,12 +38,12 @@ require (
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.24.0 // indirect
 	golang.org/x/mod v0.31.0 // indirect
-	golang.org/x/net v0.48.0 // indirect
+	golang.org/x/net v0.49.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
-	golang.org/x/sys v0.41.0 // indirect
-	golang.org/x/term v0.38.0 // indirect
-	golang.org/x/text v0.32.0 // indirect
+	golang.org/x/sys v0.43.0 // indirect
+	golang.org/x/term v0.41.0 // indirect
+	golang.org/x/text v0.33.0 // indirect
 	golang.org/x/tools v0.40.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260120221211-b8f7ae30c516 // indirect
 	mvdan.cc/gofumpt v0.9.2 // indirect
 )
