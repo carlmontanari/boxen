@@ -114,6 +114,9 @@ packaging:
           feature nxapi
           feature netconf
           feature grpc
+          vrf context management
+          ip route 0.0.0.0/0 10.0.0.2
+          exit
           boot nxos bootflash:///nxos.%s.bin
           end
         formatters:

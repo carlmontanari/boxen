@@ -247,9 +247,3 @@ run:
         timeout: 3m
         until:
           contains: "Copy completed successfully"
-          response: ""
-    - type: readUntil
-      readUntil:
-        timeout: 3m
-        until:
-          containsPattern: "^(?im)[^<\\r\\n]{1,}[>#$]\\s?$"
