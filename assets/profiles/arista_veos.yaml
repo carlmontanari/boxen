@@ -151,6 +151,8 @@ packaging:
           exit
           management api netconf
           transport ssh default
+          exit
+          ip route 0.0.0.0 0.0.0.0 10.0.0.2
           end
     - type: write
       write:
@@ -250,4 +252,4 @@ run:
       readUntil:
         timeout: 3m
         until:
-          containsPattern: "^[^<\\r\\n]{1,}[>#$]\\s?$"
+          containsPattern: "^(?im)[^<\\r\\n]{1,}[>#$]\\s?$"

@@ -199,11 +199,11 @@ run:
         initialInput: copy running-config startup-config
         prompts:
           - prompt:
-              containsPattern: "^.*[>#$]\\s?+$"
+              containsPattern: "(?im)^.*[>#$]\\s?+$"
             response: copy running-config startup-config
             once: false
           - prompt:
-              containsPattern: "^.*[>#$]\\s?+$"
+              containsPattern: "(?im)^.*[>#$]\\s?+$"
               notContains: "system not ready"
             response: ""
             once: true

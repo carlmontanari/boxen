@@ -41,7 +41,7 @@ func (a *Agent) Package(ctx context.Context, host string) error {
 		// close and remove the stdout log since we dont want this leftover in
 		// the committed image
 		_ = a.stdoutF.Close()
-		_ = os.Remove(a.stdoutF.Name()) //nolint: gosec
+		_ = os.Remove(a.stdoutF.Name())
 	}()
 
 	var err error

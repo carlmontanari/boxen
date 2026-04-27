@@ -79,6 +79,8 @@ packaging:
           line vty 0 4
           login local
           transport input all
+          exit
+          ip route 0.0.0.0 0.0.0.0 10.0.0.2
           end
     - type: write
       write:
@@ -175,4 +177,4 @@ run:
       readUntil:
         timeout: 3m
         until:
-          containsPattern: "^.*[>#$]\\s?+$"
+          containsPattern: "(?im)^.*[>#$]\\s?$"
