@@ -45,17 +45,6 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 
 		var opts []scrapligocli.Option
 
-		opts = append(
-			opts,
-			// because of the way we read off the console the individual reads are *very* likely
-			// to be just like a handful of characters, meaning we would very infrequently have the
-			// whole thing we are looking for in a single read, so, we need to ensure we are
-			// looking back far enough.
-			scrapligocli.WithSearchDepth(
-				uint64(max(len(p.Prompt.Contains)*2, readUntilSearchDepth)), //nolint:mnd
-			),
-		)
-
 		if p.Prompt.Contains != "" {
 			opts = append(
 				opts,

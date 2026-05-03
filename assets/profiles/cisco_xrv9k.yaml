@@ -56,7 +56,7 @@ packaging:
             response: ""
             once: true
           - prompt:
-              contains: "root-system username:"
+              contains: "Enter root-system username"
             response: admin
             once: true
           - prompt:
@@ -87,6 +87,12 @@ packaging:
             response: ""
             once: true
             completes: true
+    # pagination
+    - type: write
+      write:
+        content: |
+          term len 0
+          term width 512
     # generate base crypto key
     - type: prompts
       prompts:
@@ -128,29 +134,26 @@ packaging:
           ssh server vrf clab-mgmt
           ssh server netconf
           grpc port 57400
-          grpc vrf clab-mgmt
           grpc no-tls
           xml agent tty
           root
     # commit
-    - type: prompts
-      prompts:
-        timeout: 5m
-        initialInput: commit
-        prompts:
-          - prompt:
-              contains: "really want to replace them"
-            response: commit
-          - prompt:
-              contains: "many bits in the modulus"
-            response: ""
-            once: true
-            completes: true
+    - type: write
+      write:
+        content: commit
     - type: readUntil
       readUntil:
         timeout: 1m
         until:
-          contains: "localhost#"
+          contains: "#"
+    - type: write
+      write:
+        content: end
+    - type: readUntil
+      readUntil:
+        timeout: 1m
+        until:
+          contains: "RP/0/RP0/CPU0:ios#"
     # small delay to ensure everything saved nicely
     - type: wait
       wait:
