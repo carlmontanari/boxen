@@ -33,6 +33,8 @@ const (
 	mgmtNIC      = "mgmtNIC"
 	dataNICs     = "dataNICs"
 
+	device = "-device"
+
 	monitorPort       = 4_001
 	serialPortBaseIdx = 5_001
 
@@ -194,7 +196,7 @@ func qemuMemory(p *Profile) []string {
 
 	return []string{
 		"-m",
-		strconv.Itoa(int(p.VirtualMachine.Memory)), //nolint:gosec
+		strconv.Itoa(int(p.VirtualMachine.Memory)),
 	}
 }
 
@@ -263,7 +265,7 @@ func qemuPCI(p *Profile) []string {
 	for busID := 1; busID < busRequired+1; busID++ {
 		pciCmd = append(
 			pciCmd,
-			"-device",
+			device,
 			fmt.Sprintf("pci-bridge,chassis_nr=%d,id=pci.%d", busID, busID),
 		)
 	}
@@ -277,7 +279,7 @@ func qemuMgmtNIC(p *Profile) []string {
 	}
 
 	nicCmd := []string{
-		"-device",
+		device,
 		fmt.Sprintf("%s,netdev=mgmt", p.VirtualMachine.NicType),
 		"-netdev",
 		"",
@@ -336,7 +338,7 @@ func buildDataNic(
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return []string{
-				"-device",
+				device,
 				fmt.Sprintf(
 					"%s,netdev=p%s,bus=pci.%d,addr=0x%x,mac=%s",
 					p.VirtualMachine.NicType,
@@ -358,7 +360,7 @@ func buildDataNic(
 	}
 
 	nicCmd := []string{
-		"-device",
+		device,
 		fmt.Sprintf(
 			"%s,netdev=p%s,bus=pci.%d,addr=0x%x,mac=%s",
 			p.VirtualMachine.NicType,

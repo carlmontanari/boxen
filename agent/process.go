@@ -100,6 +100,12 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 
 				a.l.Debug(
 					"writing response",
+					"contains",
+					p.Prompt.Contains,
+					"containsPattern",
+					p.Prompt.ContainsPattern,
+					"notContains",
+					p.Prompt.NotContains,
 					"response",
 					p.Response,
 					"hidden",
@@ -109,6 +115,8 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 					"searchBuf",
 					searchBuf,
 				)
+
+				defer a.l.Info("callback completed", "callback name", cbName)
 
 				err = c.Write(p.Response)
 				if err != nil {
@@ -188,15 +196,17 @@ func (a *Agent) processStepReadUntil(ctx context.Context, step *boxenprofile.Ste
 				return
 			}
 
+			content := b.GetOrderedContent()
+
 			a.l.Debug(
 				"reading until",
 				"until",
 				step.ReadUntil.Until,
 				"content",
-				string(b.GetContent()),
+				string(content),
 			)
 
-			check, err := step.ReadUntil.Until.Check(b.Content)
+			check, err := step.ReadUntil.Until.Check(content)
 			if err != nil {
 				doneOrErr <- err
 

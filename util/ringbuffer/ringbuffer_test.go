@@ -317,30 +317,54 @@ func TestRingBufferGetContentProperlySized(t *testing.T) {
 	}
 }
 
-func TestRingBufferGetOrderedContentProperlySized(t *testing.T) {
-	rb := boxenutilringbuffer.NewRingBuffer(100)
+func TestRingBufferGetOrderedContent(t *testing.T) {
+	rb := boxenutilringbuffer.NewRingBuffer(5)
 
-	assertInitialState(t, rb, 100)
-
-	content := []byte{1, 2, 3}
-
-	n, err := rb.Write(content)
+	_, err := rb.Write([]byte{1, 2, 3, 4, 5})
 	if err != nil {
-		t.Fatalf("write caused error %v", err)
+		t.Fatalf("errored writing content, error: %v", err.Error())
 	}
 
-	if n != len(content) {
-		t.Fatalf("write length incorrect, got %d, want %d", n, len(content))
-	}
+	expected := []byte{1, 2, 3, 4, 5}
 
-	getContentLen := len(rb.GetOrderedContent())
-	expectedContentLen := len(content)
-
-	if getContentLen != expectedContentLen {
+	actual := rb.GetOrderedContent()
+	if !bytes.Equal(actual, expected) {
 		t.Fatalf(
-			"returned buffer size, not content size, got %d, want %d",
-			getContentLen,
-			expectedContentLen,
+			"ordered content incorrect, got %d, want %d",
+			actual,
+			expected,
+		)
+	}
+
+	_, err = rb.Write([]byte{6})
+	if err != nil {
+		t.Fatalf("errored writing content, error: %v", err.Error())
+	}
+
+	expected = []byte{2, 3, 4, 5, 6}
+
+	actual = rb.GetOrderedContent()
+	if !bytes.Equal(actual, []byte{2, 3, 4, 5, 6}) {
+		t.Fatalf(
+			"ordered content incorrect, got %d, want %d",
+			actual,
+			expected,
+		)
+	}
+
+	_, err = rb.Write([]byte{7, 8, 9, 10, 11})
+	if err != nil {
+		t.Fatalf("errored writing content, error: %v", err.Error())
+	}
+
+	expected = []byte{7, 8, 9, 10, 11}
+
+	actual = rb.GetOrderedContent()
+	if !bytes.Equal(actual, expected) {
+		t.Fatalf(
+			"ordered content incorrect, got %d, want %d",
+			actual,
+			expected,
 		)
 	}
 }

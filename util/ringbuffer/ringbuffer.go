@@ -149,26 +149,26 @@ func (rb *RingBuffer) GetContent() []byte {
 	return out
 }
 
-// GetOrderedContent safely (via lock) returns the contents of the buffer. It does this from the
-// current write position backwards basically -- meaning it shows the contents of the "circular"
-// buffer in the order it was received rather than a wrapped circle.
+// GetOrderedContent returns the buffer's content in the order it would be read,
+// starting from ReadPos and wrapping around to produce chronologically ordered bytes.
 func (rb *RingBuffer) GetOrderedContent() []byte {
 	rb.lock.Lock()
 	defer rb.lock.Unlock()
 
-	size := len(rb.Content)
+	result := make([]byte, rb.Size)
+
 	if !rb.isFull {
-		size = int(rb.ReadPos)
+		// hasn't wrapped yet -- content is linear from 0 to WritePos
+		copy(result, rb.Content[:rb.WritePos])
+
+		return result[:rb.WritePos]
 	}
 
-	out := make([]byte, size)
+	// read from ReadPos to end, then from start to ReadPos
+	n := copy(result, rb.Content[rb.ReadPos:])
+	copy(result[n:], rb.Content[:rb.ReadPos])
 
-	// take write pos +1 and go to end of buffer
-	// then take zero and go to write position
-	n := copy(out, rb.Content[rb.WritePos:rb.Size-1])
-	copy(out[n:], rb.Content[:rb.WritePos])
-
-	return out
+	return result
 }
 
 // Reset purges or resets the ringbuffer deleting all data and zeroizing the read/write pointers.

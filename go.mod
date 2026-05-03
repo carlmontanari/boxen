@@ -10,7 +10,7 @@ tool (
 
 require (
 	github.com/google/uuid v1.6.0
-	github.com/scrapli/scrapligo/v2 v2.0.0-rc.6
+	github.com/scrapli/scrapligo/v2 v2.0.0-rc.9
 	github.com/urfave/cli/v3 v3.8.0
 	go.starlark.net v0.0.0-20260326113308-fadfc96def35
 	google.golang.org/grpc v1.80.0

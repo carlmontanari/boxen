@@ -14,6 +14,8 @@ import (
 	urfavecli "github.com/urfave/cli/v3"
 )
 
+const logLevelUsage = "log level, one of: debug, info, warn, error"
+
 func main() {
 	ctx, cancel := boxenutil.SignalHandledContext(fmt.Printf) //nolint: forbidigo
 
@@ -44,7 +46,7 @@ func buildCommand() *urfavecli.Command {
 		Flags: []urfavecli.Flag{
 			&urfavecli.StringFlag{
 				Name:     boxenconstants.FlagLogLevel,
-				Usage:    "log level, one of: debug, info, warn, error",
+				Usage:    logLevelUsage,
 				Required: false,
 				Value:    boxenconstants.DefaultLogLevel,
 				Sources:  urfavecli.EnvVars(boxenconstants.EnvLoggingLevel),
@@ -129,7 +131,7 @@ func packageCommand() *urfavecli.Command {
 		Flags: []urfavecli.Flag{
 			&urfavecli.StringFlag{
 				Name:     boxenconstants.FlagLogLevel,
-				Usage:    "log level, one of: debug, info, warn, error",
+				Usage:    logLevelUsage,
 				Required: false,
 				Value:    boxenconstants.DefaultLogLevel,
 				Sources:  urfavecli.EnvVars(boxenconstants.EnvLoggingLevel),
@@ -161,7 +163,7 @@ func runCommand() *urfavecli.Command {
 		Flags: []urfavecli.Flag{
 			&urfavecli.StringFlag{
 				Name:     boxenconstants.FlagLogLevel,
-				Usage:    "log level, one of: debug, info, warn, error",
+				Usage:    logLevelUsage,
 				Required: false,
 				Value:    boxenconstants.DefaultLogLevel,
 				Sources:  urfavecli.EnvVars(boxenconstants.EnvLoggingLevel),

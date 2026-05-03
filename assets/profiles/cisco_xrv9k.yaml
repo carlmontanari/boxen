@@ -1,0 +1,237 @@
+---
+name: cisco_xrv9k
+diskPatterns:
+  - "(?i)xrv9k-.*.qcow2"
+versionPattern: "(?i)\\d\\.\\d+\\.\\w+"
+scrapliDefinitionNameOrFile: cisco_iosxr
+scrapliReturnChar: "\r"
+extraFiles: []
+virtualMachine:
+  emulate: "qemu64,+ssse3,+sse4.1,+sse4.2"
+  machine: ""
+  memory: 16384
+  cpuCores: 0
+  cpuThreads: 0
+  cpuSockets: 0
+  serialPortCount: 1
+  nicType: virtio-net-pci
+  nicCount: 16
+  nicPerBus: 26
+  natPorts:
+  - type: tcp
+    localPort: 22
+  - type: tcp
+    localPort: 23
+  - type: tcp
+    localPort: 443
+  - type: tcp
+    localPort: 830
+  - type: udp
+    localPort: 161
+  mutators:
+    # add the additional "ctrl" and "dev" nics after the "normal" nic
+    mgmtNIC: |
+      def mutate(items):
+          items.append("-device")
+          items.append("virtio-net-pci,netdev=ctrl")
+          items.append("-netdev")
+          items.append("tap,id=ctrl,script=no,downscript=no")
+
+          items.append("-device")
+          items.append("virtio-net-pci,netdev=dev")
+          items.append("-netdev")
+          items.append("tap,id=dev,script=no,downscript=no")
+
+          return items
+  extras: []
+packaging:
+  process:
+    # handle initial config dialog bits
+    - type: prompts
+      prompts:
+        timeout: 20m
+        prompts:
+          - prompt:
+              contains: "Press RETURN to get started"
+            response: ""
+            once: true
+          - prompt:
+              contains: "root-system username:"
+            response: admin
+            once: true
+          - prompt:
+              contains: "secret:"
+            response: "P@ssw0rd!"
+            once: true
+            hidden: true
+          - prompt:
+              contains: "secret again:"
+            response: "P@ssw0rd!"
+            once: true
+            hidden: true
+            completes: true
+    - type: prompts
+      prompts:
+        timeout: 2m
+        prompts:
+          - prompt:
+              contains: "Username:"
+              notContains: "Password:"
+            response: admin
+          - prompt:
+              contains: "Password:"
+            response: "P@ssw0rd!"
+            hidden: true
+          - prompt:
+              contains: "RP/0/RP0/CPU0:ios#"
+            response: ""
+            once: true
+            completes: true
+    # generate base crypto key
+    - type: prompts
+      prompts:
+        timeout: 5m
+        initialInput: crypto key generate rsa
+        prompts:
+          - prompt:
+              contains: "really want to replace them"
+            response: yes
+            once: true
+          - prompt:
+              contains: "many bits in the modulus"
+            response: ""
+            once: true
+            completes: true
+    # base config
+    - type: write
+      write:
+        content: |
+          configure exclusive
+          vrf clab-mgmt
+          description Containerlab management VRF (DO NOT DELETE)
+          address-family ipv4 unicast
+          exit
+          address-family ipv6 unicast
+          root
+          router static
+          vrf clab-mgmt
+          address-family ipv4 unicast
+          0.0.0.0/0 10.0.0.2
+          root
+          interface MgmtEth 0/RP0/CPU0/0
+          description Containerlab management interface
+          vrf clab-mgmt
+          ipv4 address 10.0.0.15 255.255.255.0
+          no shutdown
+          exit
+          ssh server v2
+          ssh server vrf clab-mgmt
+          ssh server netconf
+          grpc port 57400
+          grpc vrf clab-mgmt
+          grpc no-tls
+          xml agent tty
+          root
+    # commit
+    - type: prompts
+      prompts:
+        timeout: 5m
+        initialInput: commit
+        prompts:
+          - prompt:
+              contains: "really want to replace them"
+            response: commit
+          - prompt:
+              contains: "many bits in the modulus"
+            response: ""
+            once: true
+            completes: true
+    - type: readUntil
+      readUntil:
+        timeout: 1m
+        until:
+          contains: "localhost#"
+    # small delay to ensure everything saved nicely
+    - type: wait
+      wait:
+        duration: 10s
+  sparsify: false
+run:
+  process:
+    - type: prompts
+      prompts:
+        timeout: 20m
+        prompts:
+          - prompt:
+              contains: "localhost login:"
+            response: admin
+            hidden: true
+            once: true
+          - prompt:
+              contains: "Password:"
+            response: admin
+            hidden: true
+            once: true
+          - prompt:
+              contains: "localhost>"
+            response: ""
+            once: true
+            completes: true
+  configProcess:
+    # acquire privileged exec and disable pagination
+    - type: write
+      write:
+        content: enable
+    - type: prompts
+      prompts:
+        timeout: 1m
+        prompts:
+          - prompt:
+              contains: "Password:"
+            response: admin
+            hidden: true
+            once: true
+          - prompt:
+              contains: "localhost#"
+            response: ""
+            once: true
+            completes: true
+    - type: write
+      write:
+        content: |
+          term len 0
+          term width 32767
+    # config mode so we can set username/password/hostname
+    - type: write
+      write:
+        content: |
+          configure terminal
+    - type: write
+      write:
+        content: username %s secret 0 %s role network-admin
+        formatters:
+          - username
+          - password
+    - type: write
+      write:
+        content: hostname %s
+        formatters:
+          - hostname
+    # load any user provided startup config
+    - type: write
+      write:
+        contentFromStartupConfig: true
+    # ensure we are out of config mode
+    - type: write
+      write:
+        content: |
+          end
+    - type: write
+      write:
+        content:
+          copy running-config startup-config
+    - type: readUntil
+      readUntil:
+        timeout: 3m
+        until:
+          contains: "Copy completed successfully"
