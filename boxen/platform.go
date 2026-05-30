@@ -123,6 +123,17 @@ func (b *Boxen) resolveVersion() error {
 	}
 
 	matches := versionRe.FindStringSubmatch(filepath.Base(b.disk))
+	if len(matches) == 0 {
+		b.l.Warn(
+			"version pattern did not match the disk string, skipping version resolution",
+			"pattern",
+			b.p.VersionPattern,
+			"disk",
+			filepath.Base(b.disk),
+		)
+
+		return nil
+	}
 
 	if len(matches) > 1 {
 		b.p.ResolvedVersion = matches[1]
