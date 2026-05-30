@@ -4,7 +4,7 @@ import (
 	"context"
 
 	boxenprotov1 "github.com/carlmontanari/boxen/proto/v1"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 )
 
 // Builder is rpc endpoint for the builder to ask stuff of the server.

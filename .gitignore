@@ -19,3 +19,5 @@ out
 
 # private dir for notes and such
 .private/
+
+.envrc

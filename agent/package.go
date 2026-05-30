@@ -11,9 +11,9 @@ import (
 	boxenconstants "github.com/carlmontanari/boxen/constants"
 	boxenprofile "github.com/carlmontanari/boxen/profile"
 	boxenprotov1 "github.com/carlmontanari/boxen/proto/v1"
+	"go.yaml.in/yaml/v4"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"gopkg.in/yaml.v3"
 )
 
 const (
