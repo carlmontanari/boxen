@@ -45,7 +45,7 @@ build:
 build-image:
 	docker build \
         -f build/agent.Dockerfile \
-        -t ghcr.io/carlmontanari/boxen:dev-latest .
+        -t ghcr.io/carlmontanari/boxen:0.0.0 .
         # .	\
         # --platform \
         # linux/amd64 .

@@ -3,6 +3,7 @@ package boxen
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -38,9 +39,20 @@ func (b *Boxen) Build(
 		platform,
 	)
 
-	b.disk = diskImage
+	b.disk = boxenutil.MustExpandPath(diskImage)
 
-	var err error
+	diskInfo, err := os.Stat(b.disk)
+	if err != nil {
+		b.l.Error("failed resolving disk image", "disk", b.disk, "error", err.Error())
+
+		return fmt.Errorf("%w: disk image %q not found: %w", boxenerrors.ErrBoxen, b.disk, err)
+	}
+
+	if diskInfo.IsDir() {
+		b.l.Error("disk image path is a directory", "disk", b.disk)
+
+		return fmt.Errorf("%w: disk image %q is a directory", boxenerrors.ErrBoxen, b.disk)
+	}
 
 	b.p, err = b.resolveProfile(profile)
 	if err != nil {
