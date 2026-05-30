@@ -14,6 +14,14 @@ import (
 	scrapligocli "github.com/scrapli/scrapligo/v2/cli"
 )
 
+func promptCallbackName(idx int, p boxenprofile.Prompt) string {
+	if name := strings.TrimSpace(p.Name); name != "" {
+		return fmt.Sprintf("prompts step name %q, idx %d", name, idx)
+	}
+
+	return fmt.Sprintf("prompts step idx %d", idx)
+}
+
 func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step) error {
 	t, err := time.ParseDuration(step.Prompts.Timeout)
 	if err != nil {
@@ -33,8 +41,12 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 	cbs := make([]*scrapligocli.ReadCallback, len(step.Prompts.Prompts))
 
 	for idx, p := range step.Prompts.Prompts {
+		cbName := promptCallbackName(idx, p)
+
 		a.l.Debug(
 			"building prompts callback",
+			"callback name",
+			cbName,
 			"prompt",
 			p.Prompt,
 			"response",
@@ -79,8 +91,6 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 				scrapligocli.WithCompletes(),
 			)
 		}
-
-		cbName := fmt.Sprintf("prompts step idx %d", idx)
 
 		cbs[idx] = scrapligocli.NewReadCallback(
 			cbName,

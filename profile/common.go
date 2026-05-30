@@ -73,6 +73,8 @@ type StepPrompts struct {
 
 // Prompt defines how we match on a prompt and what we respond to it.
 type Prompt struct {
+	// Prompt name is optional, prompt index is used if name is not set
+	Name     string   `yaml:"name"`
 	Prompt   Contains `yaml:"prompt"`
 	Response string   `yaml:"response"`
 	// if marked hidden we wont read the inputs we send off the channel, use this for
