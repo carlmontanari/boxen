@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 
 	boxenconstants "github.com/carlmontanari/boxen/constants"
 	boxenprofile "github.com/carlmontanari/boxen/profile"

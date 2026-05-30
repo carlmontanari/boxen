@@ -12,7 +12,7 @@ import (
 	boxenerrors "github.com/carlmontanari/boxen/errors"
 	boxenprofile "github.com/carlmontanari/boxen/profile"
 	boxenutil "github.com/carlmontanari/boxen/util"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 )
 
 func (b *Boxen) resolveProfile(
