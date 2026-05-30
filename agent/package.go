@@ -78,7 +78,11 @@ func (a *Agent) Package(ctx context.Context, host string) error {
 
 	errs := make(chan error, 1)
 
-	go a.startPackage(ctx, errs)
+	if packageOnlyStartVM() {
+		go a.startPackageOnlyStartVM(ctx, errs)
+	} else {
+		go a.startPackage(ctx, errs)
+	}
 
 	select {
 	case err = <-errs:
@@ -104,7 +108,7 @@ func (a *Agent) startPackage(ctx context.Context, errs chan error) {
 		return
 	}
 
-	err = a.packageConvertDisk(ctx)
+	err = a.packagePrepareDisk(ctx)
 	if err != nil {
 		errs <- err
 
@@ -169,14 +173,7 @@ func (a *Agent) startPackage(ctx context.Context, errs chan error) {
 		return
 	}
 
-	_, err = a.s.Builder(
-		ctx,
-		&boxenprotov1.BuilderRequest{
-			Request: &boxenprotov1.BuilderRequest_PackageCompleteRequest{
-				PackageCompleteRequest: &boxenprotov1.PackageCompleteRequest{},
-			},
-		},
-	)
+	err = a.packageReportReady(ctx)
 	if err != nil {
 		a.l.Error("failed builder response from server", "error", err.Error())
 
@@ -186,6 +183,42 @@ func (a *Agent) startPackage(ctx context.Context, errs chan error) {
 	}
 
 	a.done <- struct{}{}
+}
+
+func (a *Agent) startPackageOnlyStartVM(ctx context.Context, errs chan error) {
+	a.l.Info("only-start-vm requested; preparing disk and starting vm")
+
+	if err := a.packageGetFiles(ctx); err != nil {
+		errs <- err
+
+		return
+	}
+
+	if err := a.packagePrepareDisk(ctx); err != nil {
+		errs <- err
+
+		return
+	}
+
+	if err := a.packagePreCommands(ctx); err != nil {
+		errs <- err
+
+		return
+	}
+
+	if _, err := a.startInstance(ctx, true); err != nil {
+		errs <- err
+
+		return
+	}
+
+	if err := a.packageReportReady(ctx); err != nil {
+		errs <- err
+
+		return
+	}
+
+	<-ctx.Done()
 }
 
 func (a *Agent) packageGetProfile(ctx context.Context) error {
@@ -297,6 +330,21 @@ func (a *Agent) packageGetFile(ctx context.Context, filename string) error {
 	return nil
 }
 
+func packageOnlyStartVM() bool {
+	return os.Getenv(boxenconstants.EnvOnlyStartVM) == "true"
+}
+
+func (a *Agent) packagePrepareDisk(ctx context.Context) error {
+	localFilename := filepath.Base(a.p.ResolvedDisk)
+	if localFilename == "disk.qcow2" {
+		a.l.Debug("disk already has expected qemu filename", "file", localFilename)
+
+		return nil
+	}
+
+	return a.packageConvertDisk(ctx)
+}
+
 func (a *Agent) packageConvertDisk(ctx context.Context) error {
 	localFilename := filepath.Base(a.p.ResolvedDisk)
 
@@ -322,6 +370,19 @@ func (a *Agent) packageConvertDisk(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (a *Agent) packageReportReady(ctx context.Context) error {
+	_, err := a.s.Builder(
+		ctx,
+		&boxenprotov1.BuilderRequest{
+			Request: &boxenprotov1.BuilderRequest_PackageCompleteRequest{
+				PackageCompleteRequest: &boxenprotov1.PackageCompleteRequest{},
+			},
+		},
+	)
+
+	return err
 }
 
 func (a *Agent) packagePreCommands(ctx context.Context) error {

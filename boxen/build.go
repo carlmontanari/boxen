@@ -13,6 +13,13 @@ import (
 	boxenutil "github.com/carlmontanari/boxen/util"
 )
 
+const serialConsolePort = 5_001
+
+// BuildOptions controls optional build behavior.
+type BuildOptions struct {
+	OnlyStartVM bool
+}
+
 // Build runs the build process -- this is the build process from the users perspective -- i.e. on
 // their laptop.
 func (b *Boxen) Build(
@@ -22,7 +29,10 @@ func (b *Boxen) Build(
 	diskImage,
 	profile,
 	platform string,
+	options *BuildOptions,
 ) error {
+	options = normalizeBuildOptions(options)
+
 	b.l.Info("boxen build starting...")
 
 	b.l.Debug(
@@ -37,32 +47,13 @@ func (b *Boxen) Build(
 		profile,
 		"platform",
 		platform,
+		"onlyStartVM",
+		options.OnlyStartVM,
 	)
 
-	b.disk = boxenutil.MustExpandPath(diskImage)
-
-	diskInfo, err := os.Stat(b.disk)
-	if err != nil {
-		b.l.Error("failed resolving disk image", "disk", b.disk, "error", err.Error())
-
-		return fmt.Errorf("%w: disk image %q not found: %w", boxenerrors.ErrBoxen, b.disk, err)
-	}
-
-	if diskInfo.IsDir() {
-		b.l.Error("disk image path is a directory", "disk", b.disk)
-
-		return fmt.Errorf("%w: disk image %q is a directory", boxenerrors.ErrBoxen, b.disk)
-	}
-
-	b.p, err = b.resolveProfile(profile)
-	if err != nil {
-		b.l.Error("failed resolving profile", "error", err.Error())
-
+	if err := b.prepareBuild(diskImage, profile); err != nil {
 		return err
 	}
-
-	// we'll emit a warning log if we cant compile the pattern
-	_ = b.resolveVersion()
 
 	lis, err := b.getListener(ctx)
 	if err != nil {
@@ -100,9 +91,7 @@ func (b *Boxen) Build(
 			Name:  fmt.Sprintf("boxen-%s-builder", b.p.Name),
 			Image: buildGetBuilderImage(),
 			// Platform: platform,
-			Env: []string{
-				fmt.Sprintf("%s=%s", boxenconstants.EnvServerHost, ourAddr),
-			},
+			Env:      buildBuilderEnv(ourAddr, options),
 			Detached: true,
 			// dont remove! we'll be committing the image to our new final image
 			// once the packaging process is complete
@@ -128,6 +117,10 @@ func (b *Boxen) Build(
 
 		return ctx.Err()
 	case <-b.agentDone:
+		if options.OnlyStartVM {
+			return b.attachStartedVM(ctx, containerID)
+		}
+
 		b.l.Info("done reported, finalizing image")
 
 		// tiny sleep to ensure container has exited
@@ -166,6 +159,96 @@ func (b *Boxen) Build(
 	}
 
 	return nil
+}
+
+func normalizeBuildOptions(options *BuildOptions) *BuildOptions {
+	if options != nil {
+		return options
+	}
+
+	return &BuildOptions{}
+}
+
+func (b *Boxen) prepareBuild(diskImage, profile string) error {
+	b.disk = boxenutil.MustExpandPath(diskImage)
+
+	diskInfo, err := os.Stat(b.disk)
+	if err != nil {
+		b.l.Error("failed resolving disk image", "disk", b.disk, "error", err.Error())
+
+		return fmt.Errorf("%w: disk image %q not found: %w", boxenerrors.ErrBoxen, b.disk, err)
+	}
+
+	if diskInfo.IsDir() {
+		b.l.Error("disk image path is a directory", "disk", b.disk)
+
+		return fmt.Errorf("%w: disk image %q is a directory", boxenerrors.ErrBoxen, b.disk)
+	}
+
+	b.p, err = b.resolveProfile(profile)
+	if err != nil {
+		b.l.Error("failed resolving profile", "error", err.Error())
+
+		return err
+	}
+
+	// We'll emit a warning log if we cant compile the pattern.
+	_ = b.resolveVersion()
+
+	return nil
+}
+
+func buildBuilderEnv(host string, options *BuildOptions) []string {
+	options = normalizeBuildOptions(options)
+
+	env := []string{
+		fmt.Sprintf("%s=%s", boxenconstants.EnvServerHost, host),
+	}
+
+	if options.OnlyStartVM {
+		env = append(env, fmt.Sprintf("%s=true", boxenconstants.EnvOnlyStartVM))
+	}
+
+	return env
+}
+
+func (b *Boxen) attachStartedVM(ctx context.Context, containerID string) error {
+	command := buildConsoleAttachCommand(containerID)
+
+	b.l.Info("vm started; attaching to console", "command", command)
+
+	err := b.c.Exec(
+		ctx,
+		b.l,
+		&boxencontainertypes.ExecConfig{
+			ContainerID: containerID,
+			Command: []string{
+				"telnet",
+				"localhost",
+				fmt.Sprint(serialConsolePort),
+			},
+			Interactive: true,
+			TTY:         true,
+		},
+	)
+	if err != nil {
+		b.l.Error("failed attaching to console", "command", command, "error", err.Error())
+		b.l.Info("connect to the console manually", "command", command)
+
+		return nil
+	}
+
+	b.l.Info("console detached; reconnect manually if needed", "command", command)
+
+	return nil
+}
+
+func buildConsoleAttachCommand(containerID string) string {
+	return fmt.Sprintf(
+		"docker exec -i -t %s telnet localhost %d",
+		containerID,
+		serialConsolePort,
+	)
 }
 
 func buildGetBuilderImage() string {

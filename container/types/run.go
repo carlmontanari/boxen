@@ -10,3 +10,11 @@ type RunConfig struct {
 	Remove     bool
 	Privileged bool
 }
+
+// ExecConfig is a config struct passed to the runtime interface's Exec method.
+type ExecConfig struct {
+	ContainerID string
+	Command     []string
+	Interactive bool
+	TTY         bool
+}

@@ -13,6 +13,8 @@ const (
 
 	EnvServerHost = "BOXEN_SERVER_HOST"
 
+	EnvOnlyStartVM = "BOXEN_ONLY_START_VM"
+
 	EnvTargetPlatform = "BOXEN_TARGET_PLATFORM"
 
 	EnvImageRegistry = "BOXEN_IMAGE_REGISTRY"
