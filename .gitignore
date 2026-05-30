@@ -21,3 +21,6 @@ out
 .private/
 
 .envrc
+
+# dist dir for release builds
+dist/
