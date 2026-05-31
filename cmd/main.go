@@ -103,8 +103,8 @@ func buildCommand() *urfavecli.Command {
 				Sources:  urfavecli.EnvVars(boxenconstants.EnvTargetPlatform),
 			},
 			&urfavecli.BoolFlag{
-				Name:  boxenconstants.FlagOnlyStartVM,
-				Usage: "start the VM in the builder container and attach to the serial console",
+				Name:  boxenconstants.FlagVMConsole,
+				Usage: "start the VM and attach to its console without completing the image build",
 			},
 		},
 		Action: func(ctx context.Context, cmd *urfavecli.Command) error {
@@ -123,9 +123,7 @@ func buildCommand() *urfavecli.Command {
 				cmd.String(boxenconstants.FlagDiskImage),
 				cmd.String(boxenconstants.FlagProfileNameOrPath),
 				cmd.String(boxenconstants.FlagTargetPlatform),
-				&boxen.BuildOptions{
-					OnlyStartVM: cmd.Bool(boxenconstants.FlagOnlyStartVM),
-				},
+				cmd.Bool(boxenconstants.FlagVMConsole),
 			)
 		},
 	}

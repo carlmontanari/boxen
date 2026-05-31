@@ -11,32 +11,32 @@ import (
 func TestBuildBuilderEnv(t *testing.T) {
 	host := "127.0.0.1"
 
-	env := buildBuilderEnv(host, nil)
+	env := buildBuilderEnv(host, false)
 
 	expectedServerHost := fmt.Sprintf("%s=%s", boxenconstants.EnvServerHost, host)
 	if !slices.Contains(env, expectedServerHost) {
 		t.Fatalf("builder env missing server host, got %v, want %q", env, expectedServerHost)
 	}
 
-	onlyStartVM := fmt.Sprintf("%s=true", boxenconstants.EnvOnlyStartVM)
-	if slices.Contains(env, onlyStartVM) {
-		t.Fatalf("builder env unexpectedly contains only-start-vm signal, got %v", env)
+	vmConsole := fmt.Sprintf("%s=true", boxenconstants.EnvVMConsole)
+	if slices.Contains(env, vmConsole) {
+		t.Fatalf("builder env unexpectedly contains vm-console signal, got %v", env)
 	}
 }
 
-func TestBuildBuilderEnvOnlyStartVM(t *testing.T) {
+func TestBuildBuilderEnvVMConsole(t *testing.T) {
 	host := "127.0.0.1"
 
-	env := buildBuilderEnv(host, &BuildOptions{OnlyStartVM: true})
+	env := buildBuilderEnv(host, true)
 
 	expectedServerHost := fmt.Sprintf("%s=%s", boxenconstants.EnvServerHost, host)
 	if !slices.Contains(env, expectedServerHost) {
 		t.Fatalf("builder env missing server host, got %v, want %q", env, expectedServerHost)
 	}
 
-	onlyStartVM := fmt.Sprintf("%s=true", boxenconstants.EnvOnlyStartVM)
-	if !slices.Contains(env, onlyStartVM) {
-		t.Fatalf("builder env missing only-start-vm signal, got %v, want %q", env, onlyStartVM)
+	vmConsole := fmt.Sprintf("%s=true", boxenconstants.EnvVMConsole)
+	if !slices.Contains(env, vmConsole) {
+		t.Fatalf("builder env missing vm-console signal, got %v, want %q", env, vmConsole)
 	}
 }
 

@@ -15,11 +15,6 @@ import (
 
 const serialConsolePort = 5_001
 
-// BuildOptions controls optional build behavior.
-type BuildOptions struct {
-	OnlyStartVM bool
-}
-
 // Build runs the build process -- this is the build process from the users perspective -- i.e. on
 // their laptop.
 func (b *Boxen) Build(
@@ -29,10 +24,8 @@ func (b *Boxen) Build(
 	diskImage,
 	profile,
 	platform string,
-	options *BuildOptions,
+	vmConsole bool,
 ) error {
-	options = normalizeBuildOptions(options)
-
 	b.l.Info("boxen build starting...")
 
 	b.l.Debug(
@@ -47,8 +40,8 @@ func (b *Boxen) Build(
 		profile,
 		"platform",
 		platform,
-		"onlyStartVM",
-		options.OnlyStartVM,
+		"vmConsole",
+		vmConsole,
 	)
 
 	if err := b.prepareBuild(diskImage, profile); err != nil {
@@ -91,7 +84,7 @@ func (b *Boxen) Build(
 			Name:  fmt.Sprintf("boxen-%s-builder", b.p.Name),
 			Image: buildGetBuilderImage(),
 			// Platform: platform,
-			Env:      buildBuilderEnv(ourAddr, options),
+			Env:      buildBuilderEnv(ourAddr, vmConsole),
 			Detached: true,
 			// dont remove! we'll be committing the image to our new final image
 			// once the packaging process is complete
@@ -117,7 +110,7 @@ func (b *Boxen) Build(
 
 		return ctx.Err()
 	case <-b.agentDone:
-		if options.OnlyStartVM {
+		if vmConsole {
 			return b.attachStartedVM(ctx, containerID)
 		}
 
@@ -161,14 +154,6 @@ func (b *Boxen) Build(
 	return nil
 }
 
-func normalizeBuildOptions(options *BuildOptions) *BuildOptions {
-	if options != nil {
-		return options
-	}
-
-	return &BuildOptions{}
-}
-
 func (b *Boxen) prepareBuild(diskImage, profile string) error {
 	b.disk = boxenutil.MustExpandPath(diskImage)
 
@@ -198,15 +183,13 @@ func (b *Boxen) prepareBuild(diskImage, profile string) error {
 	return nil
 }
 
-func buildBuilderEnv(host string, options *BuildOptions) []string {
-	options = normalizeBuildOptions(options)
-
+func buildBuilderEnv(host string, vmConsole bool) []string {
 	env := []string{
 		fmt.Sprintf("%s=%s", boxenconstants.EnvServerHost, host),
 	}
 
-	if options.OnlyStartVM {
-		env = append(env, fmt.Sprintf("%s=true", boxenconstants.EnvOnlyStartVM))
+	if vmConsole {
+		env = append(env, fmt.Sprintf("%s=true", boxenconstants.EnvVMConsole))
 	}
 
 	return env

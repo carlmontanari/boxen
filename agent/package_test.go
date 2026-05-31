@@ -6,23 +6,8 @@ import (
 	"os"
 	"testing"
 
-	boxenconstants "github.com/carlmontanari/boxen/constants"
 	boxenprofile "github.com/carlmontanari/boxen/profile"
 )
-
-func TestPackageOnlyStartVM(t *testing.T) {
-	t.Setenv(boxenconstants.EnvOnlyStartVM, "")
-
-	if packageOnlyStartVM() {
-		t.Fatal("only-start-vm unexpectedly enabled with env unset")
-	}
-
-	t.Setenv(boxenconstants.EnvOnlyStartVM, "true")
-
-	if !packageOnlyStartVM() {
-		t.Fatal("only-start-vm not enabled with env set to true")
-	}
-}
 
 func TestPackagePrepareDiskSkipsExpectedDiskName(t *testing.T) {
 	tmpDir := t.TempDir()

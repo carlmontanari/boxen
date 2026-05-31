@@ -78,8 +78,8 @@ func (a *Agent) Package(ctx context.Context, host string) error {
 
 	errs := make(chan error, 1)
 
-	if packageOnlyStartVM() {
-		go a.startPackageOnlyStartVM(ctx, errs)
+	if isVMConsoleMode() {
+		go a.startVMForConsole(ctx, errs)
 	} else {
 		go a.startPackage(ctx, errs)
 	}
@@ -185,34 +185,42 @@ func (a *Agent) startPackage(ctx context.Context, errs chan error) {
 	a.done <- struct{}{}
 }
 
-func (a *Agent) startPackageOnlyStartVM(ctx context.Context, errs chan error) {
-	a.l.Info("only-start-vm requested; preparing disk and starting vm")
+// startVMForConsole prepares the disk and starts the VM for console access.
+// It does not attempt the packaging process and is used for manual inspection of the VM
+// boot process and prompts.
+func (a *Agent) startVMForConsole(ctx context.Context, errs chan error) {
+	a.l.Info("vm-console requested; preparing disk and starting vm")
 
-	if err := a.packageGetFiles(ctx); err != nil {
+	err := a.packageGetFiles(ctx)
+	if err != nil {
 		errs <- err
 
 		return
 	}
 
-	if err := a.packagePrepareDisk(ctx); err != nil {
+	err = a.packagePrepareDisk(ctx)
+	if err != nil {
 		errs <- err
 
 		return
 	}
 
-	if err := a.packagePreCommands(ctx); err != nil {
+	err = a.packagePreCommands(ctx)
+	if err != nil {
 		errs <- err
 
 		return
 	}
 
-	if _, err := a.startInstance(ctx, true); err != nil {
+	_, err = a.startInstance(ctx, true)
+	if err != nil {
 		errs <- err
 
 		return
 	}
 
-	if err := a.packageReportReady(ctx); err != nil {
+	err = a.packageReportReady(ctx)
+	if err != nil {
 		errs <- err
 
 		return
@@ -330,8 +338,8 @@ func (a *Agent) packageGetFile(ctx context.Context, filename string) error {
 	return nil
 }
 
-func packageOnlyStartVM() bool {
-	return os.Getenv(boxenconstants.EnvOnlyStartVM) == "true"
+func isVMConsoleMode() bool {
+	return os.Getenv(boxenconstants.EnvVMConsole) == "true"
 }
 
 func (a *Agent) packagePrepareDisk(ctx context.Context) error {
