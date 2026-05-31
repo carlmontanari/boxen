@@ -440,7 +440,7 @@ func (a *Agent) packageShrinkify(ctx context.Context) error {
 
 	args := []string{"fat.qcow2", "--compress", "disk.qcow2"}
 
-	a.l.Info("starting sparsify", "command", sparsifyBinary, "args", args)
+	a.l.Info("starting disk sparsify, this can take 10+ minutes...", "command", sparsifyBinary, "args", args)
 
 	cmd := exec.CommandContext(ctx, sparsifyBinary, args...)
 

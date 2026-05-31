@@ -85,6 +85,7 @@ func (b *Boxen) Build(
 			Image: buildGetBuilderImage(),
 			// Platform: platform,
 			Env:      buildBuilderEnv(ourAddr, vmConsole),
+			Volumes:  buildBuilderVolumes(),
 			Detached: true,
 			// dont remove! we'll be committing the image to our new final image
 			// once the packaging process is complete
@@ -193,6 +194,14 @@ func buildBuilderEnv(host string, vmConsole bool) []string {
 	}
 
 	return env
+}
+
+func buildBuilderVolumes() []string {
+	return []string{
+		// boot and modules are required for virt-sparsify to work
+		"/boot:/boot:ro",
+		"/lib/modules:/lib/modules:ro",
+	}
 }
 
 func (b *Boxen) openVMConsole(ctx context.Context, containerID string) error {

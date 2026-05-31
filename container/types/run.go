@@ -6,6 +6,7 @@ type RunConfig struct {
 	Image      string
 	Platform   string
 	Env        []string
+	Volumes    []string
 	Detached   bool
 	Remove     bool
 	Privileged bool
