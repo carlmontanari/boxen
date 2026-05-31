@@ -173,7 +173,14 @@ func (a *Agent) startPackage(ctx context.Context, errs chan error) {
 		return
 	}
 
-	err = a.packageReportReady(ctx)
+	_, err = a.s.Builder(
+		ctx,
+		&boxenprotov1.BuilderRequest{
+			Request: &boxenprotov1.BuilderRequest_PackageCompleteRequest{
+				PackageCompleteRequest: &boxenprotov1.PackageCompleteRequest{},
+			},
+		},
+	)
 	if err != nil {
 		a.l.Error("failed builder response from server", "error", err.Error())
 
@@ -378,19 +385,6 @@ func (a *Agent) packageConvertDisk(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-func (a *Agent) packageReportReady(ctx context.Context) error {
-	_, err := a.s.Builder(
-		ctx,
-		&boxenprotov1.BuilderRequest{
-			Request: &boxenprotov1.BuilderRequest_PackageCompleteRequest{
-				PackageCompleteRequest: &boxenprotov1.PackageCompleteRequest{},
-			},
-		},
-	)
-
-	return err
 }
 
 func (a *Agent) packagePreCommands(ctx context.Context) error {
