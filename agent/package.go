@@ -108,7 +108,7 @@ func (a *Agent) startPackage(ctx context.Context, errs chan error) {
 		return
 	}
 
-	err = a.packagePrepareDisk(ctx)
+	err = a.packageConvertDisk(ctx)
 	if err != nil {
 		errs <- err
 
@@ -173,14 +173,7 @@ func (a *Agent) startPackage(ctx context.Context, errs chan error) {
 		return
 	}
 
-	_, err = a.s.Builder(
-		ctx,
-		&boxenprotov1.BuilderRequest{
-			Request: &boxenprotov1.BuilderRequest_PackageCompleteRequest{
-				PackageCompleteRequest: &boxenprotov1.PackageCompleteRequest{},
-			},
-		},
-	)
+	err = a.packageRequestCompleted(ctx)
 	if err != nil {
 		a.l.Error("failed builder response from server", "error", err.Error())
 
@@ -190,6 +183,22 @@ func (a *Agent) startPackage(ctx context.Context, errs chan error) {
 	}
 
 	a.done <- struct{}{}
+}
+
+func (a *Agent) packageRequestCompleted(ctx context.Context) error {
+	_, err := a.s.Builder(
+		ctx,
+		&boxenprotov1.BuilderRequest{
+			Request: &boxenprotov1.BuilderRequest_PackageCompleteRequest{
+				PackageCompleteRequest: &boxenprotov1.PackageCompleteRequest{},
+			},
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // startVMForConsole prepares the disk and starts the VM for console access.
@@ -205,7 +214,7 @@ func (a *Agent) startVMForConsole(ctx context.Context, errs chan error) {
 		return
 	}
 
-	err = a.packagePrepareDisk(ctx)
+	err = a.packageConvertDisk(ctx)
 	if err != nil {
 		errs <- err
 
@@ -226,7 +235,7 @@ func (a *Agent) startVMForConsole(ctx context.Context, errs chan error) {
 		return
 	}
 
-	err = a.packageReportReady(ctx)
+	err = a.packageRequestCompleted(ctx)
 	if err != nil {
 		errs <- err
 
@@ -347,17 +356,6 @@ func (a *Agent) packageGetFile(ctx context.Context, filename string) error {
 
 func isVMConsoleMode() bool {
 	return os.Getenv(boxenconstants.EnvVMConsole) == "true"
-}
-
-func (a *Agent) packagePrepareDisk(ctx context.Context) error {
-	localFilename := filepath.Base(a.p.ResolvedDisk)
-	if localFilename == "disk.qcow2" {
-		a.l.Debug("disk already has expected qemu filename", "file", localFilename)
-
-		return nil
-	}
-
-	return a.packageConvertDisk(ctx)
 }
 
 func (a *Agent) packageConvertDisk(ctx context.Context) error {
