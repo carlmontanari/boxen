@@ -41,6 +41,10 @@ func (a *Agent) startInstance(ctx context.Context, isPackaging bool) (*os.Proces
 	}
 
 	errs := make(chan error, 1)
+	stderrIgnore := []string{}
+	if a.p.Packaging != nil {
+		stderrIgnore = a.p.Packaging.StdErrIgnore
+	}
 
 	go func() {
 		for {
@@ -58,7 +62,7 @@ func (a *Agent) startInstance(ctx context.Context, isPackaging bool) (*os.Proces
 
 			for _, line := range lines {
 				if slices.ContainsFunc(
-					a.p.Packaging.StdErrIgnore,
+					stderrIgnore,
 					func(sub string) bool {
 						return strings.Contains(line, sub)
 					},

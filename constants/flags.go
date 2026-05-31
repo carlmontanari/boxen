@@ -14,6 +14,7 @@ const (
 	FlagImageTagShort      = "tag"
 	FlagDiskImage          = "diskImage"
 	FlagDiskImageShort     = "disk"
+	FlagVMConsole          = "vm-console"
 
 	FlagProfileNameOrPath      = "profile"
 	FlagProfileNameOrPathShort = "prof"

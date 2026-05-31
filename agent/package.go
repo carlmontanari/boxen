@@ -78,7 +78,11 @@ func (a *Agent) Package(ctx context.Context, host string) error {
 
 	errs := make(chan error, 1)
 
-	go a.startPackage(ctx, errs)
+	if isVMConsoleMode() {
+		go a.startVMForConsole(ctx, errs)
+	} else {
+		go a.startPackage(ctx, errs)
+	}
 
 	select {
 	case err = <-errs:
@@ -169,14 +173,7 @@ func (a *Agent) startPackage(ctx context.Context, errs chan error) {
 		return
 	}
 
-	_, err = a.s.Builder(
-		ctx,
-		&boxenprotov1.BuilderRequest{
-			Request: &boxenprotov1.BuilderRequest_PackageCompleteRequest{
-				PackageCompleteRequest: &boxenprotov1.PackageCompleteRequest{},
-			},
-		},
-	)
+	err = a.packageRequestCompleted(ctx)
 	if err != nil {
 		a.l.Error("failed builder response from server", "error", err.Error())
 
@@ -186,6 +183,66 @@ func (a *Agent) startPackage(ctx context.Context, errs chan error) {
 	}
 
 	a.done <- struct{}{}
+}
+
+func (a *Agent) packageRequestCompleted(ctx context.Context) error {
+	_, err := a.s.Builder(
+		ctx,
+		&boxenprotov1.BuilderRequest{
+			Request: &boxenprotov1.BuilderRequest_PackageCompleteRequest{
+				PackageCompleteRequest: &boxenprotov1.PackageCompleteRequest{},
+			},
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// startVMForConsole prepares the disk and starts the VM for console access.
+// It does not attempt the packaging process and is used for manual inspection of the VM
+// boot process and prompts.
+func (a *Agent) startVMForConsole(ctx context.Context, errs chan error) {
+	a.l.Info("vm-console requested; preparing disk and starting vm")
+
+	err := a.packageGetFiles(ctx)
+	if err != nil {
+		errs <- err
+
+		return
+	}
+
+	err = a.packageConvertDisk(ctx)
+	if err != nil {
+		errs <- err
+
+		return
+	}
+
+	err = a.packagePreCommands(ctx)
+	if err != nil {
+		errs <- err
+
+		return
+	}
+
+	_, err = a.startInstance(ctx, true)
+	if err != nil {
+		errs <- err
+
+		return
+	}
+
+	err = a.packageRequestCompleted(ctx)
+	if err != nil {
+		errs <- err
+
+		return
+	}
+
+	<-ctx.Done()
 }
 
 func (a *Agent) packageGetProfile(ctx context.Context) error {
@@ -295,6 +352,10 @@ func (a *Agent) packageGetFile(ctx context.Context, filename string) error {
 	a.l.Debug("received file from server", "file", localFilename)
 
 	return nil
+}
+
+func isVMConsoleMode() bool {
+	return os.Getenv(boxenconstants.EnvVMConsole) == "true"
 }
 
 func (a *Agent) packageConvertDisk(ctx context.Context) error {

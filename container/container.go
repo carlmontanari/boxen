@@ -26,6 +26,11 @@ type Runtime interface {
 		l *slog.Logger,
 		cfg *boxencontainertypes.RunConfig,
 	) (string, error)
+	Exec(
+		ctx context.Context,
+		l *slog.Logger,
+		cfg *boxencontainertypes.ExecConfig,
+	) error
 	Commit(
 		ctx context.Context,
 		l *slog.Logger,
