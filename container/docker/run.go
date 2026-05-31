@@ -46,6 +46,10 @@ func (r *Runtime) Run(
 		args = append(args, "-e", env)
 	}
 
+	for _, volume := range cfg.Volumes {
+		args = append(args, "-v", volume)
+	}
+
 	if cfg.Detached {
 		args = append(args, "-d")
 	}

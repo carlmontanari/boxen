@@ -40,6 +40,19 @@ func TestBuildBuilderEnvVMConsole(t *testing.T) {
 	}
 }
 
+func TestBuildBuilderVolumes(t *testing.T) {
+	volumes := buildBuilderVolumes()
+
+	for _, volume := range []string{
+		"/boot:/boot:ro",
+		"/lib/modules:/lib/modules:ro",
+	} {
+		if !slices.Contains(volumes, volume) {
+			t.Fatalf("builder volumes missing mount, got %v, want %q", volumes, volume)
+		}
+	}
+}
+
 func TestBuildConsoleAttachCommand(t *testing.T) {
 	actual := buildOpenConsoleCommand("container-id")
 	expected := "docker exec -i -t container-id telnet localhost 5001"
