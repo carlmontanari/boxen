@@ -19,7 +19,7 @@ func TestPromptCallbackName(t *testing.T) {
 			prompt: boxenprofile.Prompt{
 				Name: "login prompt",
 			},
-			expected: `prompts step name "login prompt", idx 3`,
+			expected: `prompts step name: login prompt, idx: 3`,
 		},
 		{
 			name:     "unnamed prompt",

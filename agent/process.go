@@ -15,8 +15,9 @@ import (
 )
 
 func promptCallbackName(idx int, p boxenprofile.Prompt) string {
-	if name := strings.TrimSpace(p.Name); name != "" {
-		return fmt.Sprintf("prompts step name %q, idx %d", name, idx)
+	name := strings.TrimSpace(p.Name)
+	if name != "" {
+		return fmt.Sprintf("prompts step name: %s, idx: %d", name, idx)
 	}
 
 	return fmt.Sprintf("prompts step idx %d", idx)
