@@ -111,7 +111,7 @@ func (b *Boxen) Build(
 		return ctx.Err()
 	case <-b.agentDone:
 		if vmConsole {
-			return b.attachStartedVM(ctx, containerID)
+			return b.openVMConsole(ctx, containerID)
 		}
 
 		b.l.Info("done reported, finalizing image")
@@ -195,8 +195,8 @@ func buildBuilderEnv(host string, vmConsole bool) []string {
 	return env
 }
 
-func (b *Boxen) attachStartedVM(ctx context.Context, containerID string) error {
-	command := buildConsoleAttachCommand(containerID)
+func (b *Boxen) openVMConsole(ctx context.Context, containerID string) error {
+	command := buildOpenConsoleCommand(containerID)
 
 	b.l.Info("vm started; attaching to console", "command", command)
 
@@ -226,7 +226,7 @@ func (b *Boxen) attachStartedVM(ctx context.Context, containerID string) error {
 	return nil
 }
 
-func buildConsoleAttachCommand(containerID string) string {
+func buildOpenConsoleCommand(containerID string) string {
 	return fmt.Sprintf(
 		"docker exec -i -t %s telnet localhost %d",
 		containerID,

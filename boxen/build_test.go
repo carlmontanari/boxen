@@ -41,7 +41,7 @@ func TestBuildBuilderEnvVMConsole(t *testing.T) {
 }
 
 func TestBuildConsoleAttachCommand(t *testing.T) {
-	actual := buildConsoleAttachCommand("container-id")
+	actual := buildOpenConsoleCommand("container-id")
 	expected := "docker exec -i -t container-id telnet localhost 5001"
 
 	if actual != expected {
