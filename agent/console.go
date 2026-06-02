@@ -12,50 +12,105 @@ import (
 	scrapligooptions "github.com/scrapli/scrapligo/v2/options"
 )
 
+const (
+	consoleHost           = "localhost"
+	consoleOpenAttempts   = 3
+	consoleOpenRetryDelay = 3 * time.Second
+)
+
 func (a *Agent) openConsoleConn(ctx context.Context, logFilename string) error {
 	a.l.Info("opening console connection...")
-
-	var err error
 
 	returnChar := "\r\n"
 	if a.p.ScrapliReturnChar != "" {
 		returnChar = a.p.ScrapliReturnChar
 	}
 
-	a.conn, err = scrapligocli.NewCli(
-		"localhost",
-		scrapligooptions.WithDefinitionFileOrName(".scrapligo_definition.yaml"),
-		scrapligooptions.WithPort(5_001), //nolint: mnd
-		scrapligooptions.WithLogger(a.l.l),
-		scrapligooptions.WithLoggerLevel(
-			scrapligologging.LogLevel(
-				boxenutil.GetEnvStrOrDefault(
-					boxenconstants.EnvScrapliLogLevel,
-					string(scrapligologging.Debug),
+	success := make(chan struct{}, 1)
+	errs := make(chan error, 1)
+
+	go func() {
+		for attempt := 1; attempt <= consoleOpenAttempts; attempt++ {
+			conn, err := scrapligocli.NewCli(
+				consoleHost,
+				scrapligooptions.WithDefinitionFileOrName(".scrapligo_definition.yaml"),
+				scrapligooptions.WithPort(5_001), //nolint: mnd
+				scrapligooptions.WithLogger(a.l.l),
+				scrapligooptions.WithLoggerLevel(
+					scrapligologging.LogLevel(
+						boxenutil.GetEnvStrOrDefault(
+							boxenconstants.EnvScrapliLogLevel,
+							string(scrapligologging.Debug),
+						),
+					),
 				),
-			),
-		),
-		scrapligooptions.WithTransportTelnet(),
-		scrapligooptions.WithReturnChar(returnChar),
-		scrapligooptions.WithBypassInSessionAuth(),
-		scrapligooptions.WithSessionRecorderPath(logFilename),
-	)
-	if err != nil {
-		a.l.Error("failed creating console connection", "error", err.Error())
+				scrapligooptions.WithTransportTelnet(),
+				scrapligooptions.WithReturnChar(returnChar),
+				scrapligooptions.WithBypassInSessionAuth(),
+				scrapligooptions.WithSessionRecorderPath(logFilename),
+			)
+			if err != nil {
+				a.l.Error("failed creating console connection", "error", err.Error())
+				errs <- err
 
-		return err
-	}
+				return
+			}
 
-	_, err = a.conn.Open(ctx)
-	if err != nil {
+			_, err = conn.Open(ctx)
+			if err == nil {
+				a.conn = conn
+				success <- struct{}{}
+
+				return
+			}
+
+			if attempt == consoleOpenAttempts {
+				errs <- err
+
+				return
+			}
+
+			a.l.Warn(
+				"failed opening console connection, retrying",
+				"attempt",
+				attempt,
+				"attempts",
+				consoleOpenAttempts,
+				"retryDelay",
+				consoleOpenRetryDelay,
+				"error",
+				err.Error(),
+			)
+
+			timer := time.NewTimer(consoleOpenRetryDelay)
+
+			select {
+			case <-ctx.Done():
+				if !timer.Stop() {
+					select {
+					case <-timer.C:
+					default:
+					}
+				}
+
+				errs <- ctx.Err()
+
+				return
+			case <-timer.C:
+			}
+		}
+	}()
+
+	select {
+	case <-success:
+		a.l.Info("console connection opened")
+
+		return nil
+	case err := <-errs:
 		a.l.Error("failed opening console connection", "error", err.Error())
 
 		return err
 	}
-
-	a.l.Info("console connection opened")
-
-	return nil
 }
 
 func (a *Agent) closeConsoleConn(ctx context.Context) error {
