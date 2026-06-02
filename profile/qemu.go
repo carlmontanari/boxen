@@ -39,6 +39,7 @@ const (
 	serialPortBaseIdx = 5_001
 
 	defaultSocketPad = 10_000
+	tcTapIfupScript  = "/etc/tc-tap-ifup"
 
 	accelerationKVM = "kvm"
 )
@@ -369,9 +370,14 @@ func buildDataNic(
 			busAddr,
 			mac,
 		),
+		"-netdev",
+		fmt.Sprintf(
+			"tap,id=p%s,ifname=tap%d,script=%s,downscript=no",
+			paddedNicID,
+			nicID,
+			tcTapIfupScript,
+		),
 	}
-
-	// TODO tc mode we then append -netdev and the tap info
 
 	return nicCmd
 }
