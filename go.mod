@@ -10,7 +10,7 @@ tool (
 
 require (
 	github.com/google/uuid v1.6.0
-	github.com/scrapli/scrapligo/v2 v2.0.0-rc.9
+	github.com/scrapli/scrapligo/v2 v2.0.0-rc.11
 	github.com/urfave/cli/v3 v3.8.0
 	go.starlark.net v0.0.0-20260326113308-fadfc96def35
 	go.yaml.in/yaml/v4 v4.0.0-rc.4
@@ -23,7 +23,7 @@ require (
 	github.com/alecthomas/units v0.0.0-20240927000941-0f3dac36c52b // indirect
 	github.com/daixiang0/gci v0.13.7 // indirect
 	github.com/dave/dst v0.27.3 // indirect
-	github.com/ebitengine/purego v0.10.0 // indirect
+	github.com/ebitengine/purego v0.10.1 // indirect
 	github.com/golangci/golines v0.14.0 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/hexops/gotextdiff v1.0.3 // indirect
@@ -40,7 +40,7 @@ require (
 	golang.org/x/mod v0.31.0 // indirect
 	golang.org/x/net v0.49.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
-	golang.org/x/sys v0.43.0 // indirect
+	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/term v0.41.0 // indirect
 	golang.org/x/text v0.33.0 // indirect
 	golang.org/x/tools v0.40.0 // indirect
