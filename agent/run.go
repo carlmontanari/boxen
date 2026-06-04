@@ -31,6 +31,8 @@ func (a *Agent) Run(
 		return err
 	}
 
+	a.f = boxenprofile.NewFormatters(username, password, hostname, connectionMode, a.p, false)
+
 	defer func() {
 		if a.stdoutF == nil {
 			return
@@ -41,7 +43,7 @@ func (a *Agent) Run(
 
 	errs := make(chan error, 1)
 
-	go a.startRun(ctx, errs, username, password, hostname, connectionMode)
+	go a.startRun(ctx, errs)
 
 	select {
 	// here we just wait for the error or done, because we block on the context in the run
@@ -57,22 +59,13 @@ func (a *Agent) Run(
 	}
 }
 
-func (a *Agent) startRun(
-	ctx context.Context,
-	errs chan error,
-	username,
-	password,
-	hostname,
-	connectionMode string,
-) {
+func (a *Agent) startRun(ctx context.Context, errs chan error) {
 	err := a.runClabNICProvisionDelay(ctx)
 	if err != nil {
 		errs <- err
 
 		return
 	}
-
-	a.f = boxenprofile.NewFormatters(username, password, hostname, connectionMode, a.p, false)
 
 	err = a.runClabStartDelay(ctx)
 	if err != nil {
