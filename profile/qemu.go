@@ -38,8 +38,9 @@ const (
 	monitorPort       = 4_001
 	serialPortBaseIdx = 5_001
 
-	defaultSocketPad = 10_000
-	tcTapIfupScript  = "/etc/tc-tap-ifup"
+	defaultSocketPad    = 10_000
+	tcTapIfupScript     = "/etc/tc-tap-ifup"
+	tcTapMgmtIfupScript = "/etc/tc-tap-mgmt-ifup"
 
 	accelerationKVM = "kvm"
 )
@@ -67,7 +68,6 @@ func QemuArgsFromProfile(
 		monitor:      qemuMonitor,
 		display:      qemuDisplay,
 		pci:          qemuPCI,
-		mgmtNIC:      qemuMgmtNIC,
 		dataNICs:     qemuDataNICs,
 	}
 
@@ -99,7 +99,12 @@ func QemuArgsFromProfile(
 			continue
 		}
 
-		args := fs[k](p)
+		var args []string
+		if k == mgmtNIC {
+			args = qemuMgmtNIC(p, isPackaging)
+		} else {
+			args = fs[k](p)
+		}
 
 		fBody, mutateOk := p.VirtualMachine.Mutators[k]
 		if !mutateOk {
@@ -274,16 +279,41 @@ func qemuPCI(p *Profile) []string {
 	return pciCmd
 }
 
-func qemuMgmtNIC(p *Profile) []string {
-	if p.VirtualMachine.ManagementPassthrough {
-		panic("not implemented")
+func qemuMgmtNIC(p *Profile, isPackaging bool) []string {
+	managementPassthrough := !isPackaging && p.VirtualMachine.EffectiveManagementPassthrough()
+	mac := ""
+
+	if managementPassthrough {
+		mac = os.Getenv(boxenconstants.EnvClabMgmtMAC)
+		if mac == "" {
+			intfPrefix := boxenutil.GetEnvStrOrDefault(boxenconstants.EnvClabIntfPrefix, "eth")
+			mac = getIntfMac(context.Background(), fmt.Sprintf("%s0", intfPrefix))
+		}
+
+		if mac == "" {
+			mac = generateMac(0)
+		}
+	}
+
+	deviceArgs := fmt.Sprintf("%s,netdev=mgmt", p.VirtualMachine.NicType)
+	if mac != "" {
+		deviceArgs = fmt.Sprintf("%s,mac=%s", deviceArgs, mac)
 	}
 
 	nicCmd := []string{
 		device,
-		fmt.Sprintf("%s,netdev=mgmt", p.VirtualMachine.NicType),
+		deviceArgs,
 		"-netdev",
 		"",
+	}
+
+	if managementPassthrough {
+		nicCmd[3] = fmt.Sprintf(
+			"tap,id=mgmt,ifname=tap0,script=%s,downscript=no",
+			tcTapMgmtIfupScript,
+		)
+
+		return nicCmd
 	}
 
 	mgmtIntf := "user,id=mgmt,net=10.0.0.0/24,host=10.0.0.2," +
@@ -400,11 +430,6 @@ type ipLinkShowOutput []struct {
 
 func getIntfMac(ctx context.Context, intf string) string {
 	cmd := exec.CommandContext(ctx, "ip", "--json", "link", "show", "dev", intf) //nolint: gosec
-
-	err := cmd.Run()
-	if err != nil {
-		return ""
-	}
 
 	b, err := cmd.Output()
 	if err != nil {

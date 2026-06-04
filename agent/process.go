@@ -269,8 +269,17 @@ func (a *Agent) processStepWrite(
 
 	a.l.Info("writing to console", "content", c, "formatters", formatters)
 
+	if len(formatters) > 0 {
+		c = fmt.Sprintf(c, formatters...)
+	}
+
+	c, err = a.f.RenderTemplate(c)
+	if err != nil {
+		return err
+	}
+
 	writeIterator := strings.SplitSeq(
-		fmt.Sprintf(c, formatters...),
+		c,
 		"\n",
 	)
 

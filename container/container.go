@@ -37,6 +37,7 @@ type Runtime interface {
 		containerID,
 		imageID string,
 		natPorts []boxenprofile.NatPort,
+		exposeNatPorts bool,
 	) error
 	Rm(
 		ctx context.Context,

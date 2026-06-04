@@ -17,6 +17,7 @@ func (r *Runtime) Commit(
 	containerID,
 	imageID string,
 	natPorts []boxenprofile.NatPort,
+	exposeNatPorts bool,
 ) error {
 	args := []string{ //nolint: prealloc
 		"commit",
@@ -24,16 +25,18 @@ func (r *Runtime) Commit(
 		`ENTRYPOINT ["/boxen/boxen", "run"]`,
 	}
 
-	for idx := range natPorts {
-		args = append(
-			args,
-			"--change",
-			fmt.Sprintf(
-				`EXPOSE %d/%s`,
-				natPorts[idx].LocalPort,
-				strings.ToUpper(string(natPorts[idx].Type)),
-			),
-		)
+	if exposeNatPorts {
+		for idx := range natPorts {
+			args = append(
+				args,
+				"--change",
+				fmt.Sprintf(
+					`EXPOSE %d/%s`,
+					natPorts[idx].LocalPort,
+					strings.ToUpper(string(natPorts[idx].Type)),
+				),
+			)
+		}
 	}
 
 	args = append(

@@ -106,7 +106,8 @@ type StepWrite struct {
 	// "containerlab" formatters (username/password/hostname) are only available during the run
 	// process since of course they are only passed when boxen is invoked from containerlab.
 	// The disk, extraFiles, and version formatters, however, are available for both the package
-	// and run processes since those are boxen known.
+	// and run processes since those are boxen known. Content can also use named Go template
+	// variables, for example {{ .hostname }} or {{ .mgmtIPv4Address }}.
 	// Allowed "formatters":
 	// 	- username
 	// 	- password

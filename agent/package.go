@@ -74,7 +74,7 @@ func (a *Agent) Package(ctx context.Context, host string) error {
 		return err
 	}
 
-	a.f = boxenprofile.NewFormatters("", "", "", "", a.p)
+	a.f = boxenprofile.NewFormatters("", "", "", "", a.p, true)
 
 	errs := make(chan error, 1)
 

@@ -142,6 +142,7 @@ func (b *Boxen) Build(
 		containerID,
 		imageID.String(),
 		b.p.VirtualMachine.NatPorts,
+		!b.p.VirtualMachine.ManagementPassthrough,
 	)
 	if err != nil {
 		return err

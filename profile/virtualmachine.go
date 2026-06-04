@@ -1,6 +1,12 @@
 package profile
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+	"strings"
+
+	boxenconstants "github.com/carlmontanari/boxen/constants"
+)
 
 // VirtualMachine defines the qemu settings/profile for an endpoint, this will generally come from
 // yaml "profile" manifests that we load or users provide to tell us how to configure the vm.
@@ -95,4 +101,19 @@ type NatPort struct {
 	Type         NatType `yaml:"type"`
 	LocalPort    uint32  `yaml:"localPort"`
 	ExternalPort uint32  `yaml:"externalPort"`
+}
+
+// EffectiveManagementPassthrough resolves the transparent management mode.
+// The containerlab environment override wins over the profile default, matching vrnetlab.
+func (v *VirtualMachine) EffectiveManagementPassthrough() bool {
+	envValue, ok := os.LookupEnv(boxenconstants.EnvClabMgmtPassthrough)
+	if ok && envValue != "" {
+		return strings.ToLower(envValue) == "true"
+	}
+
+	if v == nil {
+		return false
+	}
+
+	return v.ManagementPassthrough
 }
