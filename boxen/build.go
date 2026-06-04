@@ -136,13 +136,17 @@ func (b *Boxen) Build(
 
 	fmt.Fprintf(&imageID, "boxen-%s:%s", b.p.Name, imageTag)
 
+	natPorts := b.p.VirtualMachine.NatPorts
+	if b.p.VirtualMachine.ManagementPassthrough {
+		natPorts = nil
+	}
+
 	err = b.c.Commit(
 		ctx,
 		b.l,
 		containerID,
 		imageID.String(),
-		b.p.VirtualMachine.NatPorts,
-		!b.p.VirtualMachine.ManagementPassthrough,
+		natPorts,
 	)
 	if err != nil {
 		return err
