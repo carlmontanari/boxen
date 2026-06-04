@@ -280,7 +280,7 @@ func qemuPCI(p *Profile) []string {
 }
 
 func qemuMgmtNIC(p *Profile, isPackaging bool) []string {
-	managementPassthrough := !isPackaging && p.VirtualMachine.EffectiveManagementPassthrough()
+	managementPassthrough := !isPackaging && p.VirtualMachine.IsManagementPassthroughEnabled()
 	mac := ""
 
 	if managementPassthrough {

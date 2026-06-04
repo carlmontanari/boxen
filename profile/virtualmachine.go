@@ -103,9 +103,10 @@ type NatPort struct {
 	ExternalPort uint32  `yaml:"externalPort"`
 }
 
-// EffectiveManagementPassthrough resolves the transparent management mode.
-// The containerlab environment override wins over the profile default, matching vrnetlab.
-func (v *VirtualMachine) EffectiveManagementPassthrough() bool {
+// IsManagementPassthroughEnabled resolves the transparent management mode.
+// The CLAB_MGMT_PASSTHROUGH environment var wins over the profile default,
+// allowing a user to override the profile's setting during runtime.
+func (v *VirtualMachine) IsManagementPassthroughEnabled() bool {
 	envValue, ok := os.LookupEnv(boxenconstants.EnvClabMgmtPassthrough)
 	if ok && envValue != "" {
 		return strings.ToLower(envValue) == "true"

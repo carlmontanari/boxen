@@ -294,7 +294,7 @@ func (f *Formatters) getManagementFormatters() (*managementFormatters, error) {
 		f.management = defaultManagementFormatters()
 	case f.p == nil || f.p.VirtualMachine == nil:
 		f.management = defaultManagementFormatters()
-	case !f.p.VirtualMachine.EffectiveManagementPassthrough():
+	case !f.p.VirtualMachine.IsManagementPassthroughEnabled():
 		f.management = defaultManagementFormatters()
 	case envBoolTrue(boxenconstants.EnvClabMgmtDHCP):
 		f.management = dhcpManagementFormatters()
