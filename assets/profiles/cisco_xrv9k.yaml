@@ -211,15 +211,10 @@ run:
           configure terminal
     - type: write
       write:
-        content: username %s secret 0 %s role network-admin
-        formatters:
-          - username
-          - password
+        content: username {{ .username }} secret 0 {{ .password }} role network-admin
     - type: write
       write:
-        content: hostname %s
-        formatters:
-          - hostname
+        content: hostname {{ .hostname }}
     # load any user provided startup config
     - type: write
       write:
