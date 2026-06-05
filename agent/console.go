@@ -14,7 +14,7 @@ import (
 
 const (
 	consoleHost           = "localhost"
-	consoleOpenAttempts   = 3
+	consoleOpenAttempts   = 5
 	consoleOpenRetryDelay = 3 * time.Second
 )
 
