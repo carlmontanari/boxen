@@ -86,6 +86,7 @@ The following values are available:
 | `{{ .username }}`          | `admin`                     | Containerlab-provided username during run.         |
 | `{{ .password }}`          | `admin`                     | Containerlab-provided password during run.         |
 | `{{ .hostname }}`          | `leaf1`                     | Containerlab node hostname during run.             |
+| `{{ .mgmtDHCP }}`          | `false`                     | Whether management config should use DHCP.         |
 | `{{ .mgmtIPv4 }}`          | `172.20.20.10/24`           | IPv4 management address in CIDR notation.          |
 | `{{ .mgmtIPv4Address }}`   | `172.20.20.10`              | IPv4 management address without prefix length.     |
 | `{{ .mgmtIPv4PrefixLen }}` | `24`                        | IPv4 management prefix length.                     |
@@ -100,9 +101,23 @@ The following values are available:
 In packaging and legacy host-forwarded management mode, management template
 values resolve to the QEMU user-network defaults (`10.0.0.15/24` and
 `10.0.0.2`). In transparent management runtime mode, Boxen reads the values from
-container `eth0` and the container default routes. IPv6 values can be empty when
-the container management interface has no global IPv6 address or default route,
-so profile commands that use IPv6 should guard them when needed:
+container `eth0` and the container default routes. When `CLAB_MGMT_DHCP=true`,
+`{{ .mgmtDHCP }}` is true and address-specific management values are unavailable,
+so templates should branch into the NOS-specific DHCP syntax:
+
+```yaml
+content: |
+  {{ if .mgmtDHCP }}
+  nv set interface eth0 ipv4 address dhcp
+  {{ else }}
+  nv set interface eth0 ipv4 address {{ .mgmtIPv4 }}
+  nv set interface eth0 ipv4 gateway {{ .mgmtGatewayIPv4 }}
+  {{ end }}
+```
+
+IPv6 values can be empty when the container management interface has no global
+IPv6 address or default route, so profile commands that use IPv6 should guard
+them when needed:
 
 ```yaml
 content: |

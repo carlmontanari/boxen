@@ -3,6 +3,7 @@ package profile
 import (
 	"context"
 	"reflect"
+	"strings"
 	"testing"
 
 	boxenconstants "github.com/carlmontanari/boxen/constants"
@@ -122,6 +123,22 @@ func TestManagementFormattersRuntime(t *testing.T) {
 	}
 }
 
+func TestManagementFormattersDHCP(t *testing.T) {
+	t.Setenv(boxenconstants.EnvClabMgmtPassthrough, "true")
+	t.Setenv(boxenconstants.EnvClabMgmtDHCP, "true")
+
+	f := NewFormatters("", "", "", "", testQemuProfile(false), false)
+
+	_, err := f.UnpackFormatters([]string{"mgmtIPv4"})
+	if err == nil {
+		t.Fatal("expected positional management formatter to fail in DHCP mode")
+	}
+
+	if !strings.Contains(err.Error(), boxenconstants.EnvClabMgmtDHCP) {
+		t.Fatalf("expected DHCP error, got %v", err)
+	}
+}
+
 func TestRenderTemplateManagementFormatters(t *testing.T) {
 	t.Setenv(boxenconstants.EnvClabMgmtPassthrough, "true")
 
@@ -175,5 +192,30 @@ ipv6 `
 
 	if actual != expected {
 		t.Fatalf("rendered template mismatch, got %q, want %q", actual, expected)
+	}
+}
+
+func TestRenderTemplateDHCPManagementFormatters(t *testing.T) {
+	t.Setenv(boxenconstants.EnvClabMgmtPassthrough, "true")
+	t.Setenv(boxenconstants.EnvClabMgmtDHCP, "true")
+
+	f := NewFormatters("", "", "", "", testQemuProfile(false), false)
+
+	actual, err := f.RenderTemplate(
+		`{{ if .mgmtDHCP }}address dhcp{{ else }}address {{ .mgmtIPv4 }}{{ end }}`,
+	)
+	if err != nil {
+		t.Fatalf("rendering DHCP template failed: %v", err)
+	}
+
+	expected := `address dhcp`
+
+	if actual != expected {
+		t.Fatalf("rendered template mismatch, got %q, want %q", actual, expected)
+	}
+
+	_, err = f.RenderTemplate(`address {{ .mgmtIPv4 }}`)
+	if err == nil {
+		t.Fatal("expected direct management address use to fail in DHCP mode")
 	}
 }

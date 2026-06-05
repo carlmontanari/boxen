@@ -40,6 +40,7 @@ type Formatters struct {
 }
 
 type managementFormatters struct {
+	dhcp          bool
 	ipv4          string
 	ipv4Address   string
 	ipv4PrefixLen string
@@ -230,6 +231,11 @@ func (f *Formatters) TemplateData(includeManagement bool) (map[string]any, error
 		return nil, err
 	}
 
+	data["mgmtDHCP"] = management.dhcp
+	if management.dhcp {
+		return data, nil
+	}
+
 	data["mgmtIPv4"] = management.ipv4
 	data["mgmtIPv4Address"] = management.ipv4Address
 	data["mgmtIPv4PrefixLen"] = management.ipv4PrefixLen
@@ -275,6 +281,15 @@ func (f *Formatters) managementFormatter(formatter string) (string, error) {
 		v = management.ipv6Gateway
 	default:
 		return "", fmt.Errorf("%w: invalid formatter %q", boxenerrors.ErrBoxen, formatter)
+	}
+
+	if management.dhcp {
+		return "", fmt.Errorf(
+			"%w: formatter %q unavailable when %s=true; use mgmtDHCP in a template",
+			boxenerrors.ErrBoxen,
+			formatter,
+			boxenconstants.EnvClabMgmtDHCP,
+		)
 	}
 
 	if v == "" && !strings.Contains(formatter, "IPv6") {
@@ -324,16 +339,7 @@ func defaultManagementFormatters() *managementFormatters {
 
 func dhcpManagementFormatters() *managementFormatters {
 	return &managementFormatters{
-		ipv4:          "dhcp",
-		ipv4Address:   "dhcp",
-		ipv4PrefixLen: "dhcp",
-		ipv4Network:   "dhcp",
-		ipv4Gateway:   "dhcp",
-		ipv6:          "dhcp",
-		ipv6Address:   "dhcp",
-		ipv6PrefixLen: "dhcp",
-		ipv6Network:   "dhcp",
-		ipv6Gateway:   "dhcp",
+		dhcp: true,
 	}
 }
 
