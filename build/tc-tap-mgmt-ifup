@@ -1,0 +1,29 @@
+#!/bin/bash
+set -euo pipefail
+
+TAP_IF=$1
+MGMT_IF=${CLAB_MGMT_INTF:-eth0}
+
+ip link set "$TAP_IF" up
+ip link set "$TAP_IF" mtu 65000
+
+# Avoid periodic traffic from the container itself leaking into the VM mgmt path.
+ip -6 addr flush "$TAP_IF" || true
+
+tc qdisc replace dev "$MGMT_IF" clsact
+
+# Keep the QEMU serial console reachable on the container while redirecting mgmt traffic.
+tc filter replace dev "$MGMT_IF" ingress prio 1 protocol ip flower ip_proto tcp dst_port 5001-5008 action pass
+
+# Mirror ARP so the container network stack can still resolve neighbors when needed.
+tc filter replace dev "$MGMT_IF" ingress prio 2 protocol arp flower action mirred egress mirror dev "$TAP_IF"
+
+# Redirect normal management traffic to the VM management tap.
+tc filter replace dev "$MGMT_IF" ingress prio 3 flower action mirred egress redirect dev "$TAP_IF"
+
+tc qdisc replace dev "$TAP_IF" clsact
+tc filter replace dev "$TAP_IF" ingress flower action mirred egress redirect dev "$MGMT_IF"
+
+if [[ -n "${CLAB_MGMT_MAC:-}" ]]; then
+  ip link set dev "$MGMT_IF" address "$CLAB_MGMT_MAC"
+fi

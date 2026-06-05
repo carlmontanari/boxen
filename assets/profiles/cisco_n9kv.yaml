@@ -117,10 +117,8 @@ packaging:
           vrf context management
           ip route 0.0.0.0/0 10.0.0.2
           exit
-          boot nxos bootflash:///nxos.%s.bin
+          boot nxos bootflash:///nxos.{{ .version }}.bin
           end
-        formatters:
-          - version
     - type: write
       write:
         content:
@@ -174,15 +172,10 @@ run:
           configure terminal
     - type: write
       write:
-        content: username %s password 0 %s role network-admin
-        formatters:
-          - username
-          - password
+        content: username {{ .username }} password 0 {{ .password }} role network-admin
     - type: write
       write:
-        content: hostname %s
-        formatters:
-          - hostname
+        content: hostname {{ .hostname }}
     # load any user provided startup config
     - type: write
       write:

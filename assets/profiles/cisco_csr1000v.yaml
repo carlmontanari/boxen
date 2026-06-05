@@ -151,15 +151,10 @@ run:
           configure terminal
     - type: write
       write:
-        content: username %s privilege 15 password %s
-        formatters:
-          - username
-          - password
+        content: username {{ .username }} privilege 15 password {{ .password }}
     - type: write
       write:
-        content: hostname %s
-        formatters:
-          - hostname
+        content: hostname {{ .hostname }}
     # load any user provided startup config
     - type: write
       write:

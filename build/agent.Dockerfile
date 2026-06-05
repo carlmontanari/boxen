@@ -51,7 +51,8 @@ RUN apt-get update && \
 WORKDIR /boxen
 
 COPY build/tc-tap-ifup /etc/
-RUN chmod 0777 /etc/tc-tap-ifup
+COPY build/tc-tap-mgmt-ifup /etc/
+RUN chmod 0777 /etc/tc-tap-ifup /etc/tc-tap-mgmt-ifup
 
 COPY build/scrapligo_definition.yaml .scrapligo_definition.yaml
 

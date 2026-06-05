@@ -45,13 +45,12 @@ func (l *wrappedSlogger) setLogStream(
 	ctx context.Context,
 	s boxenprotov1.BoxenServiceClient,
 ) error {
-	l.s = s
-
-	stream, err := l.s.Logger(ctx)
+	stream, err := s.Logger(ctx)
 	if err != nil {
 		return err
 	}
 
+	l.s = s
 	l.stream = stream
 
 	return nil
