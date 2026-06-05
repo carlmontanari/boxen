@@ -74,7 +74,11 @@ func TestManagementFormattersRuntime(t *testing.T) {
 		]`), nil
 	}
 
-	ipRouteShowDefaultCommand = func(_ context.Context, family string) ([]byte, error) {
+	ipRouteShowDefaultCommand = func(_ context.Context, family, intf string) ([]byte, error) {
+		if intf != "eth0" {
+			t.Fatalf("unexpected management interface %q", intf)
+		}
+
 		switch family {
 		case "-4":
 			return []byte(`[{"gateway": "172.20.20.1"}]`), nil
@@ -160,7 +164,7 @@ func TestRenderTemplateManagementFormatters(t *testing.T) {
 		]`), nil
 	}
 
-	ipRouteShowDefaultCommand = func(_ context.Context, family string) ([]byte, error) {
+	ipRouteShowDefaultCommand = func(_ context.Context, family, _ string) ([]byte, error) {
 		switch family {
 		case "-4":
 			return []byte(`[{"gateway": "172.20.20.1"}]`), nil
@@ -217,5 +221,31 @@ func TestRenderTemplateDHCPManagementFormatters(t *testing.T) {
 	_, err = f.RenderTemplate(`address {{ .mgmtIPv4 }}`)
 	if err == nil {
 		t.Fatal("expected direct management address use to fail in DHCP mode")
+	}
+}
+
+func TestUnpackExtraFileFormatter(t *testing.T) {
+	p := &Profile{
+		Name:           "test",
+		ExtraFiles:     []string{"/some/dir/license.lic", "startup.cfg"},
+		VirtualMachine: &VirtualMachine{},
+	}
+
+	f := NewFormatters("", "", "", "", p, true)
+
+	actual, err := f.UnpackFormatters([]string{"extraFile[0]", "extraFile[1]"})
+	if err != nil {
+		t.Fatalf("unpacking extraFile formatters failed: %v", err)
+	}
+
+	expected := []any{"license.lic", "startup.cfg"}
+
+	if !reflect.DeepEqual(actual, expected) {
+		t.Fatalf("extraFile formatters mismatch, got %#v, want %#v", actual, expected)
+	}
+
+	_, err = f.UnpackFormatters([]string{"extraFile[2]"})
+	if err == nil {
+		t.Fatal("expected out-of-range extraFile index to error")
 	}
 }

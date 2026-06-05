@@ -24,6 +24,21 @@ const (
 	defaultMgmtIPv6Gateway = "2001:db8::1"
 )
 
+// optionalMgmtFormatters is the single source of truth for which management
+// formatter/template keys may legitimately resolve to an empty value. IPv6
+// management connectivity is not guaranteed in every environment, so IPv6 keys
+// are optional while IPv4 keys are always expected. The positional formatter
+// path errors when a required key is empty; the template path keeps every key
+// present-but-empty so profiles can guard them with {{ if .mgmtIPv6 }} or a
+// shell `[ -n "..." ]` check.
+var optionalMgmtFormatters = map[string]bool{
+	"mgmtIPv6":          true,
+	"mgmtIPv6Address":   true,
+	"mgmtIPv6PrefixLen": true,
+	"mgmtIPv6Network":   true,
+	"mgmtGatewayIPv6":   true,
+}
+
 // Formatters holds all the valid "formatter" options for string interpolation in profile content.
 type Formatters struct {
 	disk           string
@@ -71,8 +86,10 @@ var (
 		return exec.CommandContext(ctx, "ip", "--json", "address", "show", "dev", intf).Output() //nolint:gosec
 	}
 
-	ipRouteShowDefaultCommand = func(ctx context.Context, family string) ([]byte, error) {
-		return exec.CommandContext(ctx, "ip", "--json", family, "route", "show", "default").Output() //nolint:gosec
+	ipRouteShowDefaultCommand = func(ctx context.Context, family, intf string) ([]byte, error) {
+		return exec.CommandContext(
+			ctx, "ip", "--json", family, "route", "show", "default", "dev", intf,
+		).Output() //nolint:gosec
 	}
 )
 
@@ -137,11 +154,20 @@ func (f *Formatters) UnpackFormatters(inputs []string) ([]any, error) {
 
 			formatters = append(formatters, f.version)
 		case strings.HasPrefix(formatter, "extraFile"):
-			idxStr := strings.TrimRight(strings.TrimLeft("extraFile[", formatter), "]")
+			idxStr := strings.TrimSuffix(strings.TrimPrefix(formatter, "extraFile["), "]")
 
 			idx, err := strconv.Atoi(idxStr)
 			if err != nil {
 				return nil, err
+			}
+
+			if idx < 0 || idx >= len(f.extraFiles) {
+				return nil, fmt.Errorf(
+					"%w: extraFile index %d out of range (have %d extra files)",
+					boxenerrors.ErrBoxen,
+					idx,
+					len(f.extraFiles),
+				)
 			}
 
 			formatters = append(formatters, f.extraFiles[idx])
@@ -288,7 +314,7 @@ func (f *Formatters) managementFormatter(formatter string) (string, error) {
 		)
 	}
 
-	if v == "" && !strings.Contains(formatter, "IPv6") {
+	if v == "" && !optionalMgmtFormatters[formatter] {
 		return "", fmt.Errorf("%w: formatter %q unset", boxenerrors.ErrBoxen, formatter)
 	}
 
@@ -343,14 +369,15 @@ func dhcpManagementFormatters() *managementFormatters {
 
 func runtimeManagementFormatters(ctx context.Context) (*managementFormatters, error) {
 	intfPrefix := boxenutil.GetEnvStrOrDefault(boxenconstants.EnvClabIntfPrefix, "eth")
+	mgmtIntf := fmt.Sprintf("%s0", intfPrefix)
 	management := &managementFormatters{}
 
-	err := management.setRuntimeAddresses(ctx, fmt.Sprintf("%s0", intfPrefix))
+	err := management.setRuntimeAddresses(ctx, mgmtIntf)
 	if err != nil {
 		return nil, err
 	}
 
-	err = management.setRuntimeGateways(ctx)
+	err = management.setRuntimeGateways(ctx, mgmtIntf)
 	if err != nil {
 		return nil, err
 	}
@@ -400,14 +427,15 @@ func (m *managementFormatters) setRuntimeAddresses(ctx context.Context, intf str
 }
 
 // setRuntimeGateways sets the runtime default gateways for the managementFormatters struct.
-// It reads the default routes for IPv4 and IPv6 and sets the appropriate fields in the managementFormatters struct.
-func (m *managementFormatters) setRuntimeGateways(ctx context.Context) error {
-	ipv4Gateway, err := runtimeDefaultGateway(ctx, "-4")
+// It reads the default routes for IPv4 and IPv6 on the management interface and sets the
+// appropriate fields in the managementFormatters struct.
+func (m *managementFormatters) setRuntimeGateways(ctx context.Context, intf string) error {
+	ipv4Gateway, err := runtimeDefaultGateway(ctx, "-4", intf)
 	if err != nil {
 		return err
 	}
 
-	ipv6Gateway, err := runtimeDefaultGateway(ctx, "-6")
+	ipv6Gateway, err := runtimeDefaultGateway(ctx, "-6", intf)
 	if err != nil {
 		return err
 	}
@@ -418,10 +446,12 @@ func (m *managementFormatters) setRuntimeGateways(ctx context.Context) error {
 	return nil
 }
 
-// runtimeDefaultGateway returns the default gateway for the given family.
-// It reads the default route for the given family and returns the gateway IP address.
-func runtimeDefaultGateway(ctx context.Context, family string) (string, error) {
-	b, err := ipRouteShowDefaultCommand(ctx, family)
+// runtimeDefaultGateway returns the default gateway for the given family on the given interface.
+// Scoping the lookup to the management interface avoids picking up a default route that egresses a
+// different interface when the container has more than one. It returns the gateway IP address, or
+// an empty string when no default route exists on that interface for the family.
+func runtimeDefaultGateway(ctx context.Context, family, intf string) (string, error) {
+	b, err := ipRouteShowDefaultCommand(ctx, family, intf)
 	if err != nil {
 		return "", err
 	}
