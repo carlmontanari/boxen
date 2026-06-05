@@ -2,49 +2,30 @@ package profile
 
 import (
 	"context"
-	"reflect"
-	"strings"
 	"testing"
 
 	boxenconstants "github.com/carlmontanari/boxen/constants"
 )
+
+const mgmtTemplate = `{{ .mgmtIPv4 }} {{ .mgmtIPv4Address }} {{ .mgmtIPv4PrefixLen }} ` +
+	`{{ .mgmtIPv4Network }} {{ .mgmtIPv4Gateway }} {{ .mgmtIPv6 }} {{ .mgmtIPv6Address }} ` +
+	`{{ .mgmtIPv6PrefixLen }} {{ .mgmtIPv6Network }} {{ .mgmtIPv6Gateway }}`
 
 func TestManagementFormattersDefault(t *testing.T) {
 	t.Setenv(boxenconstants.EnvClabMgmtPassthrough, "")
 
 	f := NewFormatters("", "", "", "", testQemuProfile(true), true)
 
-	actual, err := f.UnpackFormatters([]string{
-		"mgmtIPv4",
-		"mgmtIPv4Address",
-		"mgmtIPv4PrefixLen",
-		"mgmtIPv4Network",
-		"mgmtIPv4Gateway",
-		"mgmtIPv6",
-		"mgmtIPv6Address",
-		"mgmtIPv6PrefixLen",
-		"mgmtIPv6Network",
-		"mgmtIPv6Gateway",
-	})
+	actual, err := f.RenderTemplate(mgmtTemplate)
 	if err != nil {
-		t.Fatalf("unpacking management formatters failed: %v", err)
+		t.Fatalf("rendering management formatters failed: %v", err)
 	}
 
-	expected := []any{
-		"10.0.0.15/24",
-		"10.0.0.15",
-		"24",
-		"10.0.0.0/24",
-		"10.0.0.2",
-		"2001:db8::2/64",
-		"2001:db8::2",
-		"64",
-		"2001:db8::/64",
-		"2001:db8::1",
-	}
+	expected := "10.0.0.15/24 10.0.0.15 24 10.0.0.0/24 10.0.0.2 " +
+		"2001:db8::2/64 2001:db8::2 64 2001:db8::/64 2001:db8::1"
 
-	if !reflect.DeepEqual(actual, expected) {
-		t.Fatalf("management formatters mismatch, got %#v, want %#v", actual, expected)
+	if actual != expected {
+		t.Fatalf("management formatters mismatch, got %q, want %q", actual, expected)
 	}
 }
 
@@ -93,53 +74,37 @@ func TestManagementFormattersRuntime(t *testing.T) {
 
 	f := NewFormatters("", "", "", "", testQemuProfile(false), false)
 
-	actual, err := f.UnpackFormatters([]string{
-		"mgmtIPv4",
-		"mgmtIPv4Address",
-		"mgmtIPv4PrefixLen",
-		"mgmtIPv4Network",
-		"mgmtIPv4Gateway",
-		"mgmtIPv6",
-		"mgmtIPv6Address",
-		"mgmtIPv6PrefixLen",
-		"mgmtIPv6Network",
-		"mgmtIPv6Gateway",
-	})
+	actual, err := f.RenderTemplate(mgmtTemplate)
 	if err != nil {
-		t.Fatalf("unpacking management formatters failed: %v", err)
+		t.Fatalf("rendering management formatters failed: %v", err)
 	}
 
-	expected := []any{
-		"172.20.20.10/24",
-		"172.20.20.10",
-		"24",
-		"172.20.20.0/24",
-		"172.20.20.1",
-		"2001:db8:20::10/64",
-		"2001:db8:20::10",
-		"64",
-		"2001:db8:20::/64",
-		"2001:db8:20::1",
-	}
+	expected := "172.20.20.10/24 172.20.20.10 24 172.20.20.0/24 172.20.20.1 " +
+		"2001:db8:20::10/64 2001:db8:20::10 64 2001:db8:20::/64 2001:db8:20::1"
 
-	if !reflect.DeepEqual(actual, expected) {
-		t.Fatalf("management formatters mismatch, got %#v, want %#v", actual, expected)
+	if actual != expected {
+		t.Fatalf("management formatters mismatch, got %q, want %q", actual, expected)
 	}
 }
 
-func TestManagementFormattersDHCP(t *testing.T) {
-	t.Setenv(boxenconstants.EnvClabMgmtPassthrough, "true")
-	t.Setenv(boxenconstants.EnvClabMgmtDHCP, "true")
-
-	f := NewFormatters("", "", "", "", testQemuProfile(false), false)
-
-	_, err := f.UnpackFormatters([]string{"mgmtIPv4"})
-	if err == nil {
-		t.Fatal("expected positional management formatter to fail in DHCP mode")
+func TestRenderTemplateExtraFiles(t *testing.T) {
+	p := &Profile{
+		Name:           "test",
+		ExtraFiles:     []string{"/some/dir/license.lic", "startup.cfg"},
+		VirtualMachine: &VirtualMachine{},
 	}
 
-	if !strings.Contains(err.Error(), boxenconstants.EnvClabMgmtDHCP) {
-		t.Fatalf("expected DHCP error, got %v", err)
+	f := NewFormatters("", "", "", "", p, true)
+
+	actual, err := f.RenderTemplate(`{{ index .extraFiles 0 }} {{ index .extraFiles 1 }}`)
+	if err != nil {
+		t.Fatalf("rendering extraFiles template failed: %v", err)
+	}
+
+	expected := "license.lic startup.cfg"
+
+	if actual != expected {
+		t.Fatalf("extraFiles mismatch, got %q, want %q", actual, expected)
 	}
 }
 
@@ -221,31 +186,5 @@ func TestRenderTemplateDHCPManagementFormatters(t *testing.T) {
 	_, err = f.RenderTemplate(`address {{ .mgmtIPv4 }}`)
 	if err == nil {
 		t.Fatal("expected direct management address use to fail in DHCP mode")
-	}
-}
-
-func TestUnpackExtraFileFormatter(t *testing.T) {
-	p := &Profile{
-		Name:           "test",
-		ExtraFiles:     []string{"/some/dir/license.lic", "startup.cfg"},
-		VirtualMachine: &VirtualMachine{},
-	}
-
-	f := NewFormatters("", "", "", "", p, true)
-
-	actual, err := f.UnpackFormatters([]string{"extraFile[0]", "extraFile[1]"})
-	if err != nil {
-		t.Fatalf("unpacking extraFile formatters failed: %v", err)
-	}
-
-	expected := []any{"license.lic", "startup.cfg"}
-
-	if !reflect.DeepEqual(actual, expected) {
-		t.Fatalf("extraFile formatters mismatch, got %#v, want %#v", actual, expected)
-	}
-
-	_, err = f.UnpackFormatters([]string{"extraFile[2]"})
-	if err == nil {
-		t.Fatal("expected out-of-range extraFile index to error")
 	}
 }

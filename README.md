@@ -98,6 +98,9 @@ The following values are available:
 | `{{ .mgmtIPv6Network }}`   | `2001:db8:20::/64`          | IPv6 management network in CIDR notation.          |
 | `{{ .mgmtIPv6Gateway }}`   | `2001:db8:20::1`            | IPv6 management default gateway.                   |
 
+`extraFiles` is a list, so index it to reference a single file by position -- for example
+`{{ index .extraFiles 0 }}` resolves to `license.lic`.
+
 In packaging and legacy host-forwarded management mode, management template
 values resolve to the QEMU user-network defaults (`10.0.0.15/24` and
 `10.0.0.2`). In transparent management runtime mode, Boxen reads the values from

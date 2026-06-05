@@ -1,7 +1,6 @@
 package profile
 
 import (
-	"fmt"
 	"os"
 	"strings"
 
@@ -65,26 +64,21 @@ type QemuConfigField struct {
 	Val       []QemuConfigVal `yaml:"val"`
 }
 
-// Apply applies this ConfigField to the list of qemu commands in `o`.
-func (c QemuConfigField) Apply(f *Formatters, isPackaging bool, o []string) ([]string, error) {
+// Apply appends this ConfigField's content to the list of qemu commands in `o`, gated by whether
+// the field applies to the current packaging/run phase.
+func (c QemuConfigField) Apply(isPackaging bool, o []string) []string {
 	if (isPackaging && c.OnPackage) || (!isPackaging && c.OnRun) {
 		for _, v := range c.Val {
-			fs, err := f.UnpackFormatters(v.Formatters)
-			if err != nil {
-				return nil, err
-			}
-
-			o = append(o, fmt.Sprintf(v.Content, fs...))
+			o = append(o, v.Content)
 		}
 	}
 
-	return o, nil
+	return o
 }
 
-// QemuConfigVal represents an extra string and any formatters that should be applied to it.
+// QemuConfigVal represents an extra string to add to the qemu command.
 type QemuConfigVal struct {
-	Content    string   `yaml:"content"`
-	Formatters []string `yaml:"formatters"`
+	Content string `yaml:"content"`
 }
 
 // NatType is an enum-ish value for the type of NAT port -- tcp or udp.

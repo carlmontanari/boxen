@@ -241,11 +241,6 @@ func (a *Agent) processStepWrite(
 ) error {
 	var c string
 
-	formatters, err := a.f.UnpackFormatters(step.Write.Formatters)
-	if err != nil {
-		return err
-	}
-
 	switch {
 	case step.Write.Content != "":
 		c = step.Write.Content
@@ -267,13 +262,9 @@ func (a *Agent) processStepWrite(
 		panic("unimplemented write type")
 	}
 
-	a.l.Info("writing to console", "content", c, "formatters", formatters)
+	a.l.Info("writing to console", "content", c)
 
-	if len(formatters) > 0 {
-		c = fmt.Sprintf(c, formatters...)
-	}
-
-	c, err = a.f.RenderTemplate(c)
+	c, err := a.f.RenderTemplate(c)
 	if err != nil {
 		return err
 	}

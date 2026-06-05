@@ -48,7 +48,6 @@ const (
 // QemuArgsFromProfile builds the qemu launch args from the given profile/disk.
 func QemuArgsFromProfile(
 	p *Profile,
-	formatters *Formatters,
 	isPackaging bool,
 ) ([]string, error) {
 	out := []string{
@@ -88,12 +87,7 @@ func QemuArgsFromProfile(
 		kOverrides, ok := p.VirtualMachine.Overrides[k]
 		if ok {
 			for _, o := range kOverrides {
-				var err error
-
-				out, err = o.Apply(formatters, isPackaging, out)
-				if err != nil {
-					return nil, err
-				}
+				out = o.Apply(isPackaging, out)
 			}
 
 			continue
@@ -122,12 +116,7 @@ func QemuArgsFromProfile(
 	}
 
 	for _, e := range p.VirtualMachine.Extras {
-		var err error
-
-		out, err = e.Apply(formatters, isPackaging, out)
-		if err != nil {
-			return nil, err
-		}
+		out = e.Apply(isPackaging, out)
 	}
 
 	qemuAdditionalArgs := os.Getenv(boxenconstants.EnvClabQemuAdditionalArgs)

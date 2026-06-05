@@ -1,6 +1,7 @@
 package profile
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -80,5 +81,82 @@ func testQemuProfile(managementPassthrough bool) *Profile {
 				},
 			},
 		},
+	}
+}
+
+func TestQemuArgsOverridesAndExtras(t *testing.T) {
+	t.Setenv(boxenconstants.EnvClabMgmtPassthrough, "")
+
+	p := &Profile{
+		Name: "test",
+		VirtualMachine: &VirtualMachine{
+			NicType:   "virtio-net-pci",
+			NicCount:  1,
+			NicPerBus: 26,
+			Overrides: map[string][]QemuConfigField{
+				disk: {
+					{
+						OnPackage: true,
+						OnRun:     true,
+						Val: []QemuConfigVal{
+							{Content: "-drive"},
+							{Content: "if=none,file=disk.qcow2,format=qcow2,id=drive0"},
+						},
+					},
+				},
+			},
+			Extras: []QemuConfigField{
+				{
+					OnPackage: true,
+					OnRun:     true,
+					Val: []QemuConfigVal{
+						{Content: "-bios"},
+						{Content: "OVMF.fd"},
+					},
+				},
+				{
+					OnPackage: true,
+					OnRun:     false,
+					Val: []QemuConfigVal{
+						{Content: "-cdrom"},
+						{Content: "config.iso"},
+					},
+				},
+			},
+		},
+	}
+
+	runArgs, err := QemuArgsFromProfile(p, false)
+	if err != nil {
+		t.Fatalf("building run qemu args failed: %v", err)
+	}
+
+	// the override replaces the default disk section entirely
+	if !slices.Contains(runArgs, "if=none,file=disk.qcow2,format=qcow2,id=drive0") {
+		t.Fatalf("expected disk override content in run args, got %v", runArgs)
+	}
+
+	if slices.Contains(runArgs, "if=ide,file=disk.qcow2,format=qcow2") {
+		t.Fatalf("default disk args should be replaced by the override, got %v", runArgs)
+	}
+
+	// an onRun extra is appended in run mode
+	if !slices.Contains(runArgs, "-bios") || !slices.Contains(runArgs, "OVMF.fd") {
+		t.Fatalf("expected onRun extra (-bios OVMF.fd) in run args, got %v", runArgs)
+	}
+
+	// an onPackage-only extra is gated out in run mode
+	if slices.Contains(runArgs, "config.iso") {
+		t.Fatalf("onPackage-only extra should be absent in run args, got %v", runArgs)
+	}
+
+	packageArgs, err := QemuArgsFromProfile(p, true)
+	if err != nil {
+		t.Fatalf("building packaging qemu args failed: %v", err)
+	}
+
+	// the onPackage-only extra is present in packaging mode
+	if !slices.Contains(packageArgs, "-cdrom") || !slices.Contains(packageArgs, "config.iso") {
+		t.Fatalf("expected onPackage extra in packaging args, got %v", packageArgs)
 	}
 }

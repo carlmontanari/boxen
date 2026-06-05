@@ -22,7 +22,7 @@ func (a *Agent) startInstance(ctx context.Context, isPackaging bool) (*os.Proces
 		return nil, err
 	}
 
-	launchArgs, err := boxenprofile.QemuArgsFromProfile(a.p, a.f, isPackaging)
+	launchArgs, err := boxenprofile.QemuArgsFromProfile(a.p, isPackaging)
 	if err != nil {
 		return nil, err
 	}

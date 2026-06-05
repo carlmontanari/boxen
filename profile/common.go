@@ -93,7 +93,12 @@ type StepReadUntil struct {
 
 // StepWrite holds things we want to write to the terminal during a package/run.
 type StepWrite struct {
-	// write this content.
+	// write this content. Content is rendered as a Go template, so it may reference named values
+	// such as {{ .hostname }}, {{ .username }}, {{ .password }}, {{ .version }}, {{ .disk }},
+	// {{ index .extraFiles 0 }}, or management values like {{ .mgmtIPv4Address }}. The
+	// "containerlab" values (username/password/hostname) are only populated during the run process
+	// since they are only passed when boxen is invoked from containerlab; disk, extraFiles, and
+	// version are available for both packaging and run. See the README for the full list of values.
 	Content string `yaml:"content"`
 	// write content line-by-line from the file set here.
 	ContentFromFile string `yaml:"contentFromFile"`
@@ -101,21 +106,6 @@ type StepWrite struct {
 	// (/config/startup-config.cfg), this should only be used in the "run" stage because the startup
 	// config won't be present in the packaging stage.
 	ContentFromStartupConfig bool `yaml:"contentFromStartupConfig"`
-
-	// Formatters holds the formatters you want to apply to the content -- note that the
-	// "containerlab" formatters (username/password/hostname) are only available during the run
-	// process since of course they are only passed when boxen is invoked from containerlab.
-	// The disk, extraFiles, and version formatters, however, are available for both the package
-	// and run processes since those are boxen known. Content can also use named Go template
-	// variables, for example {{ .hostname }} or {{ .mgmtIPv4Address }}.
-	// Allowed "formatters":
-	// 	- username
-	// 	- password
-	// 	- hostname
-	// 	- extraFile[n] <- where n is the index (zero indexed) of the extra file you want to use
-	// 	- disk
-	//  - version (as matched via the version pattern at profile root)
-	Formatters []string `yaml:"formatters"`
 
 	// if marked hidden we wont read the inputs we send off the channel, use this for
 	// passwords and the like
