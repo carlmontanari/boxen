@@ -190,12 +190,12 @@ func (f *Formatters) RenderTemplate(content string) (string, error) {
 		return content, nil
 	}
 
-	data, err := f.TemplateData(strings.Contains(content, "mgmt"))
+	t, err := template.New("content").Option("missingkey=error").Parse(content)
 	if err != nil {
 		return "", err
 	}
 
-	t, err := template.New("content").Option("missingkey=error").Parse(content)
+	data, err := f.TemplateData()
 	if err != nil {
 		return "", err
 	}
@@ -211,7 +211,7 @@ func (f *Formatters) RenderTemplate(content string) (string, error) {
 }
 
 // TemplateData returns named values available to write content Go templates.
-func (f *Formatters) TemplateData(includeManagement bool) (map[string]any, error) {
+func (f *Formatters) TemplateData() (map[string]any, error) {
 	data := map[string]any{
 		"disk":           f.disk,
 		"version":        f.version,
@@ -220,10 +220,6 @@ func (f *Formatters) TemplateData(includeManagement bool) (map[string]any, error
 		"password":       f.password,
 		"hostname":       f.hostname,
 		"connectionMode": f.connectionMode,
-	}
-
-	if !includeManagement {
-		return data, nil
 	}
 
 	management, err := f.getManagementFormatters()
@@ -325,6 +321,8 @@ func (f *Formatters) getManagementFormatters() (*managementFormatters, error) {
 	return f.management, nil
 }
 
+// defaultManagementFormatters returns the default management formatters.
+// It sets the default IPv4 and IPv6 gateways and applies the default CIDRs to the managementFormatters struct.
 func defaultManagementFormatters() *managementFormatters {
 	management := &managementFormatters{
 		ipv4Gateway: defaultMgmtIPv4Gateway,
@@ -360,6 +358,8 @@ func runtimeManagementFormatters(ctx context.Context) (*managementFormatters, er
 	return management, nil
 }
 
+// setRuntimeAddresses sets the runtime addresses for the managementFormatters struct.
+// It reads the addresses for the given interface and sets the appropriate fields in the managementFormatters struct.
 func (m *managementFormatters) setRuntimeAddresses(ctx context.Context, intf string) error {
 	b, err := ipAddressShowCommand(ctx, intf)
 	if err != nil {
@@ -399,6 +399,8 @@ func (m *managementFormatters) setRuntimeAddresses(ctx context.Context, intf str
 	return nil
 }
 
+// setRuntimeGateways sets the runtime default gateways for the managementFormatters struct.
+// It reads the default routes for IPv4 and IPv6 and sets the appropriate fields in the managementFormatters struct.
 func (m *managementFormatters) setRuntimeGateways(ctx context.Context) error {
 	ipv4Gateway, err := runtimeDefaultGateway(ctx, "-4")
 	if err != nil {
@@ -416,6 +418,8 @@ func (m *managementFormatters) setRuntimeGateways(ctx context.Context) error {
 	return nil
 }
 
+// runtimeDefaultGateway returns the default gateway for the given family.
+// It reads the default route for the given family and returns the gateway IP address.
 func runtimeDefaultGateway(ctx context.Context, family string) (string, error) {
 	b, err := ipRouteShowDefaultCommand(ctx, family)
 	if err != nil {
@@ -436,6 +440,8 @@ func runtimeDefaultGateway(ctx context.Context, family string) (string, error) {
 	return o[0].Gateway, nil
 }
 
+// applyCIDR applies the CIDR to the managementFormatters struct for the given family.
+// It parses the CIDR, extracts the address, network, and prefix length, and sets the appropriate fields in the managementFormatters struct.
 func (m *managementFormatters) applyCIDR(cidr, family string) error {
 	prefix, err := netip.ParsePrefix(cidr)
 	if err != nil {
