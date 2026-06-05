@@ -46,6 +46,12 @@ func (a *Agent) startInstance(ctx context.Context, isPackaging bool) (*os.Proces
 		stderrIgnore = a.p.Packaging.StdErrIgnore
 	}
 
+	// Watch the VM's stderr for early-startup failures. On success QEMU keeps
+	// running, so we can't simply wait on the process to learn whether it came
+	// up cleanly. Instead we periodically poll the accumulated stderr buffer and
+	// treat the first non-blank line that isn't in the profile's ignore list as
+	// a fatal error, surfacing it on the errs channel. The select below waits a
+	// short window for such an error before declaring the instance healthy.
 	go func() {
 		for {
 			time.Sleep(stderrCheckInterval)
