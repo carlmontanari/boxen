@@ -175,13 +175,13 @@ func (a *Agent) runPreCommands(ctx context.Context) error {
 }
 
 func (a *Agent) runClabNICProvisionDelay(ctx context.Context) error {
-	clabIntfCount := boxenutil.GetEnvIntOrDefault("CLAB_INTFS", 0)
+	clabIntfCount := boxenutil.GetEnvIntOrDefault(boxenconstants.EnvClabIntfs, 0)
 
 	if clabIntfCount == 0 {
 		return nil
 	}
 
-	intfPrefix := boxenutil.GetEnvStrOrDefault(boxenconstants.EnvClabIntfPrefix, "eth")
+	intfPrefix := boxenutil.ClabIntfPrefix()
 
 	a.l.Info("waiting for clab nics to be priviosined", "count", clabIntfCount)
 

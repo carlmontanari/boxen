@@ -73,7 +73,7 @@ run:
       write:
         content: |
           nv set interface eth0 ipv4 address {{ .mgmtIPv4 }}
-          nv set interface eth0 ipv4 gateway {{ .mgmtGatewayIPv4 }}
+          nv set interface eth0 ipv4 gateway {{ .mgmtIPv4Gateway }}
 ```
 
 The following values are available:
@@ -91,12 +91,12 @@ The following values are available:
 | `{{ .mgmtIPv4Address }}`   | `172.20.20.10`              | IPv4 management address without prefix length.     |
 | `{{ .mgmtIPv4PrefixLen }}` | `24`                        | IPv4 management prefix length.                     |
 | `{{ .mgmtIPv4Network }}`   | `172.20.20.0/24`            | IPv4 management network in CIDR notation.          |
-| `{{ .mgmtGatewayIPv4 }}`   | `172.20.20.1`               | IPv4 management default gateway.                   |
+| `{{ .mgmtIPv4Gateway }}`   | `172.20.20.1`               | IPv4 management default gateway.                   |
 | `{{ .mgmtIPv6 }}`          | `2001:db8:20::10/64`        | IPv6 management address in CIDR notation.          |
 | `{{ .mgmtIPv6Address }}`   | `2001:db8:20::10`           | IPv6 management address without prefix length.     |
 | `{{ .mgmtIPv6PrefixLen }}` | `64`                        | IPv6 management prefix length.                     |
 | `{{ .mgmtIPv6Network }}`   | `2001:db8:20::/64`          | IPv6 management network in CIDR notation.          |
-| `{{ .mgmtGatewayIPv6 }}`   | `2001:db8:20::1`            | IPv6 management default gateway.                   |
+| `{{ .mgmtIPv6Gateway }}`   | `2001:db8:20::1`            | IPv6 management default gateway.                   |
 
 In packaging and legacy host-forwarded management mode, management template
 values resolve to the QEMU user-network defaults (`10.0.0.15/24` and
@@ -111,7 +111,7 @@ content: |
   nv set interface eth0 ipv4 address dhcp
   {{ else }}
   nv set interface eth0 ipv4 address {{ .mgmtIPv4 }}
-  nv set interface eth0 ipv4 gateway {{ .mgmtGatewayIPv4 }}
+  nv set interface eth0 ipv4 gateway {{ .mgmtIPv4Gateway }}
   {{ end }}
 ```
 

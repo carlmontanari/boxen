@@ -19,12 +19,12 @@ func TestManagementFormattersDefault(t *testing.T) {
 		"mgmtIPv4Address",
 		"mgmtIPv4PrefixLen",
 		"mgmtIPv4Network",
-		"mgmtGatewayIPv4",
+		"mgmtIPv4Gateway",
 		"mgmtIPv6",
 		"mgmtIPv6Address",
 		"mgmtIPv6PrefixLen",
 		"mgmtIPv6Network",
-		"mgmtGatewayIPv6",
+		"mgmtIPv6Gateway",
 	})
 	if err != nil {
 		t.Fatalf("unpacking management formatters failed: %v", err)
@@ -98,12 +98,12 @@ func TestManagementFormattersRuntime(t *testing.T) {
 		"mgmtIPv4Address",
 		"mgmtIPv4PrefixLen",
 		"mgmtIPv4Network",
-		"mgmtGatewayIPv4",
+		"mgmtIPv4Gateway",
 		"mgmtIPv6",
 		"mgmtIPv6Address",
 		"mgmtIPv6PrefixLen",
 		"mgmtIPv6Network",
-		"mgmtGatewayIPv6",
+		"mgmtIPv6Gateway",
 	})
 	if err != nil {
 		t.Fatalf("unpacking management formatters failed: %v", err)

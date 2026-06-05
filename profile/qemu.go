@@ -286,8 +286,7 @@ func qemuMgmtNIC(p *Profile, isPackaging bool) []string {
 	if managementPassthrough {
 		mac = os.Getenv(boxenconstants.EnvClabMgmtMAC)
 		if mac == "" {
-			intfPrefix := boxenutil.GetEnvStrOrDefault(boxenconstants.EnvClabIntfPrefix, "eth")
-			mac = getIntfMac(context.Background(), fmt.Sprintf("%s0", intfPrefix))
+			mac = getIntfMac(context.Background(), boxenutil.ClabMgmtIntfName())
 		}
 
 		if mac == "" {
@@ -363,9 +362,9 @@ func buildDataNic(
 	busAddr int,
 	paddedNicID string,
 ) []string {
-	intfPrefix := boxenutil.GetEnvStrOrDefault(boxenconstants.EnvClabIntfPrefix, "eth")
+	intfName := boxenutil.ClabIntfName(nicID)
 
-	_, err := os.Stat(fmt.Sprintf("/sys/class/net/%s%d", intfPrefix, nicID))
+	_, err := os.Stat(fmt.Sprintf("/sys/class/net/%s", intfName))
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return []string{
@@ -385,7 +384,7 @@ func buildDataNic(
 	}
 
 	// try to get the mac from the container interface so things match in bridge mode
-	mac := getIntfMac(context.Background(), fmt.Sprintf("%s%d", intfPrefix, nicID))
+	mac := getIntfMac(context.Background(), intfName)
 	if mac == "" {
 		mac = generateMac(nicID)
 	}

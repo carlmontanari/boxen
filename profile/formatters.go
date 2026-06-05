@@ -36,7 +36,7 @@ var optionalMgmtFormatters = map[string]bool{
 	"mgmtIPv6Address":   true,
 	"mgmtIPv6PrefixLen": true,
 	"mgmtIPv6Network":   true,
-	"mgmtGatewayIPv6":   true,
+	"mgmtIPv6Gateway":   true,
 }
 
 // Formatters holds all the valid "formatter" options for string interpolation in profile content.
@@ -66,6 +66,24 @@ type managementFormatters struct {
 	ipv6PrefixLen string
 	ipv6Network   string
 	ipv6Gateway   string
+}
+
+// toMap returns the management values keyed by their formatter/template names. It
+// is the single source of truth shared by the positional formatter path
+// (managementFormatter) and the named template path (TemplateData).
+func (m *managementFormatters) toMap() map[string]string {
+	return map[string]string{
+		"mgmtIPv4":          m.ipv4,
+		"mgmtIPv4Address":   m.ipv4Address,
+		"mgmtIPv4PrefixLen": m.ipv4PrefixLen,
+		"mgmtIPv4Network":   m.ipv4Network,
+		"mgmtIPv4Gateway":   m.ipv4Gateway,
+		"mgmtIPv6":          m.ipv6,
+		"mgmtIPv6Address":   m.ipv6Address,
+		"mgmtIPv6PrefixLen": m.ipv6PrefixLen,
+		"mgmtIPv6Network":   m.ipv6Network,
+		"mgmtIPv6Gateway":   m.ipv6Gateway,
+	}
 }
 
 type ipAddressShowOutput []struct {
@@ -133,68 +151,40 @@ func NewFormatters(
 
 // UnpackFormatters accepts the users inputs, and returns a list of formatters to use with Sprintf.
 func (f *Formatters) UnpackFormatters(inputs []string) ([]any, error) {
+	// simpleFormatters are the "required, non-empty" scalar formatters; they all
+	// share the same "unset" error handling so they live in a single table.
+	simpleFormatters := map[string]string{
+		"disk":     f.disk,
+		"version":  f.version,
+		"username": f.username,
+		"password": f.password,
+		"hostname": f.hostname,
+	}
+
 	var formatters []any
 
 	for _, formatter := range inputs {
+		if v, ok := simpleFormatters[formatter]; ok {
+			if v == "" {
+				return nil, fmt.Errorf(
+					"%w: %s unset but %s formatter requested",
+					boxenerrors.ErrBoxen, formatter, formatter,
+				)
+			}
+
+			formatters = append(formatters, v)
+
+			continue
+		}
+
 		switch {
-		case formatter == "disk":
-			if f.disk == "" {
-				return nil, fmt.Errorf(
-					"%w: disk unset but disk formatter requested", boxenerrors.ErrBoxen,
-				)
-			}
-
-			formatters = append(formatters, f.disk)
-		case formatter == "version":
-			if f.version == "" {
-				return nil, fmt.Errorf(
-					"%w: version unset but version formatter requested", boxenerrors.ErrBoxen,
-				)
-			}
-
-			formatters = append(formatters, f.version)
 		case strings.HasPrefix(formatter, "extraFile"):
-			idxStr := strings.TrimSuffix(strings.TrimPrefix(formatter, "extraFile["), "]")
-
-			idx, err := strconv.Atoi(idxStr)
+			v, err := f.extraFileFormatter(formatter)
 			if err != nil {
 				return nil, err
 			}
 
-			if idx < 0 || idx >= len(f.extraFiles) {
-				return nil, fmt.Errorf(
-					"%w: extraFile index %d out of range (have %d extra files)",
-					boxenerrors.ErrBoxen,
-					idx,
-					len(f.extraFiles),
-				)
-			}
-
-			formatters = append(formatters, f.extraFiles[idx])
-		case formatter == "username":
-			if f.username == "" {
-				return nil, fmt.Errorf(
-					"%w: username unset but username formatter requested", boxenerrors.ErrBoxen,
-				)
-			}
-
-			formatters = append(formatters, f.username)
-		case formatter == "password":
-			if f.password == "" {
-				return nil, fmt.Errorf(
-					"%w: password unset but password formatter requested", boxenerrors.ErrBoxen,
-				)
-			}
-
-			formatters = append(formatters, f.password)
-		case formatter == "hostname":
-			if f.hostname == "" {
-				return nil, fmt.Errorf(
-					"%w: hostname unset but hostname formatter requested", boxenerrors.ErrBoxen,
-				)
-			}
-
-			formatters = append(formatters, f.hostname)
+			formatters = append(formatters, v)
 		case strings.HasPrefix(formatter, "mgmt"):
 			v, err := f.managementFormatter(formatter)
 			if err != nil {
@@ -208,6 +198,26 @@ func (f *Formatters) UnpackFormatters(inputs []string) ([]any, error) {
 	}
 
 	return formatters, nil
+}
+
+func (f *Formatters) extraFileFormatter(formatter string) (string, error) {
+	idxStr := strings.TrimSuffix(strings.TrimPrefix(formatter, "extraFile["), "]")
+
+	idx, err := strconv.Atoi(idxStr)
+	if err != nil {
+		return "", err
+	}
+
+	if idx < 0 || idx >= len(f.extraFiles) {
+		return "", fmt.Errorf(
+			"%w: extraFile index %d out of range (have %d extra files)",
+			boxenerrors.ErrBoxen,
+			idx,
+			len(f.extraFiles),
+		)
+	}
+
+	return f.extraFiles[idx], nil
 }
 
 // RenderTemplate renders write content with named Go template values.
@@ -258,16 +268,9 @@ func (f *Formatters) TemplateData() (map[string]any, error) {
 		return data, nil
 	}
 
-	data["mgmtIPv4"] = management.ipv4
-	data["mgmtIPv4Address"] = management.ipv4Address
-	data["mgmtIPv4PrefixLen"] = management.ipv4PrefixLen
-	data["mgmtIPv4Network"] = management.ipv4Network
-	data["mgmtGatewayIPv4"] = management.ipv4Gateway
-	data["mgmtIPv6"] = management.ipv6
-	data["mgmtIPv6Address"] = management.ipv6Address
-	data["mgmtIPv6PrefixLen"] = management.ipv6PrefixLen
-	data["mgmtIPv6Network"] = management.ipv6Network
-	data["mgmtGatewayIPv6"] = management.ipv6Gateway
+	for k, v := range management.toMap() {
+		data[k] = v
+	}
 
 	return data, nil
 }
@@ -278,30 +281,8 @@ func (f *Formatters) managementFormatter(formatter string) (string, error) {
 		return "", err
 	}
 
-	var v string
-
-	switch formatter {
-	case "mgmtIPv4":
-		v = management.ipv4
-	case "mgmtIPv4Address":
-		v = management.ipv4Address
-	case "mgmtIPv4PrefixLen":
-		v = management.ipv4PrefixLen
-	case "mgmtIPv4Network":
-		v = management.ipv4Network
-	case "mgmtGatewayIPv4":
-		v = management.ipv4Gateway
-	case "mgmtIPv6":
-		v = management.ipv6
-	case "mgmtIPv6Address":
-		v = management.ipv6Address
-	case "mgmtIPv6PrefixLen":
-		v = management.ipv6PrefixLen
-	case "mgmtIPv6Network":
-		v = management.ipv6Network
-	case "mgmtGatewayIPv6":
-		v = management.ipv6Gateway
-	default:
+	v, ok := management.toMap()[formatter]
+	if !ok {
 		return "", fmt.Errorf("%w: invalid formatter %q", boxenerrors.ErrBoxen, formatter)
 	}
 
@@ -355,8 +336,8 @@ func defaultManagementFormatters() *managementFormatters {
 		ipv6Gateway: defaultMgmtIPv6Gateway,
 	}
 
-	_ = management.applyCIDR(defaultMgmtIPv4, "ipv4")
-	_ = management.applyCIDR(defaultMgmtIPv6, "ipv6")
+	_ = management.applyIPv4CIDR(defaultMgmtIPv4)
+	_ = management.applyIPv6CIDR(defaultMgmtIPv6)
 
 	return management
 }
@@ -368,8 +349,7 @@ func dhcpManagementFormatters() *managementFormatters {
 }
 
 func runtimeManagementFormatters(ctx context.Context) (*managementFormatters, error) {
-	intfPrefix := boxenutil.GetEnvStrOrDefault(boxenconstants.EnvClabIntfPrefix, "eth")
-	mgmtIntf := fmt.Sprintf("%s0", intfPrefix)
+	mgmtIntf := boxenutil.ClabMgmtIntfName()
 	management := &managementFormatters{}
 
 	err := management.setRuntimeAddresses(ctx, mgmtIntf)
@@ -410,9 +390,9 @@ func (m *managementFormatters) setRuntimeAddresses(ctx context.Context, intf str
 
 			switch addrInfo.Family {
 			case "inet":
-				err = m.applyCIDR(cidr, "ipv4")
+				err = m.applyIPv4CIDR(cidr)
 			case "inet6":
-				err = m.applyCIDR(cidr, "ipv6")
+				err = m.applyIPv6CIDR(cidr)
 			default:
 				continue
 			}
@@ -470,30 +450,42 @@ func runtimeDefaultGateway(ctx context.Context, family, intf string) (string, er
 	return o[0].Gateway, nil
 }
 
-// applyCIDR applies the CIDR to the managementFormatters struct for the given family.
-// It parses the CIDR, extracts the address, network, and prefix length, and sets the appropriate fields in the managementFormatters struct.
-func (m *managementFormatters) applyCIDR(cidr, family string) error {
+// parseCIDR parses a CIDR string into its address, network, and prefix-length parts.
+func parseCIDR(cidr string) (address, network, prefixLen string, err error) {
 	prefix, err := netip.ParsePrefix(cidr)
+	if err != nil {
+		return "", "", "", err
+	}
+
+	return prefix.Addr().String(), prefix.Masked().String(), strconv.Itoa(prefix.Bits()), nil
+}
+
+// applyIPv4CIDR sets the IPv4 address, network, and prefix-length fields from the given CIDR.
+func (m *managementFormatters) applyIPv4CIDR(cidr string) error {
+	address, network, prefixLen, err := parseCIDR(cidr)
 	if err != nil {
 		return err
 	}
 
-	address := prefix.Addr().String()
-	network := prefix.Masked().String()
-	prefixLen := strconv.Itoa(prefix.Bits())
+	m.ipv4 = cidr
+	m.ipv4Address = address
+	m.ipv4PrefixLen = prefixLen
+	m.ipv4Network = network
 
-	switch family {
-	case "ipv4":
-		m.ipv4 = cidr
-		m.ipv4Address = address
-		m.ipv4PrefixLen = prefixLen
-		m.ipv4Network = network
-	case "ipv6":
-		m.ipv6 = cidr
-		m.ipv6Address = address
-		m.ipv6PrefixLen = prefixLen
-		m.ipv6Network = network
+	return nil
+}
+
+// applyIPv6CIDR sets the IPv6 address, network, and prefix-length fields from the given CIDR.
+func (m *managementFormatters) applyIPv6CIDR(cidr string) error {
+	address, network, prefixLen, err := parseCIDR(cidr)
+	if err != nil {
+		return err
 	}
+
+	m.ipv6 = cidr
+	m.ipv6Address = address
+	m.ipv6PrefixLen = prefixLen
+	m.ipv6Network = network
 
 	return nil
 }
