@@ -67,7 +67,7 @@ func (a *Agent) startInstance(ctx context.Context, isPackaging bool) (*os.Proces
 						return strings.Contains(line, sub)
 					},
 				) {
-					break
+					continue
 				}
 
 				errs <- fmt.Errorf(
