@@ -311,7 +311,7 @@ func (f *Formatters) getManagementFormatters() (*managementFormatters, error) {
 		f.management = defaultManagementFormatters()
 	case !f.p.VirtualMachine.IsManagementPassthroughEnabled():
 		f.management = defaultManagementFormatters()
-	case envBoolTrue(boxenconstants.EnvClabMgmtDHCP):
+	case boxenutil.EnvBoolTrue(boxenconstants.EnvClabMgmtDHCP):
 		f.management = dhcpManagementFormatters()
 	default:
 		management, err := runtimeManagementFormatters(context.Background())
@@ -460,10 +460,4 @@ func (m *managementFormatters) applyCIDR(cidr, family string) error {
 	}
 
 	return nil
-}
-
-func envBoolTrue(k string) bool {
-	v := boxenutil.GetEnvStrOrDefault(k, "")
-
-	return strings.ToLower(v) == "true"
 }

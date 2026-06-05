@@ -3,6 +3,7 @@ package util
 import (
 	"os"
 	"strconv"
+	"strings"
 )
 
 // GetEnvStrOrDefault returns the value of the environment variable k or the default d if the value
@@ -30,4 +31,11 @@ func GetEnvIntOrDefault(k string, d int) int {
 	}
 
 	return d
+}
+
+// EnvBoolTrue returns true if the environment variable k is set to "true", false otherwise.
+func EnvBoolTrue(k string) bool {
+	v := GetEnvStrOrDefault(k, "")
+
+	return strings.ToLower(v) == "true"
 }
