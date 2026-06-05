@@ -61,6 +61,10 @@ func (a *Agent) startInstance(ctx context.Context, isPackaging bool) (*os.Proces
 			lines := strings.Split(stderrOut, "\n") //nolint: modernize
 
 			for _, line := range lines {
+				if strings.TrimSpace(line) == "" {
+					continue
+				}
+
 				if slices.ContainsFunc(
 					stderrIgnore,
 					func(sub string) bool {
