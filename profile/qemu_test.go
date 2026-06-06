@@ -32,7 +32,7 @@ func TestQemuMgmtNICProfilePassthrough(t *testing.T) {
 		t.Fatalf("management device missing MAC, got %q", args[1])
 	}
 
-	if args[3] != "tap,id=mgmt,ifname=tap0,script=/etc/tc-tap-mgmt-ifup,downscript=no" {
+	if args[3] != "tap,id=mgmt,ifname=tap0,script=no,downscript=no" {
 		t.Fatalf("management netdev should use tap0, got %q", args[3])
 	}
 }
@@ -81,6 +81,41 @@ func testQemuProfile(managementPassthrough bool) *Profile {
 				},
 			},
 		},
+	}
+}
+
+func TestQemuDataNICsAlwaysTap(t *testing.T) {
+	p := &Profile{
+		Name: "test",
+		VirtualMachine: &VirtualMachine{
+			NicType:   "virtio-net-pci",
+			NicCount:  1,
+			NicPerBus: 26,
+		},
+	}
+
+	args := qemuDataNICs(p)
+
+	if len(args) != 4 {
+		t.Fatalf("expected 4 args for a single data nic, got %d: %v", len(args), args)
+	}
+
+	if args[0] != device {
+		t.Fatalf("expected %q, got %q", device, args[0])
+	}
+
+	if !strings.HasPrefix(args[1], "virtio-net-pci,netdev=p001,bus=pci.1,addr=0x2,mac=") {
+		t.Fatalf("unexpected data device args, got %q", args[1])
+	}
+
+	if args[2] != "-netdev" {
+		t.Fatalf("expected -netdev, got %q", args[2])
+	}
+
+	// the tap is always created with script=no regardless of whether the container
+	// interface exists yet; the boxen tc service wires it up later (incl. hotplug)
+	if args[3] != "tap,id=p001,ifname=tap1,script=no,downscript=no" {
+		t.Fatalf("data netdev should always be a script=no tap, got %q", args[3])
 	}
 }
 

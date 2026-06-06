@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -37,10 +36,6 @@ const (
 
 	monitorPort       = 4_001
 	serialPortBaseIdx = 5_001
-
-	defaultSocketPad    = 10_000
-	tcTapIfupScript     = "/etc/tc-tap-ifup"
-	tcTapMgmtIfupScript = "/etc/tc-tap-mgmt-ifup"
 
 	accelerationKVM = "kvm"
 )
@@ -296,10 +291,7 @@ func qemuMgmtNIC(p *Profile, isPackaging bool) []string {
 	}
 
 	if managementPassthrough {
-		nicCmd[3] = fmt.Sprintf(
-			"tap,id=mgmt,ifname=tap0,script=%s,downscript=no",
-			tcTapMgmtIfupScript,
-		)
+		nicCmd[3] = "tap,id=mgmt,ifname=tap0,script=no,downscript=no"
 
 		return nicCmd
 	}
@@ -353,32 +345,15 @@ func buildDataNic(
 ) []string {
 	intfName := boxenutil.ClabIntfName(nicID)
 
-	_, err := os.Stat(fmt.Sprintf("/sys/class/net/%s", intfName))
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return []string{
-				device,
-				fmt.Sprintf(
-					"%s,netdev=p%s,bus=pci.%d,addr=0x%x,mac=%s",
-					p.VirtualMachine.NicType,
-					paddedNicID,
-					busID,
-					busAddr,
-					generateMac(nicID),
-				),
-				"-netdev",
-				fmt.Sprintf("socket,id=p%s,listen=:%d", paddedNicID, nicID+defaultSocketPad),
-			}
-		}
-	}
-
 	// try to get the mac from the container interface so things match in bridge mode
 	mac := getIntfMac(context.Background(), intfName)
 	if mac == "" {
 		mac = generateMac(nicID)
 	}
 
-	nicCmd := []string{
+	// the tap is always created (script=no); the boxen tc service brings it up and
+	// stitches it to the container interface when that interface appears
+	return []string{
 		device,
 		fmt.Sprintf(
 			"%s,netdev=p%s,bus=pci.%d,addr=0x%x,mac=%s",
@@ -390,14 +365,11 @@ func buildDataNic(
 		),
 		"-netdev",
 		fmt.Sprintf(
-			"tap,id=p%s,ifname=tap%d,script=%s,downscript=no",
+			"tap,id=p%s,ifname=tap%d,script=no,downscript=no",
 			paddedNicID,
 			nicID,
-			tcTapIfupScript,
 		),
 	}
-
-	return nicCmd
 }
 
 func generateMac(lastOctet int) string {

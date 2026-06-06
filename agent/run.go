@@ -90,6 +90,10 @@ func (a *Agent) startRun(ctx context.Context, errs chan error) {
 		return
 	}
 
+	// start the tc service that stitches the container interfaces to the vm taps;
+	// this only runs during `run` (not packaging)
+	a.startTCService(ctx)
+
 	err = a.openConsoleConn(ctx, "run.console.log")
 	if err != nil {
 		errs <- err

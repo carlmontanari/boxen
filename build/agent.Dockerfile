@@ -50,10 +50,6 @@ RUN apt-get update && \
 
 WORKDIR /boxen
 
-COPY build/tc-tap-ifup /etc/
-COPY build/tc-tap-mgmt-ifup /etc/
-RUN chmod 0777 /etc/tc-tap-ifup /etc/tc-tap-mgmt-ifup
-
 COPY build/scrapligo_definition.yaml .scrapligo_definition.yaml
 
 COPY --from=builder /root/.cache/scrapli/libscrapli.so /boxen/.libscrapli.so
