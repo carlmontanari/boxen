@@ -15,17 +15,7 @@ virtualMachine:
   nicType: e1000
   nicCount: 8
   nicPerBus: 26
-  natPorts:
-  - type: tcp
-    localPort: 22
-  - type: tcp
-    localPort: 23
-  - type: tcp
-    localPort: 443
-  - type: tcp
-    localPort: 830
-  - type: udp
-    localPort: 161
+  managementPassthrough: true
   mutators: {}
   overrides:
     disk:
@@ -66,12 +56,12 @@ packaging:
             response: "no"
             once: true
           - prompt:
-              contains: "Enter the password for \"admin\""
+              contains: 'Enter the password for "admin"'
             response: "admin"
             once: true
             hidden: true
           - prompt:
-              contains: "Confirm the password for \"admin\""
+              contains: 'Confirm the password for "admin"'
             response: "admin"
             once: true
             hidden: true
@@ -121,8 +111,7 @@ packaging:
           end
     - type: write
       write:
-        content:
-          copy running-config startup-config
+        content: copy running-config startup-config
     - type: readUntil
       readUntil:
         timeout: 3m

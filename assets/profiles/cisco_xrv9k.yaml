@@ -17,17 +17,7 @@ virtualMachine:
   nicType: virtio-net-pci
   nicCount: 16
   nicPerBus: 26
-  natPorts:
-  - type: tcp
-    localPort: 22
-  - type: tcp
-    localPort: 23
-  - type: tcp
-    localPort: 443
-  - type: tcp
-    localPort: 830
-  - type: udp
-    localPort: 161
+  managementPassthrough: true
   mutators:
     # add the additional "ctrl" and "dev" nics after the "normal" nic
     mgmtNIC: |
@@ -226,8 +216,7 @@ run:
           end
     - type: write
       write:
-        content:
-          copy running-config startup-config
+        content: copy running-config startup-config
     - type: readUntil
       readUntil:
         timeout: 3m
