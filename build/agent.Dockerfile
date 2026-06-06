@@ -25,6 +25,11 @@ RUN CGO_ENABLED=0 \
 
 FROM debian:bookworm-slim
 
+LABEL org.opencontainers.image.source=https://github.com/carlmontanari/boxen
+LABEL org.opencontainers.image.description="Boxen is a tool for packaging VMs for use with containerlab"
+LABEL org.opencontainers.image.licenses=MIT
+LABEL org.opencontainers.image.vendor="Boxen"
+
 ENV LIBSCRAPLI_PATH=/boxen/.libscrapli.so
 
 RUN apt-get update && \
