@@ -55,8 +55,9 @@ func ClabIntfName(idx int) string {
 	return fmt.Sprintf("%s%d", ClabIntfPrefix(), idx)
 }
 
-// ClabMgmtIntfName returns the containerlab management interface name. The
-// management interface is always the zero-indexed interface (e.g. "eth0").
+// ClabMgmtIntfName returns the containerlab management interface name. It
+// honors the CLAB_MGMT_INTF environment variable when set, otherwise defaulting
+// to the zero-indexed interface (e.g. "eth0").
 func ClabMgmtIntfName() string {
-	return ClabIntfName(0)
+	return GetEnvStrOrDefault(boxenconstants.EnvClabMgmtIntf, ClabIntfName(0))
 }

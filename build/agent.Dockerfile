@@ -25,6 +25,11 @@ RUN CGO_ENABLED=0 \
 
 FROM debian:bookworm-slim
 
+LABEL org.opencontainers.image.source=https://github.com/carlmontanari/boxen
+LABEL org.opencontainers.image.description="Boxen is a tool for packaging VMs for use with containerlab"
+LABEL org.opencontainers.image.licenses=MIT
+LABEL org.opencontainers.image.vendor="Boxen"
+
 ENV LIBSCRAPLI_PATH=/boxen/.libscrapli.so
 
 RUN apt-get update && \
@@ -49,10 +54,6 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/cache/apt/archive/*.deb
 
 WORKDIR /boxen
-
-COPY build/tc-tap-ifup /etc/
-COPY build/tc-tap-mgmt-ifup /etc/
-RUN chmod 0777 /etc/tc-tap-ifup /etc/tc-tap-mgmt-ifup
 
 COPY build/scrapligo_definition.yaml .scrapligo_definition.yaml
 
