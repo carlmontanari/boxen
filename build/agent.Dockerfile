@@ -60,4 +60,8 @@ COPY build/scrapligo_definition.yaml .scrapligo_definition.yaml
 COPY --from=builder /root/.cache/scrapli/libscrapli.so /boxen/.libscrapli.so
 COPY --from=builder /boxen/out/boxen /boxen/boxen
 
+# reports healthy once boxen run writes 0 running to /health
+HEALTHCHECK --interval=5s --timeout=5s --start-period=5m --retries=1 \
+    CMD ["/boxen/boxen", "health"]
+
 ENTRYPOINT ["/boxen/boxen", "package"]

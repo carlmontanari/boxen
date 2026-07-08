@@ -60,6 +60,12 @@ func (a *Agent) Run(
 }
 
 func (a *Agent) startRun(ctx context.Context, errs chan error) {
+	// mark the node as booting so the healthcheck reports unhealthy until the run
+	// process completes successfully; best-effort, non-fatal.
+	if err := a.writeHealth(boxenconstants.HealthStatusBooting); err != nil {
+		a.l.Error("failed writing booting health status", "error", err.Error())
+	}
+
 	err := a.runClabNICProvisionDelay(ctx)
 	if err != nil {
 		errs <- err
@@ -121,6 +127,15 @@ func (a *Agent) startRun(ctx context.Context, errs chan error) {
 
 		return
 	}
+
+	err = a.writeHealth(boxenconstants.HealthStatusRunning)
+	if err != nil {
+		errs <- err
+
+		return
+	}
+
+	a.l.Info("run process completed successfully; marked healthy")
 
 	<-ctx.Done()
 
