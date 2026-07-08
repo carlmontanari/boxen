@@ -27,6 +27,7 @@ func main() {
 			buildCommand(),
 			packageCommand(),
 			runCommand(),
+			healthCommand(),
 		},
 	}
 
@@ -206,6 +207,16 @@ func runCommand() *urfavecli.Command {
 				cmd.String(boxenconstants.FlagContainerlabHostname),
 				cmd.String(boxenconstants.FlagContainerlabConnectionMode),
 			)
+		},
+	}
+}
+
+func healthCommand() *urfavecli.Command {
+	return &urfavecli.Command{
+		Name:  "health",
+		Usage: "container healthcheck; exits 0 when the node reports running",
+		Action: func(_ context.Context, _ *urfavecli.Command) error {
+			return boxenagent.Health()
 		},
 	}
 }

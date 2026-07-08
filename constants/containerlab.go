@@ -17,4 +17,11 @@ const (
 	EnvClabQemuAdditionalArgs = "QEMU_ADDITIONAL_ARGS"
 
 	StartupConfigFilePath = "/config/startup-config.cfg"
+
+	// HealthFilePath is read by the container healthcheck; its first whitespace
+	// separated field is the status code (0 == healthy), vrnetlab-compatible.
+	HealthFilePath = "/health"
+
+	HealthStatusBooting = "1 booting"
+	HealthStatusRunning = "0 running"
 )
