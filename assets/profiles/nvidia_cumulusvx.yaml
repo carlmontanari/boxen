@@ -1,0 +1,175 @@
+---
+# https://docs.nvidia.com/networking-ethernet-software/cumulus-linux-515/Quick-Start-Guide
+# gnmi
+# https://docs.nvidia.com/networking-ethernet-software/cumulus-linux-516/Monitoring-and-Troubleshooting/gNMI-Streaming/
+# rest api
+# https://docs.nvidia.com/networking-ethernet-software/cumulus-linux-515/System-Configuration/NVIDIA-User-Experience-NVUE/NVUE-API/
+name: nvidia_cumulusvx
+diskPatterns:
+  - "(?i)cumulus-linux-.*-vx-amd64-qemu\\.qcow2"
+  - "(?i)cumulus.*\\.qcow2"
+versionPattern: "(?i)\\d+\\.\\d+\\.\\d+"
+scrapliDefinitionNameOrFile: generic
+virtualMachine:
+  cpuEmulation: host
+  memory: 4096
+  cpuCores: 2
+  serialPortCount: 1
+  nicType: virtio-net-pci
+  nicCount: 16
+  nicPerBus: 26
+  managementPassthrough: true
+packaging:
+  process:
+    - type: readUntil
+      readUntil:
+        timeout: 20m
+        until:
+          contains: "cumulus login:"
+    - type: write # enter newline to resurface the prompt
+      write:
+        content: "\n"
+    # Cumulus VX first boot forces a password change from cumulus/cumulus.
+    - type: prompts
+      prompts:
+        timeout: 20m
+        prompts:
+          - name: enter initial login
+            prompt:
+              containsPattern: "(?i)login:"
+            response: cumulus
+            once: true
+          - name: enter initial password
+            prompt:
+              contains: "Password:"
+            response: cumulus
+            hidden: true
+            once: true
+          - name: enter current password
+            prompt:
+              contains: "Current password:"
+            response: cumulus
+            hidden: true
+            once: true
+          - name: enter new password
+            prompt:
+              contains: "New password:"
+            response: "Clab123!"
+            hidden: true
+            once: true
+          - name: retype new password
+            prompt:
+              contains: "Retype new password:"
+            response: "Clab123!"
+            hidden: true
+            once: true
+          - name: disable ztp
+            prompt:
+              containsPattern: "(?m)ZTP in progress. To disable, do 'ztp -d'"
+            response: "sudo ztp -d"
+            once: true
+          - name: confirm ztp disable
+            prompt:
+              contains: "[sudo] password for cumulus"
+            response: "Clab123!"
+            hidden: true
+            once: true
+          - name: finish phase 1 config
+            prompt:
+              containsPattern: "(?m)cumulus@cumulus:mgmt"
+            response: ""
+            once: true
+            completes: true
+    # wait until switchd is active
+    - type: write
+      write:
+        content: |
+          while [ "$(systemctl is-active switchd 2>/dev/null)" != "active" ]; do sleep 5; done;
+    - type: write
+      write:
+        content: |
+          nv config save
+    - type: readUntil
+      readUntil:
+        timeout: 1m
+        until:
+          contains: "cumulus@cumulus:mgmt"
+    - type: wait
+      wait:
+        duration: 5s
+  shrinkify: false
+
+run:
+  process:
+    - type: readUntil
+      readUntil:
+        timeout: 20m
+        until:
+          contains: "cumulus login:"
+    - type: write # enter newline to resurface the prompt
+      write:
+        content: "\n"
+    - type: prompts
+      prompts:
+        timeout: 10m
+        prompts:
+          - name: enter login
+            prompt:
+              containsPattern: "(?i)login:"
+            response: cumulus
+            once: true
+          - name: enter password
+            prompt:
+              contains: "Password:"
+            response: Clab123!
+            hidden: true
+            once: true
+          - name: finish login
+            prompt:
+              contains: "cumulus@cumulus:mgmt"
+            response: ""
+            once: true
+            completes: true
+    - type: readUntil
+      readUntil:
+        timeout: 1m
+        until:
+          contains: "cumulus@cumulus:mgmt"
+    - type: write
+      write:
+        content: |
+          nv set system hostname {{ .hostname }}
+          nv unset interface eth0 ipv4 dhcp-client
+          nv set interface eth0 ipv4 address {{ .mgmtIPv4 }}
+          nv set interface eth0 ipv4 gateway {{ .mgmtIPv4Gateway }}
+          nv set interface eth0 ipv6 address {{ .mgmtIPv6 }}
+          nv set interface eth0 ipv6 gateway {{ .mgmtIPv6Gateway }}
+          nv set system gnmi-server state enabled
+          nv set system gnmi-server listening-address {{ .mgmtIPv4Address }}
+          nv set system gnmi-server listening-address {{ .mgmtIPv6Address }}
+          nv set system snmp-server listening-address {{ .mgmtIPv4Address }} vrf mgmt
+          nv set system snmp-server listening-address {{ .mgmtIPv6Address }} vrf mgmt
+          nv set system snmp-server readonly-community public access {{ .mgmtIPv4Network }}
+          nv set system snmp-server readonly-community public access {{ .mgmtIPv6Network }}
+    - type: readUntil
+      readUntil:
+        timeout: 1m
+        until:
+          contains: "cumulus@"
+    - type: write
+      write:
+        content: nv config apply -y
+    - type: readUntil
+      readUntil:
+        timeout: 1m
+        until:
+          contains: "cumulus@"
+    - type: write
+      write:
+        content: |
+          nv config save
+    - type: readUntil
+      readUntil:
+        timeout: 1m
+        until:
+          contains: "cumulus@"
