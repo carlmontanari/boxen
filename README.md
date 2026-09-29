@@ -10,6 +10,17 @@ boxen is a cli tool written in Go that allows you to package your network operat
 into little... boxes (container images) so they are easily portable, and, most importantly, so you
 can use them with the wonderful [containerlab](https://github.com/srl-labs/containerlab).
 
+## Development
+
+Install Go at the exact version in `.github/vars.env`, then run `make tools` to install the pinned
+formatters and linters into `.tools/bin`. The installer reads the same version file as CI.
+
+Run `make fmt` to apply formatting, `make fmt-check` to check it without edits, `make lint` for the
+full local CI lint gate, and `make test-race` for the CI test gate. `make lint` installs the pinned
+tools automatically when needed. The Go module's `go` directive records the minimum language
+version; the exact Go toolchain used by CI and the Docker build comes from `.github/vars.env`.
+The race tests require a C compiler; on Ubuntu, install `gcc` and `libc6-dev` if needed.
+
 > WORK IN PROGRESS. Ask questions in the [Containerlab's Discord](https://discord.gg/vAyddtaEV9).
 
 ## Attach to a VM console

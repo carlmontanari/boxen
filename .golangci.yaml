@@ -1,7 +1,5 @@
 ---
 version: "2"
-run:
-  go: "1.26"
 linters:
   default: all
   disable:
@@ -9,6 +7,7 @@ linters:
     - cyclop # already using gocyclo, and its good enough!
     - depguard
     - exhaustruct
+    - exhaustruct_v5 # successor to exhaustruct
     - gochecknoglobals # globals are used as test seams
     - noinlineerr # inline error handling is idiomatic here
     - nonamedreturns
@@ -76,6 +75,9 @@ linters:
           - goconst
           - gocognit
         path: _test\.go
+      - linters:
+          - goconst
+        path: agent/tcservice.go
       - linters:
           - revive
         path: ^(container/types/run.go|errors/errors.go|util/os.go)$

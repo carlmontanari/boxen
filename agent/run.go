@@ -9,11 +9,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"go.yaml.in/yaml/v4"
-
 	boxenconstants "github.com/carlmontanari/boxen/constants"
 	boxenprofile "github.com/carlmontanari/boxen/profile"
 	boxenutil "github.com/carlmontanari/boxen/util"
+	"go.yaml.in/yaml/v4"
 )
 
 // Run runs the packaged container -- starting the vm, handling containerlab inputs, etc.

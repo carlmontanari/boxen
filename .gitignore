@@ -24,3 +24,4 @@ out
 
 # dist dir for release builds
 dist/
+.tools/

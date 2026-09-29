@@ -1,10 +1,17 @@
 .DEFAULT_GOAL := help
+include .github/vars.env
+export PATH := $(CURDIR)/.tools/bin:$(PATH)
 
 ## Show this help
 help:
 	@awk -f build/makefile-doc.awk $(MAKEFILE_LIST)
 
 ##@ Development
+## Install pinned development tools
+.PHONY: tools
+tools:
+	bash build/install-tools.sh
+
 ## Run protoc generation bits
 generate:
 	rm proto/v1/*.pb.go || true
@@ -16,14 +23,20 @@ generate:
 		proto/v1/*.proto
 
 ## Run the formatters
-fmt:
+fmt: tools
 	buf format . -w
 	gofumpt -w .
 	gci write --skip-generated .
 	golines --base-formatter="gofmt" -w .
 
+## Check formatting without changing files
+.PHONY: fmt-check
+fmt-check: tools
+	bash build/check-format.sh
+
 ## Run the linters
-lint:
+lint: fmt-check
+	go mod tidy -diff
 	buf lint .
 	golangci-lint run
 	hadolint build/agent.Dockerfile
@@ -45,6 +58,7 @@ build:
 build-image:
 	docker build \
         -f build/agent.Dockerfile \
+        --build-arg GO_VERSION=$(GO_VERSION) \
         -t ghcr.io/carlmontanari/boxen:0.0.0 .
         # .	\
         # --platform \
