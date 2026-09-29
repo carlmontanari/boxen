@@ -1,0 +1,232 @@
+---
+name: arista_veos
+diskPatterns:
+  - "(?i)vEOS-lab-.*.vmdk"
+versionPattern: "(?i)\\d\\.\\d+\\.\\w+"
+scrapliDefinitionNameOrFile: arista_eos
+extraFiles:
+  - Aboot-veos-serial-8.0.0.iso
+virtualMachine:
+  emulate: ""
+  machine: ""
+  memory: 4096
+  cpuCores: 0
+  cpuThreads: 0
+  cpuSockets: 0
+  serialPortCount: 1
+  nicType: e1000
+  nicCount: 20
+  nicPerBus: 26
+  managementPassthrough: true
+  mutators:
+    # pushes mgmt nic up a position on the bus, arista wants this for... reasons?
+    mgmtNIC: |
+      def mutate(items):
+          items[1] = items[1] + ",bus=pci.1,addr=0x2"
+          return items
+    # shifts all data nics up one address accounting for the shift from the mgmt nic,
+    # if you change nics per bus (probably dont do that?) make sure to change it in this
+    # starlark bit too
+    dataNICs: |
+      def mutate(items):
+        for idx, s in enumerate(items):
+            if "bus=pci." not in s or "addr=0x" not in s:
+                continue
+
+            parts = s.split(",")
+
+            new_parts = []
+
+            bus_id = None
+            addr = None
+
+            for p in parts:
+                if p.startswith("bus=pci."):
+                    bus_id = int(p[len("bus=pci."):])
+                elif p.startswith("addr=0x"):
+                    addr = int(p[len("addr=0x"):], 16)
+
+            if bus_id == None or addr == None:
+                continue
+
+            addr += 1
+
+            if addr > 26:
+                addr = 1
+                bus_id += 1
+
+            for p in parts:
+                if p.startswith("bus=pci."):
+                    new_parts.append("bus=pci.%d" % bus_id)
+                elif p.startswith("addr=0x"):
+                    new_parts.append("addr=0x%x" % addr)
+                else:
+                    new_parts.append(p)
+
+            items[idx] = ",".join(new_parts)
+
+        return items
+  extras:
+    - onPackage: true
+      val:
+        - content: -cdrom
+        - content: Aboot-veos-serial-8.0.0.iso
+packaging:
+  process:
+    # handle ztp login
+    - type: prompts
+      prompts:
+        # ~10-15m on my m3 max mbp -- so rosetta etc, should be faster for x86 id assume
+        timeout: 20m
+        prompts:
+          - prompt:
+              contains: "localhost login:"
+            response: admin
+            once: true
+          - prompt:
+              contains: "localhost>"
+            response: ""
+            once: true
+            completes: true
+    # disable ztp
+    - type: write
+      write:
+        content: |
+          zerotouch disable
+    # read things off the console until we see that its reloading
+    - type: readUntil
+      readUntil:
+        timeout: 1m
+        until:
+          contains: "Restarting system"
+    # wait for the box to reload
+    - type: prompts
+      prompts:
+        timeout: 20m
+        prompts:
+          - prompt:
+              contains: "localhost login:"
+            response: admin
+            once: true
+          - prompt:
+              contains: "localhost>"
+            response: ""
+            once: true
+            completes: true
+    # acquire privileged exec and disable pagination
+    - type: write
+      write:
+        content: |
+          enable
+          term len 0
+          term width 32767
+    # base config and then save
+    - type: write
+      write:
+        content: |
+          configure terminal
+          username admin secret 0 admin role network-admin
+          enable secret 0 admin
+          interface Management 1
+          ip address 10.0.0.15 255.255.255.0
+          no shutdown
+          exit
+          management api http-commands
+          protocol unix-socket
+          no shutdown
+          exit
+          management api gnmi
+          transport grpc default
+          no shutdown
+          exit
+          management api netconf
+          transport ssh default
+          exit
+          ip route 0.0.0.0 0.0.0.0 10.0.0.2
+          end
+    - type: write
+      write:
+        content: copy running-config startup-config
+    - type: readUntil
+      readUntil:
+        timeout: 1m
+        until:
+          contains: "localhost#"
+    # small delay to ensure everything saved nicely
+    - type: wait
+      wait:
+        duration: 10s
+  sparsify: false
+run:
+  process:
+    - type: prompts
+      prompts:
+        timeout: 20m
+        prompts:
+          - prompt:
+              contains: "localhost login:"
+            response: admin
+            hidden: true
+            once: true
+          - prompt:
+              contains: "Password:"
+            response: admin
+            hidden: true
+            once: true
+          - prompt:
+              contains: "localhost>"
+            response: ""
+            once: true
+            completes: true
+  configProcess:
+    # acquire privileged exec and disable pagination
+    - type: write
+      write:
+        content: enable
+    - type: prompts
+      prompts:
+        timeout: 1m
+        prompts:
+          - prompt:
+              contains: "Password:"
+            response: admin
+            hidden: true
+            once: true
+          - prompt:
+              contains: "localhost#"
+            response: ""
+            once: true
+            completes: true
+    - type: write
+      write:
+        content: |
+          term len 0
+          term width 32767
+    # config mode so we can set username/password/hostname
+    - type: write
+      write:
+        content: |
+          configure terminal
+    - type: write
+      write:
+        content: username {{ .username }} secret 0 {{ .password }} role network-admin
+    - type: write
+      write:
+        content: hostname {{ .hostname }}
+    # load any user provided startup config
+    - type: write
+      write:
+        contentFromStartupConfig: true
+    # ensure we are out of config mode
+    - type: write
+      write:
+        content: |
+          end
+    - type: write
+      write:
+        content: copy running-config startup-config
+    - type: readUntil
+      readUntil:
+        timeout: 3m
+        until:
+          contains: "Copy completed successfully"

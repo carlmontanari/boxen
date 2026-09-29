@@ -1,0 +1,163 @@
+---
+name: cisco_csr1000v
+diskPatterns:
+  - "(?i)csr1000v-universalk9.*.qcow2"
+versionPattern: "(?i)universalk9\\.(\\d+\\.\\d+\\.\\d+)"
+scrapliDefinitionNameOrFile: cisco_iosxe
+scrapliReturnChar: "\r\n"
+extraFiles:
+  - iosxe_config.txt
+virtualMachine:
+  memory: 4096
+  cpuCores: 1
+  serialPortCount: 1
+  nicType: virtio-net-pci
+  nicCount: 9
+  nicPerBus: 26
+  managementPassthrough: true
+  mutators: {}
+  overrides: {}
+  extras:
+    - onPackage: true
+      onRun: false
+      val:
+        - content: -cdrom
+        - content: config.iso
+prePackagingCommands:
+  - "genisoimage -l -o config.iso iosxe_config.txt"
+packaging:
+  process:
+    # handle initial poap/provisioning dialog
+    - type: prompts
+      prompts:
+        timeout: 20m
+        prompts:
+          - prompt:
+              contains: "Press RETURN to get started"
+            response: ""
+            once: true
+          - prompt:
+              contains: "Router>"
+            response: "enable"
+            once: true
+          - prompt:
+              contains: "Router#"
+            response: ""
+            once: true
+            completes: true
+    # disable pagination
+    - type: write
+      write:
+        content: |
+          term len 0
+          term width 511
+    # base config, then save
+    - type: write
+      write:
+        content: |
+          configure terminal
+          username admin privilege 15 password admin
+          enable secret 0 admin
+          interface GigabitEthernet1
+          ip address 10.0.0.15 255.255.255.0
+          no shutdown
+          exit
+          hostname router
+          crypto key generate rsa modulus 2048
+          restconf
+          netconf-yang
+          line vty 0 4
+          login local
+          transport input all
+          exit
+          ip route 0.0.0.0 0.0.0.0 10.0.0.2
+          end
+    - type: write
+      write:
+        content: copy running-config startup-config
+    - type: readUntil
+      readUntil:
+        timeout: 3m
+        until:
+          contains: "router#"
+    # small delay to ensure everything saved nicely
+    - type: wait
+      wait:
+        duration: 10s
+  sparsify: false
+run:
+  process:
+    - type: prompts
+      prompts:
+        timeout: 20m
+        prompts:
+          - prompt:
+              contains: "Press RETURN to get started"
+            response: ""
+            once: true
+          - prompt:
+              contains: "login:"
+            response: "admin"
+            once: true
+          - prompt:
+              contains: "Password:"
+            response: "admin"
+            once: true
+            hidden: true
+          - prompt:
+              contains: "router>"
+            response: ""
+            once: true
+            completes: true
+  configProcess:
+    # acquire privileged exec and disable pagination
+    - type: write
+      write:
+        content: enable
+    - type: prompts
+      prompts:
+        timeout: 1m
+        prompts:
+          - prompt:
+              contains: "Password:"
+            response: admin
+            hidden: true
+            once: true
+          - prompt:
+              contains: "router#"
+            response: ""
+            once: true
+            completes: true
+    - type: write
+      write:
+        content: |
+          term len 0
+          term width 511
+    # config mode so we can set username/password/hostname
+    - type: write
+      write:
+        content: |
+          configure terminal
+    - type: write
+      write:
+        content: username {{ .username }} privilege 15 password {{ .password }}
+    - type: write
+      write:
+        content: hostname {{ .hostname }}
+    # load any user provided startup config
+    - type: write
+      write:
+        contentFromStartupConfig: true
+    # ensure we are out of config mode
+    - type: write
+      write:
+        content: |
+          end
+    - type: write
+      write:
+        content: copy running-config startup-config
+    - type: readUntil
+      readUntil:
+        timeout: 3m
+        until:
+          containsPattern: "(?im)^.*[>#$]\\s?$"

@@ -1,0 +1,10 @@
+.gitignore
+.git
+.golangci.yaml
+.hadolint.yaml
+.private
+buf.yaml
+LICENSE
+Makefile
+README.md
+out

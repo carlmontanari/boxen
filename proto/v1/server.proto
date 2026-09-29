@@ -1,0 +1,55 @@
+syntax = "proto3";
+package proto.v1;
+
+option go_package = "gitlab.com/carlmontanari/boxen/server/proto";
+
+service BoxenService {
+  rpc Logger(stream LoggerRequest) returns (LoggerResponse);
+  rpc Builder(BuilderRequest) returns (BuilderResponse);
+  rpc Filer(FilerRequest) returns (stream FilerResponse);
+}
+
+// Loger RPC
+message LoggerRequest {
+  string level = 1;
+  string message = 2;
+  map<string, string> fields = 3;
+}
+
+message LoggerResponse {}
+
+// Builder RPC
+message BuilderRequest {
+  oneof request {
+    PackageInfoRequest package_info_request = 1;
+    PackageCompleteRequest package_complete_request = 2;
+  }
+}
+
+message PackageInfoRequest {}
+
+message PackageCompleteRequest {}
+
+message BuilderResponse {
+  oneof response {
+    PackageInfoResponse package_info_response = 1;
+    PackageCompleteResponse package_complete_response = 2;
+  }
+}
+
+message PackageInfoResponse {
+  bytes profile = 1;
+  string disk = 2;
+}
+
+message PackageCompleteResponse {}
+
+// Filer RPC
+message FilerRequest {
+  string file = 1;
+}
+
+message FilerResponse {
+  bytes data = 1;
+  bool done = 2;
+}

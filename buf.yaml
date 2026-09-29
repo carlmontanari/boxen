@@ -1,0 +1,5 @@
+---
+version: v2
+lint:
+  except:
+    - ENUM_ZERO_VALUE_SUFFIX

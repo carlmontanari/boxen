@@ -1,0 +1,21 @@
+package types
+
+// RunConfig is a config struct passed to the runtime interface's Run method.
+type RunConfig struct {
+	Name       string
+	Image      string
+	Platform   string
+	Env        []string
+	Volumes    []string
+	Detached   bool
+	Remove     bool
+	Privileged bool
+}
+
+// ExecConfig is a config struct passed to the runtime interface's Exec method.
+type ExecConfig struct {
+	ContainerID string
+	Command     []string
+	Interactive bool
+	TTY         bool
+}
