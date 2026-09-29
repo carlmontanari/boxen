@@ -21,24 +21,27 @@ tools automatically when needed. The Go module's `go` directive records the mini
 version; the exact Go toolchain used by CI and the Docker build comes from `.github/vars.env`.
 The race tests require a C compiler; on Ubuntu, install `gcc` and `libc6-dev` if needed.
 
-### Refresh a packaged image profile
+### Refresh a packaged image runtime and profile
 
-Use `rebuild-profile-image` to replace the profile in any packaged Boxen image without booting or
-repackaging its VM disk. Pass the existing local image, a profile path within this repository,
-and the output image tag:
+Use `rebuild-profile-image` to update the Boxen runtime and profile in a packaged image without
+booting or repackaging its VM disk. Pass the existing local image, a profile path within this
+repository, and the output image tag:
 
 ```sh
 make rebuild-profile-image \
-  SOURCE_IMAGE=ghcr.io/hellt/nvidia_cumulusvx:5.16.1 \
+  SOURCE_IMAGE=ghcr.io/clab-labs/nvidia_cumulusvx:5.16.1 \
   PROFILE_FILE=assets/profiles/nvidia_cumulusvx.yaml \
-  TARGET_IMAGE=ghcr.io/clab-labs/nvidia_cumulusvx:5.16.1
+  TARGET_IMAGE=ghcr.io/clab-labs/nvidia_cumulusvx:5.16.1-rebuilt
 ```
 
-The target requires all three variables. It uses the existing image from the local Docker store
-without pulling it, copies the specified profile into `/boxen/profile.yaml`, and carries over
+The target requires all three variables. It first runs `build-image`, which compiles Boxen
+and packages its binary, `libscrapli`, and the Scrapli definition from this checkout. It then
+overlays those runtime files and the selected profile onto the local `SOURCE_IMAGE`. The separate
+`build` target creates `dist/boxen` and is not needed for this workflow. The rebuild preserves
 the packaged image's `resolvedVersion` value when the new profile does not define one. The VM
-disk, Boxen binary, and other image contents come from `SOURCE_IMAGE`. Use the same target and
-variables with another profile and image pair.
+disk and operating system layers come from `SOURCE_IMAGE`; the base image build may download
+dependencies, but the overlay does not pull the source image. Override `BOXEN_IMAGE` to tag
+the base Boxen image differently.
 
 > WORK IN PROGRESS. Ask questions in the [Containerlab's Discord](https://discord.gg/vAyddtaEV9).
 

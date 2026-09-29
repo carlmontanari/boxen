@@ -56,18 +56,20 @@ build:
 	GOOS=linux GOARCH=amd64 go build -trimpath -a -o dist/boxen cmd/main.go
 
 ## Build the base boxen agent container image
+BOXEN_IMAGE ?= ghcr.io/carlmontanari/boxen:0.0.0
+.PHONY: build-image
 build-image:
 	docker build \
         -f build/agent.Dockerfile \
         --build-arg GO_VERSION=$(GO_VERSION) \
-        -t ghcr.io/carlmontanari/boxen:0.0.0 .
+        -t "$(BOXEN_IMAGE)" .
         # .	\
         # --platform \
         # linux/amd64 .
 
-## Replace the profile in a local packaged image without repackaging its VM disk
+## Rebuild Boxen runtime and profile without repackaging the VM disk
 .PHONY: rebuild-profile-image
-rebuild-profile-image:
+rebuild-profile-image: build-image
 	@test -n "$(SOURCE_IMAGE)" || { echo "SOURCE_IMAGE is required" >&2; exit 1; }
 	@test -n "$(PROFILE_FILE)" || { echo "PROFILE_FILE is required" >&2; exit 1; }
 	@test -n "$(TARGET_IMAGE)" || { echo "TARGET_IMAGE is required" >&2; exit 1; }
@@ -75,6 +77,7 @@ rebuild-profile-image:
 	docker image inspect "$(SOURCE_IMAGE)" >/dev/null
 	docker build --pull=false --network=none \
 		--build-arg SOURCE_IMAGE="$(SOURCE_IMAGE)" \
+		--build-arg BOXEN_IMAGE="$(BOXEN_IMAGE)" \
 		--build-arg PROFILE_FILE="$(PROFILE_FILE)" \
 		-f build/profile-overlay.Dockerfile \
 		-t "$(TARGET_IMAGE)" .
