@@ -3,6 +3,7 @@ ARG GO_VERSION
 
 FROM golang:${GO_VERSION}-trixie AS builder
 
+ARG VERSION
 WORKDIR /boxen
 COPY . .
 

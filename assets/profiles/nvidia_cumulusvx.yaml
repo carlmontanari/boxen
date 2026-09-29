@@ -173,3 +173,28 @@ run:
         timeout: 1m
         until:
           contains: "cumulus@"
+  configProcess:
+    - type: write
+      write:
+        contentFromStartupConfig: true
+    - type: readUntil
+      readUntil:
+        timeout: 1m
+        until:
+          contains: "cumulus@"
+    - type: write
+      write:
+        content: nv config apply -y
+    - type: readUntil
+      readUntil:
+        timeout: 1m
+        until:
+          contains: "cumulus@"
+    - type: write
+      write:
+        content: nv config save
+    - type: readUntil
+      readUntil:
+        timeout: 1m
+        until:
+          contains: "cumulus@"
