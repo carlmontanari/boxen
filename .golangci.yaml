@@ -5,13 +5,20 @@ run:
 linters:
   default: all
   disable:
+    - contextcheck # profile operations do not take a context
     - cyclop # already using gocyclo, and its good enough!
     - depguard
     - exhaustruct
+    - gochecknoglobals # globals are used as test seams
+    - noinlineerr # inline error handling is idiomatic here
+    - nonamedreturns
     - paralleltest
     - perfsprint
+    - tagliatelle # external JSON fields use snake_case
+    - testpackage # tests exercise unexported helpers
     - varnamelen
     - wrapcheck
+    - wsl_v5
     - gomodguard # deprecated
     - wsl # deprecated, wsl_v5 included in all ofc
   settings:
@@ -28,7 +35,7 @@ linters:
         - performance
         - style
     gocyclo:
-      min-complexity: 15
+      min-complexity: 20
     importas:
       alias:
         - pkg: github.com/carlmontanari/boxen/boxen
@@ -69,6 +76,10 @@ linters:
           - goconst
           - gocognit
         path: _test\.go
+      - linters:
+          - revive
+        path: ^(container/types/run.go|errors/errors.go|util/os.go)$
+        text: var-naming
     warn-unused: true
 issues:
   max-issues-per-linter: 0

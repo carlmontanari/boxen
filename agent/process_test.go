@@ -40,9 +40,13 @@ func TestPromptCallbackName(t *testing.T) {
 		t.Run(
 			testCase.name,
 			func(t *testing.T) {
-				actual := promptCallbackName(testCase.idx, testCase.prompt)
+				actual := promptCallbackName(testCase.idx, testCase.prompt.Name)
 				if actual != testCase.expected {
-					t.Fatalf("prompt callback name incorrect, got %q, want %q", actual, testCase.expected)
+					t.Fatalf(
+						"prompt callback name incorrect, got %q, want %q",
+						actual,
+						testCase.expected,
+					)
 				}
 			},
 		)

@@ -40,7 +40,7 @@ func GetEnvIntOrDefault(k string, d int) int {
 func EnvBoolTrue(k string) bool {
 	v := GetEnvStrOrDefault(k, "")
 
-	return strings.ToLower(v) == "true"
+	return strings.EqualFold(v, "true")
 }
 
 // ClabIntfPrefix returns the containerlab interface name prefix (e.g. "eth"),

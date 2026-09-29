@@ -84,13 +84,15 @@ type ipRouteShowDefaultOutput []struct {
 
 var (
 	ipAddressShowCommand = func(ctx context.Context, intf string) ([]byte, error) {
-		return exec.CommandContext(ctx, "ip", "--json", "address", "show", "dev", intf).Output() //nolint:gosec
+		return exec.CommandContext( //nolint:gosec // fixed executable, no shell
+			ctx, "ip", "--json", "address", "show", "dev", intf,
+		).Output()
 	}
 
 	ipRouteShowDefaultCommand = func(ctx context.Context, family, intf string) ([]byte, error) {
-		return exec.CommandContext(
+		return exec.CommandContext( //nolint:gosec // fixed executable, no shell
 			ctx, "ip", "--json", family, "route", "show", "default", "dev", intf,
-		).Output() //nolint:gosec
+		).Output()
 	}
 )
 
@@ -214,7 +216,7 @@ func (f *Formatters) getManagementFormatters() (*managementFormatters, error) {
 }
 
 // defaultManagementFormatters returns the default management formatters.
-// It sets the default IPv4 and IPv6 gateways and applies the default CIDRs to the managementFormatters struct.
+// It sets the default IPv4 and IPv6 gateways and applies the default CIDRs.
 func defaultManagementFormatters() *managementFormatters {
 	management := &managementFormatters{
 		ipv4Gateway: defaultMgmtIPv4Gateway,
@@ -251,7 +253,7 @@ func runtimeManagementFormatters(ctx context.Context) (*managementFormatters, er
 }
 
 // setRuntimeAddresses sets the runtime addresses for the managementFormatters struct.
-// It reads the addresses for the given interface and sets the appropriate fields in the managementFormatters struct.
+// It reads the interface addresses and sets the management formatter fields.
 func (m *managementFormatters) setRuntimeAddresses(ctx context.Context, intf string) error {
 	b, err := ipAddressShowCommand(ctx, intf)
 	if err != nil {

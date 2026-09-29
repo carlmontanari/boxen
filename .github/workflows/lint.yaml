@@ -25,6 +25,11 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
+      - name: set up buf
+        uses: bufbuild/buf-action@v1
+        with:
+          setup_only: true
+
       - name: install go lint tools
         run: |
           go mod tidy

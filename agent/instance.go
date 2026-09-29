@@ -14,10 +14,12 @@ import (
 	boxenprofile "github.com/carlmontanari/boxen/profile"
 )
 
+const instanceStdoutLog = "instance_stdout.log"
+
 func (a *Agent) startInstance(ctx context.Context, isPackaging bool) (*os.Process, error) {
 	var err error
 
-	a.stdoutF, err = os.Create("instance_stdout.log")
+	a.stdoutF, err = os.Create(instanceStdoutLog)
 	if err != nil {
 		return nil, err
 	}

@@ -186,7 +186,7 @@ func qemuMemory(p *Profile) []string {
 
 	return []string{
 		"-m",
-		strconv.Itoa(int(p.VirtualMachine.Memory)),
+		strconv.FormatUint(uint64(p.VirtualMachine.Memory), 10),
 	}
 }
 

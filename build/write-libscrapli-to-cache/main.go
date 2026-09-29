@@ -8,7 +8,7 @@ import (
 )
 
 // just a simple program to easily expose the EnsureLibscrapli function for devs. obv just
-// `go run build/write_libscrapli_to_cache.go`.
+// `go run build/write-libscrapli-to-cache/main.go`.
 func main() {
 	p, err := scrapligoffi.EnsureLibscrapli(context.Background())
 	if err != nil {

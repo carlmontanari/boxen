@@ -49,7 +49,8 @@ func TestManagementFormattersRuntime(t *testing.T) {
 			{
 				"addr_info": [
 					{"family": "inet", "local": "172.20.20.10", "prefixlen": 24, "scope": "global"},
-					{"family": "inet6", "local": "2001:db8:20::10", "prefixlen": 64, "scope": "global"}
+					{"family": "inet6", "local": "2001:db8:20::10", "prefixlen": 64,
+					 "scope": "global"}
 				]
 			}
 		]`), nil

@@ -14,8 +14,8 @@ import (
 	scrapligocli "github.com/scrapli/scrapligo/v2/cli"
 )
 
-func promptCallbackName(idx int, p boxenprofile.Prompt) string {
-	name := strings.TrimSpace(p.Name)
+func promptCallbackName(idx int, promptName string) string {
+	name := strings.TrimSpace(promptName)
 	if name != "" {
 		return fmt.Sprintf("prompts step name: %s, idx: %d", name, idx)
 	}
@@ -42,7 +42,7 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 	cbs := make([]*scrapligocli.ReadCallback, len(step.Prompts.Prompts))
 
 	for idx, p := range step.Prompts.Prompts {
-		cbName := promptCallbackName(idx, p)
+		cbName := promptCallbackName(idx, p.Name)
 
 		a.l.Debug(
 			"building prompts callback",

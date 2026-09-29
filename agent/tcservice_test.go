@@ -213,7 +213,7 @@ func waitFor(t *testing.T, timeout time.Duration, cond func() bool) {
 			return
 		}
 
-		time.Sleep(2 * time.Millisecond) //nolint:mnd
+		time.Sleep(2 * time.Millisecond)
 	}
 
 	t.Fatalf("condition not met within %s", timeout)
@@ -282,14 +282,14 @@ func TestWatchNICWireAndRewire(t *testing.T) {
 	waitFor(t, time.Second, func() bool { return wireCount() == 1 })
 
 	// while it stays present, it must not be re-wired on every tick
-	time.Sleep(40 * time.Millisecond) //nolint:mnd
+	time.Sleep(40 * time.Millisecond)
 	if got := wireCount(); got != 1 {
 		t.Fatalf("expected exactly 1 wire while eth1 stays present, got %d", got)
 	}
 
 	// interface removed then re-added (hotplug) -> wired again
 	fn.setPresent("eth1", false)
-	time.Sleep(40 * time.Millisecond) //nolint:mnd
+	time.Sleep(40 * time.Millisecond)
 	fn.setPresent("eth1", true)
 	waitFor(t, time.Second, func() bool { return wireCount() == 2 })
 

@@ -41,7 +41,7 @@ func (a *Agent) Package(ctx context.Context, host string) error {
 		// close and remove the stdout log since we dont want this leftover in
 		// the committed image
 		_ = a.stdoutF.Close()
-		_ = os.Remove(a.stdoutF.Name())
+		_ = os.Remove(instanceStdoutLog)
 	}()
 
 	var err error
@@ -440,7 +440,11 @@ func (a *Agent) packageShrinkify(ctx context.Context) error {
 
 	args := []string{"fat.qcow2", "--compress", "disk.qcow2"}
 
-	a.l.Info("starting disk sparsify, this can take 10+ minutes...", "command", sparsifyBinary, "args", args)
+	a.l.Info(
+		"starting disk sparsify, this can take 10+ minutes...",
+		"command", sparsifyBinary,
+		"args", args,
+	)
 
 	cmd := exec.CommandContext(ctx, sparsifyBinary, args...)
 

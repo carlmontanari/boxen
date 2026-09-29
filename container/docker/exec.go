@@ -15,7 +15,7 @@ func (r *Runtime) Exec(
 	l *slog.Logger,
 	cfg *boxencontainertypes.ExecConfig,
 ) error {
-	args := []string{"exec"} //nolint: prealloc
+	args := []string{"exec"}
 
 	if cfg.Interactive {
 		args = append(args, "-i")
@@ -30,7 +30,7 @@ func (r *Runtime) Exec(
 
 	l.Info("executing container command", "command", docker, "with args", args)
 
-	cmd := exec.CommandContext(ctx, docker, args...) //nolint: gosec
+	cmd := exec.CommandContext(ctx, docker, args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

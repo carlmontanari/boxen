@@ -33,11 +33,7 @@ jobs:
 
       - name: ensure libscrapli is available
         run: |
-          go run build/write_libscrapli_to_cache/main.go
-
-      - name: install go test tools
-        run: |
-          go install gotest.tools/gotestsum@${{ env.GOTESTSUM_VERSION }}
+          go run build/write-libscrapli-to-cache/main.go
 
       - name: setup tmate session
         uses: mxschmitt/action-tmate@v3

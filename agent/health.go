@@ -10,6 +10,8 @@ import (
 
 const healthFilePermissions = 0o644
 
+var errUnhealthy = errors.New("unhealthy")
+
 // writeHealth writes the given status string to the health file consulted by the
 // container healthcheck.
 func (a *Agent) writeHealth(status string) error {
@@ -30,7 +32,7 @@ func Health() error {
 
 	fields := strings.Fields(string(b))
 	if len(fields) == 0 || fields[0] != "0" {
-		return errors.New("unhealthy")
+		return errUnhealthy
 	}
 
 	return nil

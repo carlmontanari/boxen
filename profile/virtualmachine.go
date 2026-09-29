@@ -103,7 +103,7 @@ type NatPort struct {
 func (v *VirtualMachine) IsManagementPassthroughEnabled() bool {
 	envValue, ok := os.LookupEnv(boxenconstants.EnvClabMgmtPassthrough)
 	if ok && envValue != "" {
-		return strings.ToLower(envValue) == "true"
+		return strings.EqualFold(envValue, "true")
 	}
 
 	if v == nil {
