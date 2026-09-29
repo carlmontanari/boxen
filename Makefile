@@ -40,6 +40,7 @@ lint: fmt-check
 	buf lint .
 	golangci-lint run
 	hadolint build/agent.Dockerfile
+	hadolint build/profile-overlay.Dockerfile
 
 ## Run unit tests
 test:
@@ -63,3 +64,17 @@ build-image:
         # .	\
         # --platform \
         # linux/amd64 .
+
+## Replace the profile in a local packaged image without repackaging its VM disk
+.PHONY: rebuild-profile-image
+rebuild-profile-image:
+	@test -n "$(SOURCE_IMAGE)" || { echo "SOURCE_IMAGE is required" >&2; exit 1; }
+	@test -n "$(PROFILE_FILE)" || { echo "PROFILE_FILE is required" >&2; exit 1; }
+	@test -n "$(TARGET_IMAGE)" || { echo "TARGET_IMAGE is required" >&2; exit 1; }
+	@test -f "$(PROFILE_FILE)" || { echo "Profile file not found: $(PROFILE_FILE)" >&2; exit 1; }
+	docker image inspect "$(SOURCE_IMAGE)" >/dev/null
+	docker build --pull=false --network=none \
+		--build-arg SOURCE_IMAGE="$(SOURCE_IMAGE)" \
+		--build-arg PROFILE_FILE="$(PROFILE_FILE)" \
+		-f build/profile-overlay.Dockerfile \
+		-t "$(TARGET_IMAGE)" .
