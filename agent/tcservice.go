@@ -267,5 +267,17 @@ func (a *Agent) wireMgmtTap(ctx context.Context, tap, mgmt string) error {
 		}
 	}
 
+	// the management IP is shared with the VM, whose NOS may choose a different
+	// MAC; let only the VM answer ARP for that IP
+	for _, setting := range []string{"arp_ignore=8", "arp_announce=2"} {
+		// slash notation preserves dots in custom interface names
+		key := "net/ipv4/conf/" + mgmt + "/" + setting
+		out, err := runNetCommand(ctx, "sysctl", "-qw", key)
+		if err != nil {
+			a.l.Warn("tc service: mgmt ARP setting failed",
+				"setting", key, "error", err.Error(), "output", string(out))
+		}
+	}
+
 	return nil
 }
