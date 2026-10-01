@@ -39,9 +39,9 @@ Junos cleanly. The configuration disk is
 attached only during packaging. At runtime Boxen
 sets the supplied hostname and user credentials, enables SSH and NETCONF, and
 configures `fxp0` with the container's IPv4/IPv6 management addresses and gateways
-in `mgmt_junos`. Transparent management is enabled by default. Set
-`CLAB_MGMT_PASSTHROUGH=false` for legacy QEMU user networking, or
-`CLAB_MGMT_DHCP=true` for IPv4 DHCP. Packaging always uses QEMU user networking.
+in `mgmt_junos`. Transparent management is enabled by default: SSH and NETCONF
+use the container's management IP directly, without NAT port forwards. Set `CLAB_MGMT_DHCP=true` for IPv4 DHCP. Packaging
+always uses QEMU user networking.
 
 Use Containerlab kind `juniper_vjunosrouter` (without a hyphen). Its defaults
 provide `admin` / `admin@123`. The packaged disk also has console root password

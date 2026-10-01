@@ -14,13 +14,6 @@ virtualMachine:
   nicCount: 96
   nicPerBus: 26
   managementPassthrough: true
-  natPorts:
-    - type: tcp
-      localPort: 22
-      externalPort: 22
-    - type: tcp
-      localPort: 830
-      externalPort: 830
   overrides:
     disk:
       - onPackage: true
