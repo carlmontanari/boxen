@@ -1,0 +1,178 @@
+<!-- Boxen logo from the repository README. B-only header mark. Wordmark and background removed; viewBox cropped.
+Source: https://gitlab.com/rdodin/pics/-/wikis/uploads/4a6e4555024a803e572eb2bf1ae83d74/boxen-logo-white-on-black_small.svg -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="418 -330 160 240">
+  <defs>
+    <clipPath id="clippath0" transform="">
+      <path d="M 664.493 880.781 L 664.493 815.101 L 684.493 798.773 L 684.493 887.403 Z" style="fill: none; clip-rule: nonzero;" />
+    </clipPath>
+    <linearGradient id="shading0" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1" y2="0" gradientTransform="matrix(88.629997, 0, 0, 88.629997, 1597.546204, 1348.985962)">
+      <stop offset="0" style="stop-color: rgb(255, 255, 255);" />
+      <stop offset="0.1" style="stop-color: rgb(255, 255, 255);" />
+      <stop offset="0.2" style="stop-color: rgb(255, 255, 255);" />
+      <stop offset="0.3" style="stop-color: rgb(254, 254, 254);" />
+      <stop offset="0.4" style="stop-color: rgb(250, 250, 250);" />
+      <stop offset="0.5" style="stop-color: rgb(241, 241, 241);" />
+      <stop offset="0.6" style="stop-color: rgb(226, 226, 226);" />
+      <stop offset="0.7" style="stop-color: rgb(204, 204, 204);" />
+      <stop offset="0.8" style="stop-color: rgb(174, 174, 174);" />
+      <stop offset="0.9" style="stop-color: rgb(136, 135, 135);" />
+      <stop offset="1" style="stop-color: rgb(89, 88, 88);" />
+    </linearGradient>
+    <clipPath id="clippath1" transform="">
+      <path d="M 639.493 872.502 L 639.493 835.511 L 659.493 819.183 L 659.493 879.125 Z" style="fill: none; clip-rule: nonzero;" />
+    </clipPath>
+    <linearGradient id="shading1" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1" y2="0" gradientTransform="matrix(59.9417, 0, 0, 59.9417, 1638.366516, 1298.985901)">
+      <stop offset="0" style="stop-color: rgb(255, 255, 255);" />
+      <stop offset="0.1" style="stop-color: rgb(255, 255, 255);" />
+      <stop offset="0.2" style="stop-color: rgb(255, 255, 255);" />
+      <stop offset="0.3" style="stop-color: rgb(255, 255, 255);" />
+      <stop offset="0.4" style="stop-color: rgb(253, 253, 253);" />
+      <stop offset="0.5" style="stop-color: rgb(248, 248, 248);" />
+      <stop offset="0.6" style="stop-color: rgb(238, 238, 238);" />
+      <stop offset="0.7" style="stop-color: rgb(219, 219, 219);" />
+      <stop offset="0.8" style="stop-color: rgb(190, 189, 189);" />
+      <stop offset="0.9" style="stop-color: rgb(147, 147, 147);" />
+      <stop offset="1" style="stop-color: rgb(89, 88, 88);" />
+    </linearGradient>
+    <clipPath id="clippath2" transform="">
+      <path d="M 639.493 835.511 L 565.507 811.013 L 565.507 788.062 L 659.493 819.183 Z" style="fill: none; clip-rule: nonzero;" />
+    </clipPath>
+    <linearGradient id="shading2" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1" y2="0" gradientTransform="matrix(93.986115, 0, 0, 93.986115, 565.506897, -811.786621)">
+      <stop offset="0" style="stop-color: rgb(89, 88, 88);" />
+      <stop offset="0.1" style="stop-color: rgb(157, 156, 156);" />
+      <stop offset="0.2" style="stop-color: rgb(200, 200, 200);" />
+      <stop offset="0.3" style="stop-color: rgb(227, 227, 227);" />
+      <stop offset="0.4" style="stop-color: rgb(242, 242, 242);" />
+      <stop offset="0.5" style="stop-color: rgb(250, 250, 250);" />
+      <stop offset="0.6" style="stop-color: rgb(253, 253, 253);" />
+      <stop offset="0.7" style="stop-color: rgb(255, 255, 255);" />
+      <stop offset="0.8" style="stop-color: rgb(255, 255, 255);" />
+      <stop offset="0.9" style="stop-color: rgb(255, 255, 255);" />
+      <stop offset="1" style="stop-color: rgb(255, 255, 255);" />
+    </linearGradient>
+    <clipPath id="clippath3" transform="">
+      <path d="M 664.493 815.101 L 565.507 782.324 L 565.507 759.374 L 684.493 798.773 Z" style="fill: none; clip-rule: nonzero;" />
+    </clipPath>
+    <linearGradient id="shading3" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1" y2="0" gradientTransform="matrix(118.986115, 0, 0, 118.986115, 565.506897, -787.237427)">
+      <stop offset="0" style="stop-color: rgb(89, 88, 88);" />
+      <stop offset="0.1" style="stop-color: rgb(157, 156, 156);" />
+      <stop offset="0.2" style="stop-color: rgb(200, 200, 200);" />
+      <stop offset="0.3" style="stop-color: rgb(227, 227, 227);" />
+      <stop offset="0.4" style="stop-color: rgb(242, 242, 242);" />
+      <stop offset="0.5" style="stop-color: rgb(250, 250, 250);" />
+      <stop offset="0.6" style="stop-color: rgb(253, 253, 253);" />
+      <stop offset="0.7" style="stop-color: rgb(255, 255, 255);" />
+      <stop offset="0.8" style="stop-color: rgb(255, 255, 255);" />
+      <stop offset="0.9" style="stop-color: rgb(255, 255, 255);" />
+      <stop offset="1" style="stop-color: rgb(255, 255, 255);" />
+    </linearGradient>
+    <clipPath id="clippath4" transform="">
+      <path d="M 626.408 921.291 L 565.507 901.125 L 565.507 879.502 L 646.771 906.411 Z" style="fill: none; clip-rule: nonzero;" />
+    </clipPath>
+    <linearGradient id="shading4" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1" y2="0" gradientTransform="matrix(81.263496, 0, 0, 81.263496, 565.506897, -900.396667)">
+      <stop offset="0" style="stop-color: rgb(89, 88, 88);" />
+      <stop offset="0.1" style="stop-color: rgb(157, 156, 156);" />
+      <stop offset="0.2" style="stop-color: rgb(200, 200, 200);" />
+      <stop offset="0.3" style="stop-color: rgb(227, 227, 227);" />
+      <stop offset="0.4" style="stop-color: rgb(242, 242, 242);" />
+      <stop offset="0.5" style="stop-color: rgb(250, 250, 250);" />
+      <stop offset="0.6" style="stop-color: rgb(253, 253, 253);" />
+      <stop offset="0.7" style="stop-color: rgb(255, 255, 255);" />
+      <stop offset="0.8" style="stop-color: rgb(255, 255, 255);" />
+      <stop offset="0.9" style="stop-color: rgb(255, 255, 255);" />
+      <stop offset="1" style="stop-color: rgb(255, 255, 255);" />
+    </linearGradient>
+    <clipPath id="clippath5" transform="">
+      <path d="M 626.408 1000.573 L 626.408 921.291 L 646.771 906.411 L 647.104 906.521 L 647.104 928.144 L 647.104 1007.426 Z" style="fill: none; clip-rule: nonzero;" />
+    </clipPath>
+    <linearGradient id="shading5" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1" y2="0" gradientTransform="matrix(101.015503, 0, 0, 101.015503, 1812.821838, 1273.512695)">
+      <stop offset="0" style="stop-color: rgb(255, 255, 255);" />
+      <stop offset="0.1" style="stop-color: rgb(255, 255, 255);" />
+      <stop offset="0.2" style="stop-color: rgb(255, 255, 255);" />
+      <stop offset="0.3" style="stop-color: rgb(254, 254, 254);" />
+      <stop offset="0.4" style="stop-color: rgb(250, 250, 250);" />
+      <stop offset="0.5" style="stop-color: rgb(241, 241, 241);" />
+      <stop offset="0.6" style="stop-color: rgb(226, 226, 226);" />
+      <stop offset="0.7" style="stop-color: rgb(204, 204, 204);" />
+      <stop offset="0.8" style="stop-color: rgb(174, 174, 174);" />
+      <stop offset="0.9" style="stop-color: rgb(136, 135, 135);" />
+      <stop offset="1" style="stop-color: rgb(89, 88, 88);" />
+    </linearGradient>
+    <clipPath id="clippath6" transform="">
+      <path d="M 565.507 926.367 L 565.507 905.33 L 622.383 924.163 L 602.331 938.561 Z" style="fill: none; clip-rule: nonzero;" />
+    </clipPath>
+    <linearGradient id="shading6" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1" y2="0" gradientTransform="matrix(56.8764, 0, 0, 56.8764, 565.506897, -921.945129)">
+      <stop offset="0" style="stop-color: rgb(89, 88, 88);" />
+      <stop offset="0.1" style="stop-color: rgb(157, 156, 156);" />
+      <stop offset="0.2" style="stop-color: rgb(200, 200, 200);" />
+      <stop offset="0.3" style="stop-color: rgb(227, 227, 227);" />
+      <stop offset="0.4" style="stop-color: rgb(242, 242, 242);" />
+      <stop offset="0.5" style="stop-color: rgb(250, 250, 250);" />
+      <stop offset="0.6" style="stop-color: rgb(253, 253, 253);" />
+      <stop offset="0.7" style="stop-color: rgb(255, 255, 255);" />
+      <stop offset="0.8" style="stop-color: rgb(255, 255, 255);" />
+      <stop offset="0.9" style="stop-color: rgb(255, 255, 255);" />
+      <stop offset="1" style="stop-color: rgb(255, 255, 255);" />
+    </linearGradient>
+    <clipPath id="clippath7" transform="">
+      <path d="M 602.246 992.572 L 602.246 938.622 L 602.331 938.561 L 622.383 924.163 L 622.383 945.201 L 622.383 999.24 Z" style="fill: none; clip-rule: nonzero;" />
+    </clipPath>
+    <linearGradient id="shading7" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1" y2="0" gradientTransform="matrix(75.0774, 0, 0, 75.0774, 1848.325745, 1224.629761)">
+      <stop offset="0" style="stop-color: rgb(255, 255, 255);" />
+      <stop offset="0.1" style="stop-color: rgb(255, 255, 255);" />
+      <stop offset="0.2" style="stop-color: rgb(255, 255, 255);" />
+      <stop offset="0.3" style="stop-color: rgb(255, 255, 255);" />
+      <stop offset="0.4" style="stop-color: rgb(253, 253, 253);" />
+      <stop offset="0.5" style="stop-color: rgb(248, 248, 248);" />
+      <stop offset="0.6" style="stop-color: rgb(238, 238, 238);" />
+      <stop offset="0.7" style="stop-color: rgb(219, 219, 219);" />
+      <stop offset="0.8" style="stop-color: rgb(190, 189, 189);" />
+      <stop offset="0.9" style="stop-color: rgb(147, 147, 147);" />
+      <stop offset="1" style="stop-color: rgb(89, 88, 88);" />
+    </linearGradient>
+  </defs>
+  <path d="M 427.699 -296.929 L 427.699 -137.484 L 440.568 -126.977 L 440.568 -194.351 L 440.568 -207.917 L 440.568 -285.499 L 440.568 -286.423 L 440.568 -287.653 Z" style="fill: rgb(255, 255, 255); fill-opacity: 1;" />
+  <path d="M 443.785 -286.013 L 443.785 -124.351 L 456.655 -113.845 L 456.655 -180.602 L 456.655 -194.168 L 456.655 -271.75 L 456.655 -273.29 L 456.655 -276.361 Z" style="fill: rgb(255, 255, 255); fill-opacity: 1;" />
+  <path d="M 472.741 -264.787 L 459.872 -274.439 L 459.872 -111.218 L 472.741 -100.711 L 472.741 -166.854 L 472.741 -177.927 L 472.741 -180.197 L 472.741 -193.796 Z" style="fill: rgb(255, 255, 255); fill-opacity: 1;" />
+  <path d="M 539.652 -198.358 L 539.652 -156.095 L 552.521 -145.589 L 552.521 -202.619 Z" style="fill: none;" />
+  <g style="clip-path: url(#clippath0);" transform="matrix(0.643461, 0, 0, -0.643461, 112.076752, 368.390259)">
+    <path d="M 798.773 674.493 H 1998.773 V 1874.493 H 798.773 V 674.493 Z" style="fill: url(#shading0);" transform="matrix(0, 1, 1, 0, -674.492961, -798.773129)" />
+  </g>
+  <path d="M 523.565 -193.031 L 523.565 -169.228 L 536.435 -158.722 L 536.435 -197.292 Z" style="fill: none;" />
+  <g style="clip-path: url(#clippath1);" transform="matrix(0.643461, 0, 0, -0.643461, 112.076752, 368.390259)">
+    <rect x="819.183" y="649.493" width="1200" height="1200" style="fill: url(#shading1);" transform="matrix(0, 1, 1, 0, -649.492938, -819.183261)" />
+  </g>
+  <path d="M 555.739 -142.962 L 568.608 -132.456 L 568.608 -198.598 L 568.608 -209.671 L 568.608 -211.313 L 555.739 -207.051 Z" style="fill: rgb(255, 255, 255); fill-opacity: 1;" />
+  <path d="M 555.739 -220.964 L 459.872 -189.22 L 472.741 -179.568 L 555.739 -207.05 L 568.608 -211.312 Z" style="fill: rgb(255, 255, 255); fill-opacity: 1;" />
+  <path d="M 472.741 -100.711 L 568.608 -132.455 L 555.739 -142.962 L 459.872 -111.218 Z" style="fill: rgb(255, 255, 255); fill-opacity: 1;" />
+  <path d="M 523.565 -169.228 L 475.958 -153.465 L 475.958 -138.697 L 536.435 -158.722 Z" style="fill: none;" />
+  <g style="clip-path: url(#clippath2);" transform="matrix(0.643461, 0, 0, -0.643461, 112.076752, 368.390259)">
+    <rect y="-1200" width="1200" height="1200" style="fill: url(#shading2);" transform="matrix(1, 0, 0, -1, 0, 0)" />
+  </g>
+  <path d="M 539.652 -156.095 L 475.958 -135.005 L 475.958 -120.237 L 552.521 -145.589 Z" style="fill: none;" />
+  <g style="clip-path: url(#clippath3);" transform="matrix(0.643461, 0, 0, -0.643461, 112.076752, 368.390259)">
+    <rect y="-1200" width="1200" height="1200" style="fill: url(#shading3);" transform="matrix(1, 0, 0, -1, 0, 0)" />
+  </g>
+  <path d="M 427.699 -296.929 L 440.568 -287.653 L 512.556 -311.491 L 499.598 -320.737 Z" style="fill: rgb(255, 255, 255); fill-opacity: 1;" />
+  <path d="M 443.785 -286.013 L 456.655 -276.361 L 528.463 -300.139 L 515.146 -309.643 Z" style="fill: rgb(255, 255, 255); fill-opacity: 1;" />
+  <path d="M 544.641 -288.595 L 472.741 -264.787 L 459.872 -274.439 L 531.324 -298.099 Z" style="fill: rgb(255, 255, 255); fill-opacity: 1;" />
+  <path d="M 515.146 -224.424 L 475.958 -211.448 L 475.958 -197.535 L 528.249 -214.85 Z" style="fill: none;" />
+  <g style="clip-path: url(#clippath4);" transform="matrix(0.643461, 0, 0, -0.643461, 112.076752, 368.390259)">
+    <rect y="-1200" width="1200" height="1200" style="fill: url(#shading4);" transform="matrix(1, 0, 0, -1, 0, 0)" />
+  </g>
+  <path d="M 552.521 -222.887 L 544.641 -228.797 L 544.641 -220.278 Z" style="fill: rgb(255, 255, 255); fill-opacity: 1;" />
+  <path d="M 528.248 -214.849 L 528.463 -214.692 L 528.463 -214.921 Z" style="fill: rgb(255, 255, 255); fill-opacity: 1;" />
+  <path d="M 515.146 -275.439 L 515.146 -224.424 L 528.249 -214.85 L 528.463 -214.921 L 528.463 -228.834 L 528.463 -279.849 Z" style="fill: none;" />
+  <g style="clip-path: url(#clippath5);" transform="matrix(0.643461, 0, 0, -0.643461, 112.076752, 368.390259)">
+    <rect x="906.411" y="636.756" width="1200" height="1200" style="fill: url(#shading5);" transform="matrix(0, 1, 1, 0, -636.756345, -906.410929)" />
+  </g>
+  <path d="M 531.324 -298.098 L 531.324 -229.781 L 531.324 -215.868 L 531.324 -212.879 L 544.641 -203.376 L 544.641 -220.277 L 544.641 -228.797 L 544.641 -288.594 Z" style="fill: rgb(255, 255, 255); fill-opacity: 1;" />
+  <path d="M 475.958 -227.691 L 475.958 -214.154 L 512.556 -226.272 L 499.653 -235.537 Z" style="fill: none;" />
+  <g style="clip-path: url(#clippath6);" transform="matrix(0.643461, 0, 0, -0.643461, 112.076752, 368.390259)">
+    <rect y="-1200" width="1200" height="1200" style="fill: url(#shading6);" transform="matrix(1, 0, 0, -1, 0, 0)" />
+  </g>
+  <path d="M 499.598 -270.291 L 499.598 -235.576 L 499.653 -235.537 L 512.556 -226.272 L 512.556 -239.81 L 512.556 -274.582 Z" style="fill: none;" />
+  <g style="clip-path: url(#clippath7);" transform="matrix(0.643461, 0, 0, -0.643461, 112.076752, 368.390259)">
+    <rect x="924.163" y="612.315" width="1200" height="1200" style="fill: url(#shading7);" transform="matrix(0, 1, 1, 0, -612.3149, -924.162848)" />
+  </g>
+</svg>

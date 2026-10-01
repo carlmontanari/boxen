@@ -1,0 +1,271 @@
+---
+name: juniper_vjunos-router
+diskPatterns:
+  - '(?i)vjunos-router-.*\.qcow2$'
+versionPattern: '(?i)\d+\.\d+R\d+(?:-S\d+)?\.\d+'
+scrapliDefinitionNameOrFile: juniper_junos
+scrapliReturnChar: "\r"
+virtualMachine:
+  cpuEmulation: host
+  memory: 5120
+  cpuCores: 4
+  serialPortCount: 1
+  nicType: virtio-net-pci
+  nicCount: 96
+  nicPerBus: 26
+  managementPassthrough: true
+  natPorts:
+    - type: tcp
+      localPort: 22
+      externalPort: 22
+    - type: tcp
+      localPort: 830
+      externalPort: 830
+  overrides:
+    disk:
+      - onPackage: true
+        onRun: true
+        val:
+          - content: -drive
+          - content: if=virtio,file=disk.qcow2,format=qcow2
+  extras:
+    - onPackage: true
+      val:
+        - content: -device
+        - content: qemu-xhci,id=usb,bus=pci.0,addr=0x1.0x2
+        - content: -drive
+        - content: file=config.img,format=raw,if=none,id=config_disk
+        - content: -device
+        - content: usb-storage,drive=config_disk,id=usb-disk0
+    - onPackage: true
+      onRun: true
+      val:
+        - content: -smbios
+        - content: type=1,product=VM-VMX,family=lab
+        - content: -no-user-config
+        - content: -nodefaults
+        - content: -boot
+        - content: strict=on
+prePackagingCommands:
+  # The outer Linux VM accepts Intel VMX but overlooks AMD SVM.
+  - |
+    set -e
+    cache="$(mktemp -d)"
+    trap 'rm -rf "$cache"' EXIT
+    LIBGUESTFS_CACHEDIR="$cache" guestfish --rw -a disk.qcow2 -m /dev/sda2 sh \
+      "sed -i 's/grep -ci vmx)/grep -Eci \"vmx|svm\")/' /home/pfe/junos/start-junos.sh &&
+       grep -qF 'grep -Eci \"vmx|svm\"' /home/pfe/junos/start-junos.sh"
+  # Junos auto image upgrade can terminate the CLI on an unconfigured disk.
+  # Seed the first boot with the configuration-disk format used by vrnetlab.
+  - |
+    set -euo pipefail
+    staging="$(mktemp -d)"
+    trap 'rm -rf "$staging"' EXIT
+    mkdir -p "$staging/config"
+    cat > "$staging/config/juniper.conf" <<'CONFIG'
+    system {
+        host-name boxen-vjunos;
+        root-authentication {
+            plain-text-password-value "Clab123!";
+        }
+        services {
+            ssh { root-login allow; }
+            netconf { ssh; }
+        }
+        management-instance;
+    }
+    chassis {
+        fpc 0 { pic 0 { number-of-ports 96; } }
+    }
+    interfaces {
+        fxp0 { unit 0 { family inet { address 10.0.0.15/24; } } }
+    }
+    routing-instances {
+        mgmt_junos {
+            routing-options {
+                static { route 0.0.0.0/0 next-hop 10.0.0.2; }
+            }
+        }
+    }
+    CONFIG
+    tar -czf "$staging/vmm-config.tgz" -C "$staging" config
+    truncate -s 32M config.img
+    mkfs.vfat -n vmm-data config.img
+    mcopy -i config.img "$staging/vmm-config.tgz" ::vmm-config.tgz
+packaging:
+  process:
+    # The outer Linux VM briefly exposes its own login prompt before Junos.
+    - &junosBoot
+      type: readUntil
+      readUntil:
+        timeout: 20m
+        until:
+          contains: FreeBSD/amd64
+    - &login
+      type: prompts
+      prompts:
+        timeout: 20m
+        initialInput: "\r"
+        prompts:
+          - prompt:
+              containsPattern: '(?m)^login: ?$'
+            response: root
+            # The nested console can discard input while getty is starting.
+            # Send the return immediately and retry at the next login prompt.
+            hidden: true
+          - prompt:
+              contains: 'Password:'
+            response: 'Clab123!'
+            hidden: true
+          - prompt:
+              containsPattern: '(?m)^root@[^\r\n]*[%#] ?$'
+            response: cli
+            once: true
+            completes: true
+    - &cliPrompt
+      type: readUntil
+      readUntil:
+        timeout: 3m
+        until:
+          containsPattern: '(?m)^root(?:@[^\r\n]*)?> ?$'
+    - type: write
+      write:
+        content: |
+          set cli screen-length 0
+          set cli screen-width 1024
+          show configuration system host-name
+    - type: readUntil
+      readUntil:
+        timeout: 3m
+        until:
+          contains: 'host-name boxen-vjunos;'
+    - type: write
+      write:
+        content: request system halt
+    - type: prompts
+      prompts:
+        timeout: 5m
+        prompts:
+          - prompt:
+              contains: 'Halt the system'
+            response: 'yes'
+            once: true
+            completes: true
+    - type: readUntil
+      readUntil:
+        timeout: 5m
+        until:
+          contains: 'The operating system has halted.'
+    - type: wait
+      wait:
+        duration: 10s
+run:
+  process:
+    - *junosBoot
+    - *login
+    - *cliPrompt
+    - type: write
+      write:
+        content: |
+          set cli screen-length 0
+          set cli screen-width 1024
+          configure
+    - &configPrompt
+      type: readUntil
+      readUntil:
+        timeout: 3m
+        until:
+          containsPattern: '(?m)^root(?:@[^\r\n]*)?# ?$'
+    - type: write
+      write:
+        content: |
+          set system host-name {{ .hostname }}
+          set system login user {{ .username }} class super-user
+          set system login user {{ .username }} authentication plain-text-password
+    - &newPassword
+      type: readUntil
+      readUntil:
+        timeout: 1m
+        until:
+          contains: 'New password:'
+    - type: write
+      write:
+        content: '{{ .password }}'
+        hidden: true
+    - &retypePassword
+      type: readUntil
+      readUntil:
+        timeout: 1m
+        until:
+          contains: 'Retype new password:'
+    - type: write
+      write:
+        content: '{{ .password }}'
+        hidden: true
+    - *configPrompt
+    - type: write
+      write:
+        content: |
+          delete interfaces fxp0 unit 0
+          delete routing-instances mgmt_junos routing-options
+          {{ if .mgmtDHCP }}
+          set interfaces fxp0 unit 0 family inet dhcp
+          {{ else }}
+          {{ if .mgmtIPv4 }}
+          set interfaces fxp0 unit 0 family inet address {{ .mgmtIPv4 }}
+          {{ end }}
+          {{ if .mgmtIPv4Gateway }}
+          set routing-instances mgmt_junos routing-options static route 0.0.0.0/0 next-hop {{ .mgmtIPv4Gateway }}
+          {{ end }}
+          {{ if .mgmtIPv6 }}
+          set interfaces fxp0 unit 0 family inet6 address {{ .mgmtIPv6 }}
+          {{ end }}
+          {{ if .mgmtIPv6Gateway }}
+          set routing-instances mgmt_junos routing-options rib mgmt_junos.inet6.0 static route ::/0 next-hop {{ .mgmtIPv6Gateway }}
+          {{ end }}
+          {{ end }}
+          commit
+    - &commitComplete
+      type: readUntil
+      readUntil:
+        timeout: 5m
+        until:
+          contains: commit complete
+    - type: write
+      write:
+        content: exit
+    - *cliPrompt
+  configProcess:
+    # Startup configs use Junos hierarchical syntax, as in vrnetlab.
+    - type: write
+      write:
+        content: configure
+    - *configPrompt
+    - type: write
+      write:
+        content: load merge terminal
+    - type: readUntil
+      readUntil:
+        timeout: 1m
+        until:
+          contains: '[Type ^D at a new line to end input]'
+    - type: write
+      write:
+        contentFromStartupConfig: true
+    - type: write
+      write:
+        content: "\x04"
+        hidden: true
+    - type: readUntil
+      readUntil:
+        timeout: 3m
+        until:
+          contains: load complete
+    - type: write
+      write:
+        content: commit
+    - *commitComplete
+    - type: write
+      write:
+        content: exit
+    - *cliPrompt

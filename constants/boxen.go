@@ -1,9 +1,7 @@
 package constants
 
-const (
-	// Version is the boxen version, set in ci.
-	Version = "0.0.0"
-)
+// Version is the boxen version, set by the release build's linker flags.
+var Version = "0.0.0"
 
 const (
 	DefaultLogLevel = "debug"

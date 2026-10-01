@@ -1,0 +1,95 @@
+[project]
+site_name = "Boxen"
+site_description = "Put your network operating systems in a box. Package virtual machines as portable container images for Containerlab."
+site_url = "https://boxen.containerlab.dev/"
+repo_url = "https://github.com/carlmontanari/boxen"
+repo_name = "carlmontanari/boxen"
+edit_uri = "edit/main/docs/"
+copyright = "Boxen · MIT licensed"
+extra_css = ["stylesheets/boxen.css"]
+nav = [
+  { "Home" = "index.md" },
+  { "Get started" = [
+    { "Installation" = "installation.md" },
+    { "Quick start" = "quickstart.md" },
+    { "How Boxen works" = "architecture.md" },
+  ] },
+  { "User guide" = [
+    { "Packaging" = "guides/packaging.md" },
+    { "Running a lab" = "guides/running.md" },
+    { "Management networking" = "guides/management.md" },
+    { "Image management" = "guides/images.md" },
+    { "Troubleshooting" = "guides/troubleshooting.md" },
+  ] },
+  { "Profiles" = [
+    { "Profile structure" = "profiles/structure.md" },
+    { "Process steps" = "profiles/steps.md" },
+    { "Template values" = "profiles/templates.md" },
+    { "QEMU configuration" = "profiles/qemu.md" },
+    { "Adding a platform" = "profiles/authoring.md" },
+  ] },
+  { "Platforms" = [
+    { "Included profiles" = "platforms.md" },
+    { "Arista vEOS" = "arista/ceos/README.md" },
+    { "Cisco CSR 1000v" = "cisco/csr1000v/README.md" },
+    { "Cisco Nexus 9000v" = "cisco/n9kv/README.md" },
+    { "Juniper vJunos-router" = "juniper/vjunos-router/README.md" },
+  ] },
+  { "Reference" = [
+    { "CLI commands" = "reference/cli.md" },
+    { "Environment variables" = "reference/environment.md" },
+    { "Development" = "development.md" },
+    { "Documentation & publishing" = "documentation.md" },
+  ] },
+]
+
+[project.theme]
+variant = "modern"
+custom_dir = "overrides"
+logo = "assets/boxen-mark.svg"
+favicon = "assets/favicon.svg"
+font = false
+features = [
+  "navigation.tabs",
+  "navigation.sections",
+  "navigation.indexes",
+  "navigation.top",
+  "navigation.footer",
+  "search.highlight",
+  "content.code.copy",
+  "content.action.edit",
+  "toc.follow",
+]
+
+[[project.theme.palette]]
+scheme = "slate"
+primary = "black"
+accent = "black"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to light theme"
+
+[[project.theme.palette]]
+scheme = "default"
+primary = "white"
+accent = "black"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to dark theme"
+
+[project.theme.icon]
+repo = "fontawesome/brands/github"
+
+[project.markdown_extensions]
+admonition = {}
+attr_list = {}
+md_in_html = {}
+toc = { permalink = true }
+"pymdownx.details" = {}
+"pymdownx.highlight" = { anchor_linenums = true }
+"pymdownx.inlinehilite" = {}
+"pymdownx.snippets" = { check_paths = true }
+"pymdownx.superfences" = {}
+"pymdownx.tabbed" = { alternate_style = true }
+
+[project.validation]
+invalid_links = true
+invalid_link_anchors = true

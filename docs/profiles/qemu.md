@@ -1,0 +1,93 @@
+# QEMU configuration
+
+`virtualMachine` controls the QEMU arguments generated for packaging and runtime. The current agent invokes `qemu-system-x86_64` and uses `disk.qcow2` in `/boxen`.
+
+## Hardware fields
+
+| Field | Effect |
+| --- | --- |
+| `memory` | QEMU `-m`, normally expressed in MiB |
+| `cpuEmulation` | QEMU `-cpu`; `host` is useful with KVM |
+| `cpuCores` | SMP count; nonzero enables generation of `-smp` |
+| `cpuThreads`, `cpuSockets` | When both are nonzero, generate an explicit cores/threads/sockets topology |
+| `machine` | Optional QEMU machine type |
+| `serialPortCount` | Serial telnet listeners starting at TCP 5001 |
+| `display` | QEMU display selection; defaults to `none` |
+| `nicType` | QEMU NIC model for management and data devices |
+| `nicCount` | Number of data NICs, in addition to management |
+| `nicPerBus` | Data NIC bus sizing; must be nonzero |
+| `managementPassthrough` | Default runtime management mode |
+| `natPorts` | Legacy management service forwards |
+
+The default disk uses an IDE drive. Platforms requiring virtio or AHCI should override the `disk` section. QEMU's monitor listens on TCP 4001. The automation console uses the first serial listener on TCP 5001, so normal profiles need at least one serial port.
+
+The generator enables `-accel kvm` whenever `/dev/kvm` exists. Without it, QEMU uses its normal software path, which can be very slow or incompatible with a profile requesting `cpuEmulation: host`. Set a suitable CPU model and acceleration override for a platform that supports software emulation; nested virtualization guests require KVM.
+
+The YAML field `emulation` exists in the Go type but does not select the QEMU executable. Some older profiles contain `emulate`; that spelling is not a CPU setting. Use `cpuEmulation`, an override, or `QEMU_CPU` for the CPU model.
+
+## Generated sections and precedence
+
+Sections are emitted in this order:
+
+```text
+cpu → memory → acceleration → machine → disk → serial → monitor
+    → display → pci → mgmtNIC → dataNICs → extras
+```
+
+For each section, a matching `overrides` entry replaces its generator entirely. Otherwise the generator runs and an optional `mutators` script transforms its output. Extras are appended afterward, then `QEMU_ADDITIONAL_ARGS` is appended last.
+
+The acceleration section's actual key is `acceleration`, even though an older struct comment mentions `accel`.
+
+## Replace a section
+
+Use a list of phase-gated argument fields:
+
+```yaml
+virtualMachine:
+  overrides:
+    disk:
+      - onPackage: true
+        onRun: true
+        val:
+          - content: -drive
+          - content: if=virtio,file=disk.qcow2,format=qcow2
+```
+
+Each `content` becomes one argument. Include `onPackage` and/or `onRun` explicitly; omitted flags are false. The existence of an override suppresses normal generation even in a phase where none of its fields apply. Supply both phase variants if both need that section.
+
+Supported keys are `cpu`, `memory`, `acceleration`, `machine`, `disk`, `serial`, `monitor`, `display`, `pci`, `mgmtNIC`, and `dataNICs`.
+
+## Transform a section with Starlark
+
+Define `mutate(items)` and return a list of strings:
+
+```yaml
+virtualMachine:
+  mutators:
+    mgmtNIC: |
+      def mutate(items):
+          items[1] = items[1] + ",bus=pci.1,addr=0x2"
+          return items
+```
+
+This adapts the generated management device's PCI position. The Arista vEOS profile also adjusts data NIC positions; keep bus numbering consistent with `nicPerBus`. Mutators are Starlark, not arbitrary Python, and receive only the generated argument list.
+
+## Append phase-specific arguments
+
+```yaml
+virtualMachine:
+  extras:
+    - onPackage: true
+      onRun: false
+      val:
+        - content: -cdrom
+        - content: config.iso
+```
+
+This attaches preparation media only during packaging. It must already exist in the builder, either as an extra file or as output from `prePackagingCommands`.
+
+## Environment overrides
+
+`QEMU_MEMORY`, `QEMU_CPU`, and `QEMU_SMP` override values in their normal generators. `QEMU_SMP` requires the profile's `cpuCores` to be nonzero. A full `cpu` or `memory` profile override bypasses the corresponding generator and therefore its environment overrides.
+
+`QEMU_ADDITIONAL_ARGS` is split on literal spaces, not parsed as a shell command. Use YAML `extras` when an argument itself needs spaces or precise quoting. See the [environment reference](../reference/environment.md) for runtime settings.

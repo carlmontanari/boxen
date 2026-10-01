@@ -44,10 +44,12 @@ lint: fmt-check
 
 ## Run unit tests
 test:
+	bash build/check-install.sh
 	go test ./...
 
 ## Run unit tests with race flag
 test-race:
+	bash build/check-install.sh
 	go test ./... -race
 
 ## Build the boxen binary
@@ -81,3 +83,39 @@ rebuild-profile-image: build-image
 		--build-arg PROFILE_FILE="$(PROFILE_FILE)" \
 		-f build/profile-overlay.Dockerfile \
 		-t "$(TARGET_IMAGE)" .
+
+##@ Documentation
+UV ?= uv
+DOCS_ADDR ?= 127.0.0.1:8000
+DOCS_REPO ?= carlmontanari/boxen
+DOCS_REF ?= main
+
+## Install pinned uv locally without changing shell configuration
+.PHONY: install-uv
+install-uv:
+	@mkdir -p .tools/bin
+	curl --fail --location --silent --show-error \
+		https://astral.sh/uv/$(UV_VERSION)/install.sh --output .tools/uv-install.sh
+	UV_UNMANAGED_INSTALL="$(CURDIR)/.tools/bin" sh .tools/uv-install.sh
+
+## Ensure uv is available for documentation commands
+.PHONY: docs-tools
+docs-tools:
+	@command -v "$(UV)" >/dev/null 2>&1 || $(MAKE) install-uv
+
+.PHONY: docs docs-build
+## Build the documentation (alias for docs-build)
+docs: docs-build
+## Build the documentation, failing on broken links
+docs-build: docs-tools
+	$(UV) run --locked --group docs zensical build --clean --strict
+
+## Preview the documentation with live reload (DOCS_ADDR overrides the address)
+.PHONY: docs-serve
+docs-serve: docs-tools
+	$(UV) run --locked --group docs zensical serve --dev-addr "$(DOCS_ADDR)"
+
+## Publish the committed DOCS_REF through the Cloudflare workflow (requires gh)
+.PHONY: docs-publish
+docs-publish: docs-build
+	gh workflow run docs.yaml --repo "$(DOCS_REPO)" --ref "$(DOCS_REF)"

@@ -2,26 +2,60 @@
 name: release
 
 on:
+  push:
+    tags:
+      - "**"
   release:
     types:
-      - created
+      - published
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  RELEASE_TAG: ${{ github.event.release.tag_name || github.ref_name }}
+  RELEASE_DIR: dist/release
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: checkout
         uses: actions/checkout@v7
         with:
+          ref: ${{ env.RELEASE_TAG }}
           fetch-depth: 1
 
-      - name: set release version var
+      - name: load Go version
         run: |
-          RELEASE_TAG=${{ github.ref_name }}
-          RELEASE_VERSION=${RELEASE_TAG#v}
+          source .github/vars.env
+          echo "GO_VERSION=$GO_VERSION" >> "$GITHUB_ENV"
 
-          echo "RELEASE_VERSION=$RELEASE_VERSION" >> "$GITHUB_ENV"
+      - name: set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: ${{ env.GO_VERSION }}
 
-      - name: set version information
+      - name: build release archives
+        run: bash build/release.sh "$RELEASE_TAG" "$RELEASE_DIR"
+
+      - name: verify release archives
+        run: bash build/check-release.sh "$RELEASE_TAG" "$RELEASE_DIR"
+
+      - name: publish release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          sed -i -E "s|^(var Version = ).*|\1\"${{ env.RELEASE_VERSION }}\"|" constants/versions.go
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            flags=()
+            case "$RELEASE_TAG" in
+              *-*) flags+=(--prerelease) ;;
+            esac
+            gh release create "$RELEASE_TAG" --verify-tag --generate-notes "${flags[@]}"
+          fi
+          gh release upload "$RELEASE_TAG" "$RELEASE_DIR"/* --clobber
