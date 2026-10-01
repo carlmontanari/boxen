@@ -242,10 +242,12 @@ func (a *Agent) wireMgmtTap(ctx context.Context, tap, mgmt string) error {
 			"filter", "replace", "dev", mgmt, "ingress", "prio", "2", "protocol", "arp",
 			"flower", "action", "mirred", "egress", "mirror", "dev", tap,
 		},
-		// redirect normal management traffic to the VM management tap
+		// compute checksums before redirecting to the VM: host TX offload can
+		// leave them incomplete on the veth -> tap path
 		{
 			"filter", "replace", "dev", mgmt, "ingress", "prio", "3",
-			"flower", "action", "mirred", "egress", "redirect", "dev", tap,
+			"flower", "action", "csum", "ip", "and", "tcp", "and", "udp", "and", "icmp", "pipe",
+			"action", "mirred", "egress", "redirect", "dev", tap,
 		},
 		{"qdisc", "replace", "dev", tap, "clsact"},
 		{

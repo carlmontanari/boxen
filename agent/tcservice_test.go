@@ -2,8 +2,10 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -127,7 +129,8 @@ func TestWireMgmtTapWithMAC(t *testing.T) {
 		},
 		{
 			"tc", "filter", "replace", "dev", "eth0", "ingress", "prio", "3",
-			"flower", "action", "mirred", "egress", "redirect", "dev", "tap0",
+			"flower", "action", "csum", "ip", "and", "tcp", "and", "udp", "and", "icmp", "pipe",
+			"action", "mirred", "egress", "redirect", "dev", "tap0",
 		},
 		{"tc", "qdisc", "replace", "dev", "tap0", "clsact"},
 		{
@@ -145,7 +148,7 @@ func TestWireMgmtTapNoMAC(t *testing.T) {
 
 	a := NewAgent(slog.LevelError)
 
-	if err := a.wireMgmtTap(context.Background(), "tap0", "eth0"); err != nil {
+	if err := a.wireMgmtTap(context.Background(), "mgmt-tap", "mgmt0"); err != nil {
 		t.Fatalf("wireMgmtTap returned error: %v", err)
 	}
 
@@ -157,6 +160,43 @@ func TestWireMgmtTapNoMAC(t *testing.T) {
 		if c.name != "tc" {
 			t.Fatalf("expected only tc commands when no mac is set, got %q", c.name)
 		}
+	}
+
+	assertCalls(t, (*calls)[3:4], [][]string{
+		{
+			"tc", "filter", "replace", "dev", "mgmt0", "ingress", "prio", "3",
+			"flower", "action", "csum", "ip", "and", "tcp", "and", "udp", "and", "icmp", "pipe",
+			"action", "mirred", "egress", "redirect", "dev", "mgmt-tap",
+		},
+	})
+}
+
+func TestWireMgmtTapChecksumFailure(t *testing.T) {
+	calls := stubNetCommand(t)
+	record := runNetCommand
+	wantErr := errors.ErrUnsupported
+	runNetCommand = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		out, err := record(ctx, name, args...)
+		if slices.Contains(args, "csum") {
+			return []byte("Failed to load kernel module act_csum"), wantErr
+		}
+
+		return out, err
+	}
+
+	a := NewAgent(slog.LevelError)
+
+	err := a.wireMgmtTap(context.Background(), "tap0", "eth0")
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("expected checksum action error, got %v", err)
+	}
+
+	if !strings.Contains(err.Error(), "Failed to load kernel module act_csum") {
+		t.Fatalf("expected tc output in error, got %v", err)
+	}
+
+	if len(*calls) != 4 {
+		t.Fatalf("expected wiring to stop at checksum failure, got %d commands", len(*calls))
 	}
 }
 
