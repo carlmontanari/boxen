@@ -28,7 +28,7 @@ The CLI is written to `dist/boxen`. The base agent image defaults to `ghcr.io/ca
 
 ## Download a CI build
 
-The `cicd` workflow builds the CLI for Linux and macOS (`darwin`), each on AMD64 and ARM64. Every artifact contains a single `boxen` executable with the source commit embedded in its version. Download links appear in the workflow summary and, for pull requests from this repository, an updated bot comment. Artifacts are retained for 14 days and require GitHub sign-in to download.
+The `cicd` workflow builds the CLI for Linux and macOS (`darwin`), each on AMD64 and ARM64. Every artifact contains a single `boxen` executable with the source commit embedded in its version.
 
 For example, download the Linux AMD64 artifact from a run:
 
