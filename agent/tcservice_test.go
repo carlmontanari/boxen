@@ -2,8 +2,10 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -127,7 +129,8 @@ func TestWireMgmtTapWithMAC(t *testing.T) {
 		},
 		{
 			"tc", "filter", "replace", "dev", "eth0", "ingress", "prio", "3",
-			"flower", "action", "mirred", "egress", "redirect", "dev", "tap0",
+			"flower", "action", "csum", "ip", "and", "tcp", "and", "udp", "and", "icmp", "pipe",
+			"action", "mirred", "egress", "redirect", "dev", "tap0",
 		},
 		{"tc", "qdisc", "replace", "dev", "tap0", "clsact"},
 		{
@@ -135,6 +138,8 @@ func TestWireMgmtTapWithMAC(t *testing.T) {
 			"flower", "action", "mirred", "egress", "redirect", "dev", "eth0",
 		},
 		{"ip", "link", "set", "dev", "eth0", "address", "02:00:00:00:00:09"},
+		{"sysctl", "-qw", "net/ipv4/conf/eth0/arp_ignore=8"},
+		{"sysctl", "-qw", "net/ipv4/conf/eth0/arp_announce=2"},
 	})
 }
 
@@ -145,18 +150,89 @@ func TestWireMgmtTapNoMAC(t *testing.T) {
 
 	a := NewAgent(slog.LevelError)
 
-	if err := a.wireMgmtTap(context.Background(), "tap0", "eth0"); err != nil {
+	if err := a.wireMgmtTap(context.Background(), "mgmt-tap", "mgmt.100"); err != nil {
 		t.Fatalf("wireMgmtTap returned error: %v", err)
 	}
 
-	if len(*calls) != 6 {
-		t.Fatalf("expected 6 tc commands when no mac is set, got %d: %v", len(*calls), *calls)
+	if len(*calls) != 8 {
+		t.Fatalf("expected 6 tc and 2 sysctl commands, got %d: %v", len(*calls), *calls)
 	}
 
-	for _, c := range *calls {
+	for _, c := range (*calls)[:6] {
 		if c.name != "tc" {
-			t.Fatalf("expected only tc commands when no mac is set, got %q", c.name)
+			t.Fatalf("expected tc commands before sysctl, got %q", c.name)
 		}
+	}
+
+	assertCalls(t, (*calls)[3:4], [][]string{
+		{
+			"tc", "filter", "replace", "dev", "mgmt.100", "ingress", "prio", "3",
+			"flower", "action", "csum", "ip", "and", "tcp", "and", "udp", "and", "icmp", "pipe",
+			"action", "mirred", "egress", "redirect", "dev", "mgmt-tap",
+		},
+	})
+	assertCalls(t, (*calls)[6:], [][]string{
+		{"sysctl", "-qw", "net/ipv4/conf/mgmt.100/arp_ignore=8"},
+		{"sysctl", "-qw", "net/ipv4/conf/mgmt.100/arp_announce=2"},
+	})
+}
+
+func TestWireMgmtTapARPSettingsBestEffort(t *testing.T) {
+	t.Setenv(boxenconstants.EnvClabMgmtMAC, "")
+
+	calls := stubNetCommand(t)
+	record := runNetCommand
+	runNetCommand = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		out, err := record(ctx, name, args...)
+		if name == "sysctl" {
+			return []byte("sysctl: permission denied"), errors.ErrUnsupported
+		}
+
+		return out, err
+	}
+
+	a := NewAgent(slog.LevelError)
+
+	if err := a.wireMgmtTap(context.Background(), "tap0", "eth0"); err != nil {
+		t.Fatalf("sysctl failure should not fail management wiring: %v", err)
+	}
+
+	if len(*calls) != 8 {
+		t.Fatalf("expected both sysctl commands to be attempted, got %d commands", len(*calls))
+	}
+
+	assertCalls(t, (*calls)[6:], [][]string{
+		{"sysctl", "-qw", "net/ipv4/conf/eth0/arp_ignore=8"},
+		{"sysctl", "-qw", "net/ipv4/conf/eth0/arp_announce=2"},
+	})
+}
+
+func TestWireMgmtTapChecksumFailure(t *testing.T) {
+	calls := stubNetCommand(t)
+	record := runNetCommand
+	wantErr := errors.ErrUnsupported
+	runNetCommand = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		out, err := record(ctx, name, args...)
+		if slices.Contains(args, "csum") {
+			return []byte("Failed to load kernel module act_csum"), wantErr
+		}
+
+		return out, err
+	}
+
+	a := NewAgent(slog.LevelError)
+
+	err := a.wireMgmtTap(context.Background(), "tap0", "eth0")
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("expected checksum action error, got %v", err)
+	}
+
+	if !strings.Contains(err.Error(), "Failed to load kernel module act_csum") {
+		t.Fatalf("expected tc output in error, got %v", err)
+	}
+
+	if len(*calls) != 4 {
+		t.Fatalf("expected wiring to stop at checksum failure, got %d commands", len(*calls))
 	}
 }
 
@@ -326,9 +402,9 @@ func TestSetupMgmtNICPlugsOnce(t *testing.T) {
 	// tap0 is already present, so this returns after plugging exactly once
 	a.setupMgmtNIC(context.Background())
 
-	// 3 ip commands (up, mtu, ipv6 flush) + 6 tc rules, with no mac set
+	// 3 ip commands (up, mtu, ipv6 flush) + 6 tc rules + 2 sysctl settings
 	total := fn.count(func(capturedCmd) bool { return true })
-	if total != 9 {
-		t.Fatalf("expected 9 commands for a single mgmt plug, got %d", total)
+	if total != 11 {
+		t.Fatalf("expected 11 commands for a single mgmt plug, got %d", total)
 	}
 }

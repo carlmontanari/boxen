@@ -242,10 +242,12 @@ func (a *Agent) wireMgmtTap(ctx context.Context, tap, mgmt string) error {
 			"filter", "replace", "dev", mgmt, "ingress", "prio", "2", "protocol", "arp",
 			"flower", "action", "mirred", "egress", "mirror", "dev", tap,
 		},
-		// redirect normal management traffic to the VM management tap
+		// compute checksums before redirecting to the VM: host TX offload can
+		// leave them incomplete on the veth -> tap path
 		{
 			"filter", "replace", "dev", mgmt, "ingress", "prio", "3",
-			"flower", "action", "mirred", "egress", "redirect", "dev", tap,
+			"flower", "action", "csum", "ip", "and", "tcp", "and", "udp", "and", "icmp", "pipe",
+			"action", "mirred", "egress", "redirect", "dev", tap,
 		},
 		{"qdisc", "replace", "dev", tap, "clsact"},
 		{
@@ -262,6 +264,18 @@ func (a *Agent) wireMgmtTap(ctx context.Context, tap, mgmt string) error {
 		_, err = runNetCommand(ctx, "ip", "link", "set", "dev", mgmt, "address", mac)
 		if err != nil {
 			return fmt.Errorf("failed setting mgmt mac on %s: %w", mgmt, err)
+		}
+	}
+
+	// the management IP is shared with the VM, whose NOS may choose a different
+	// MAC; let only the VM answer ARP for that IP
+	for _, setting := range []string{"arp_ignore=8", "arp_announce=2"} {
+		// slash notation preserves dots in custom interface names
+		key := "net/ipv4/conf/" + mgmt + "/" + setting
+		out, err := runNetCommand(ctx, "sysctl", "-qw", key)
+		if err != nil {
+			a.l.Warn("tc service: mgmt ARP setting failed",
+				"setting", key, "error", err.Error(), "output", string(out))
 		}
 	}
 
