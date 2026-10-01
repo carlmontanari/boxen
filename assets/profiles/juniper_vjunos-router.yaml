@@ -17,14 +17,6 @@ virtualMachine:
   managementPassthrough: true
   extras:
     - onPackage: true
-      val:
-        - content: -device
-        - content: qemu-xhci,id=usb,bus=pci.0,addr=0x1.0x2
-        - content: -drive
-        - content: file=config.img,format=raw,if=none,id=config_disk
-        - content: -device
-        - content: usb-storage,drive=config_disk,id=usb-disk0
-    - onPackage: true
       onRun: true
       val:
         - content: -smbios
@@ -42,43 +34,6 @@ prePackagingCommands:
     LIBGUESTFS_CACHEDIR="$cache" guestfish --rw -a disk.qcow2 -m /dev/sda2 sh \
       "sed -i 's/grep -ci vmx)/grep -Eci \"vmx|svm\")/' /home/pfe/junos/start-junos.sh &&
        grep -qF 'grep -Eci \"vmx|svm\"' /home/pfe/junos/start-junos.sh"
-  # Junos auto image upgrade can terminate the CLI on an unconfigured disk.
-  # Seed the first boot with the configuration-disk format used by vrnetlab.
-  - |
-    set -euo pipefail
-    staging="$(mktemp -d)"
-    trap 'rm -rf "$staging"' EXIT
-    mkdir -p "$staging/config"
-    cat > "$staging/config/juniper.conf" <<'CONFIG'
-    system {
-        host-name boxen-vjunos;
-        root-authentication {
-            plain-text-password-value "Clab123!";
-        }
-        services {
-            ssh { root-login allow; }
-            netconf { ssh; }
-        }
-        management-instance;
-    }
-    chassis {
-        fpc 0 { pic 0 { number-of-ports 96; } }
-    }
-    interfaces {
-        fxp0 { unit 0 { family inet { address 10.0.0.15/24; } } }
-    }
-    routing-instances {
-        mgmt_junos {
-            routing-options {
-                static { route 0.0.0.0/0 next-hop 10.0.0.2; }
-            }
-        }
-    }
-    CONFIG
-    tar -czf "$staging/vmm-config.tgz" -C "$staging" config
-    truncate -s 32M config.img
-    mkfs.vfat -n vmm-data config.img
-    mcopy -i config.img "$staging/vmm-config.tgz" ::vmm-config.tgz
 packaging:
   process:
     # The outer Linux VM briefly exposes its own login prompt before Junos.
@@ -102,25 +57,98 @@ packaging:
             hidden: true
           - prompt:
               contains: 'Password:'
-            response: 'Clab123!'
+            response: 'admin@123'
             hidden: true
           - prompt:
               containsPattern: '(?m)^root@[^\r\n]*[%#] ?$'
-            response: cli
+            response: ""
+            hidden: true
             once: true
             completes: true
+    # Auto Image Upgrade initially restarts the CLI on an unconfigured disk.
+    # Its DHCP messages appear on the console after logging in to the shell.
+    - type: readUntil
+      readUntil:
+        timeout: 5m
+        until:
+          contains: 'Auto Image Upgrade: DHCP OFFER Client'
+    - &openCli
+      type: write
+      write:
+        content: cli
     - &cliPrompt
       type: readUntil
       readUntil:
         timeout: 3m
         until:
-          containsPattern: '(?m)^root(?:@[^\r\n]*)?> ?$'
+          containsPattern: '(?m)^root(?:@[^\r\n]*)?>[ \t\r]*$'
+    # Factory DHCP status can interrupt echoes; verify prompts and the commit instead.
     - type: write
       write:
+        hidden: true
         content: |
           set cli screen-length 0
           set cli screen-width 1024
-          show configuration system host-name
+          configure
+    - &configPrompt
+      type: readUntil
+      readUntil:
+        timeout: 3m
+        until:
+          containsPattern: '(?m)^root(?:@[^\r\n]*)?#[ \t\r]*$'
+    - type: write
+      write:
+        hidden: true
+        content: |
+          delete chassis auto-image-upgrade
+          set system root-authentication plain-text-password
+    - &newPassword
+      type: readUntil
+      readUntil:
+        timeout: 1m
+        until:
+          contains: 'New password:'
+    - type: write
+      write:
+        content: 'admin@123'
+        hidden: true
+    - &retypePassword
+      type: readUntil
+      readUntil:
+        timeout: 1m
+        until:
+          contains: 'Retype new password:'
+    - type: write
+      write:
+        content: 'admin@123'
+        hidden: true
+    - *configPrompt
+    - type: write
+      write:
+        hidden: true
+        content: |
+          set system host-name boxen-vjunos
+          set system services ssh root-login allow
+          set system services netconf ssh
+          set system management-instance
+          set chassis fpc 0 pic 0 number-of-ports 96
+          delete interfaces fxp0 unit 0
+          set interfaces fxp0 unit 0 family inet address 10.0.0.15/24
+          set routing-instances mgmt_junos routing-options static route 0.0.0.0/0 next-hop 10.0.0.2
+          commit
+    - &commitComplete
+      type: readUntil
+      readUntil:
+        timeout: 5m
+        until:
+          contains: commit complete
+    - type: write
+      write:
+        content: exit
+    - *cliPrompt
+    - type: write
+      write:
+        content: show configuration system host-name
     - type: readUntil
       readUntil:
         timeout: 3m
@@ -150,6 +178,7 @@ run:
   process:
     - *junosBoot
     - *login
+    - *openCli
     - *cliPrompt
     - type: write
       write:
@@ -157,34 +186,19 @@ run:
           set cli screen-length 0
           set cli screen-width 1024
           configure
-    - &configPrompt
-      type: readUntil
-      readUntil:
-        timeout: 3m
-        until:
-          containsPattern: '(?m)^root(?:@[^\r\n]*)?# ?$'
+    - *configPrompt
     - type: write
       write:
         content: |
           set system host-name {{ .hostname }}
           set system login user {{ .username }} class super-user
           set system login user {{ .username }} authentication plain-text-password
-    - &newPassword
-      type: readUntil
-      readUntil:
-        timeout: 1m
-        until:
-          contains: 'New password:'
+    - *newPassword
     - type: write
       write:
         content: '{{ .password }}'
         hidden: true
-    - &retypePassword
-      type: readUntil
-      readUntil:
-        timeout: 1m
-        until:
-          contains: 'Retype new password:'
+    - *retypePassword
     - type: write
       write:
         content: '{{ .password }}'
@@ -212,12 +226,7 @@ run:
           {{ end }}
           {{ end }}
           commit
-    - &commitComplete
-      type: readUntil
-      readUntil:
-        timeout: 5m
-        until:
-          contains: commit complete
+    - *commitComplete
     - type: write
       write:
         content: exit

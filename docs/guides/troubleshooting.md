@@ -72,7 +72,7 @@ Give the source disk a vendor-specific filename, not the literal `disk.qcow2`, w
 
 Check `/dev/kvm`, nested virtualization, available memory, requested CPU model, disk bus, and firmware. The agent treats nonblank QEMU stderr as a failure unless it matches `packaging.stdErrIgnore`. Read the actual message before adding an ignore substring.
 
-For vJunos-router, also check its [nested virtualization and bootstrap requirements](../juniper/vjunos-router/README.md). That profile requires `mkfs.vfat` and `mcopy`; the current base agent image does not install them. Build a custom agent with `dosfstools` and `mtools` before using that profile's configuration-disk hook.
+For vJunos-router, also check its [nested virtualization and bootstrap requirements](../juniper/vjunos-router/README.md). Fresh packaging logs into the root shell and waits for the first Auto Image Upgrade DHCP cycle before configuring Junos through the console.
 
 ## A console step times out or hangs
 

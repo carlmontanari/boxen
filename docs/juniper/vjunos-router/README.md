@@ -1,10 +1,5 @@
 # Juniper vJunos-router
 
-Before packaging, add `dosfstools` and `mtools` to your builder image: the
-configuration-disk hook needs `mkfs.vfat` and `mcopy`, which the current base
-image does not install. The [included profiles guide](../../platforms.md#juniper-helper-tools)
-provides the custom builder Dockerfile and invocation.
-
 The `juniper_vjunos-router` profile packages a vJunos-router QCOW2 disk. It uses
 four CPU cores, 5120 MiB RAM, a virtio disk, and 96 virtio data interfaces. The
 host needs nested virtualization available through `/dev/kvm`, using Intel VMX
@@ -13,6 +8,12 @@ or AMD SVM. Packaging patches the VMX-only CPU check in
 [AMD workaround](https://marcstech.blog/archives/juniper-vjunos-switch-amd-cpu-containerlab/).
 See Juniper's
 [deployment guide](https://www.juniper.net/documentation/us/en/software/vjunos-router/vjunos-router-kvm/topics/deploy-and-manage-vjunos-router-kvm.html).
+
+Juniper does not support launching vJunos-router from inside another VM because
+of its nested architecture; see the
+[hardware and software requirements](https://www.juniper.net/documentation/us/en/software/vjunos-router/vjunos-router-kvm/topics/vjunos-router-kvm-hw-requirements.html).
+Working console, SSH, or NETCONF access does not establish that the forwarding
+plane works. Check the FPC status and routed traffic separately.
 
 Build the current Boxen runtime and package the disk:
 
@@ -33,11 +34,13 @@ docker cp vjunos-disk-source:/vJunos-router-25.2R1.9.qcow2 .
 docker rm vjunos-disk-source
 ```
 
-Packaging patches the CPU check, seeds a fresh disk with a USB configuration
-disk to disable Junos auto image upgrade, verifies console access, and halts
-Junos cleanly. The configuration disk is
-attached only during packaging. At runtime Boxen
-sets the supplied hostname and user credentials, enables SSH and NETCONF, and
+Packaging patches the CPU check, logs into the Junos root shell, and waits for
+the first Auto Image Upgrade DHCP cycle before opening the CLI. It disables
+auto image upgrade, sets the root password, enables SSH and NETCONF, and
+configures the 96 data ports through the console before halting Junos cleanly.
+Factory DHCP messages can interrupt command echoes, so bootstrap writes wait
+for the resulting prompts and successful commit instead.
+At runtime Boxen sets the supplied hostname and user credentials and
 configures `fxp0` with the container's IPv4/IPv6 management addresses and gateways
 in `mgmt_junos`. Transparent management is enabled by default: SSH and NETCONF
 use the container's management IP directly, without NAT port forwards. Set `CLAB_MGMT_DHCP=true` for IPv4 DHCP. Packaging
@@ -45,7 +48,7 @@ always uses QEMU user networking.
 
 Use Containerlab kind `juniper_vjunosrouter` (without a hyphen). Its defaults
 provide `admin` / `admin@123`. The packaged disk also has console root password
-`Clab123!`. The serial console listens on TCP 5001.
+`admin@123`. The serial console listens on TCP 5001.
 
 Nested Junos can take longer than the base image's five-minute health-check
 startup period. In Containerlab, set the node's `healthcheck.start-period` to
