@@ -40,7 +40,7 @@ chmod +x ./boxen-ci/boxen
 
 ## Release the CLI
 
-Create a tag such as `v0.0.5` on the commit to release, or publish a release with that tag in the GitHub UI. The tagged commit must contain the release workflow and build scripts. The workflow runs for tag pushes and published releases, including releases first saved as drafts. It checks out the tag, uses the pinned Go toolchain, and embeds the tag's version without the leading `v`.
+Push a tag such as `v0.0.5` on the commit to release, or create a new tag when publishing a release in the GitHub UI. The tagged commit must contain the release workflow and build scripts. The workflow runs only on tag pushes; publishing or editing a release for an existing tag does not trigger another run. It checks out the tag, uses the pinned Go toolchain, and embeds the tag's version without the leading `v`.
 
 The workflow uploads four `boxen_<version>_<os>_<arch>.tar.gz` archives for `linux` and `darwin`, each on `amd64` and `arm64`, plus `boxen_<version>_checksums.txt`. Archives contain the `boxen` executable, license, and README. If a pushed tag has no release, the workflow creates one; tags containing `-` are created as prereleases. Existing releases retain their notes and prerelease status, and reruns replace their assets.
 
