@@ -10,6 +10,26 @@ boxen is a cli tool written in Go that allows you to package your network operat
 into little... boxes (container images) so they are easily portable, and, most importantly, so you
 can use them with the wonderful [containerlab](https://github.com/srl-labs/containerlab).
 
+## Installation
+
+Download the CLI for Linux or macOS, on AMD64 or ARM64, from [GitHub releases](https://github.com/carlmontanari/boxen/releases).
+The installer detects your OS and architecture and verifies the downloaded archive's SHA-256 checksum:
+
+```sh
+curl --fail --silent --show-error --location \
+  https://raw.githubusercontent.com/carlmontanari/boxen/main/install.sh | sh -
+```
+
+The [installation guide](https://boxen.containerlab.dev/installation/#download-the-cli)
+also includes a **Review and paste** tab with the full script for inspection before running it.
+
+## Documentation
+
+The [documentation site](https://boxen.containerlab.dev/) covers installation, profiles,
+packaging, running labs, and image management. Preview it locally with `make docs-serve` and
+build it with `make docs-build`; uv manages the pinned documentation environment. See
+[documentation and publishing](docs/documentation.md) for Cloudflare setup and `make docs-publish`.
+
 ## Development
 
 Install Go at the exact version in `.github/vars.env`, then run `make tools` to install the pinned

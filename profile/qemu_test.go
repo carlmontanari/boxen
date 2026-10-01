@@ -6,7 +6,37 @@ import (
 	"testing"
 
 	boxenconstants "github.com/carlmontanari/boxen/constants"
+	"go.yaml.in/yaml/v4"
 )
+
+func TestQemuDiskInterface(t *testing.T) {
+	for _, test := range []struct {
+		name, setting, expected string
+	}{
+		{name: "default", expected: "ide"},
+		{name: "ide", setting: "  diskInterface: ide\n", expected: "ide"},
+		{name: "virtio", setting: "  diskInterface: virtio\n", expected: "virtio"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			p := &Profile{}
+			data := "virtualMachine:\n  nicType: virtio-net-pci\n  nicPerBus: 26\n" + test.setting
+			if err := yaml.Unmarshal([]byte(data), p); err != nil {
+				t.Fatal(err)
+			}
+			for _, packaging := range []bool{true, false} {
+				args, err := QemuArgsFromProfile(p, packaging)
+				if err != nil {
+					t.Fatal(err)
+				}
+				idx := slices.Index(args, "-drive")
+				expected := "if=" + test.expected + ",file=disk.qcow2,format=qcow2"
+				if idx < 0 || idx+1 >= len(args) || args[idx+1] != expected {
+					t.Fatalf("packaging=%v: expected -drive %q, got %v", packaging, expected, args)
+				}
+			}
+		})
+	}
+}
 
 func TestQemuMgmtNICLegacyNat(t *testing.T) {
 	t.Setenv(boxenconstants.EnvClabMgmtPassthrough, "")
@@ -125,9 +155,10 @@ func TestQemuArgsOverridesAndExtras(t *testing.T) {
 	p := &Profile{
 		Name: "test",
 		VirtualMachine: &VirtualMachine{
-			NicType:   "virtio-net-pci",
-			NicCount:  1,
-			NicPerBus: 26,
+			DiskInterface: "virtio",
+			NicType:       "virtio-net-pci",
+			NicCount:      1,
+			NicPerBus:     26,
 			Overrides: map[string][]QemuConfigField{
 				disk: {
 					{
@@ -171,8 +202,8 @@ func TestQemuArgsOverridesAndExtras(t *testing.T) {
 		t.Fatalf("expected disk override content in run args, got %v", runArgs)
 	}
 
-	if slices.Contains(runArgs, "if=ide,file=disk.qcow2,format=qcow2") {
-		t.Fatalf("default disk args should be replaced by the override, got %v", runArgs)
+	if slices.Contains(runArgs, "if=virtio,file=disk.qcow2,format=qcow2") {
+		t.Fatalf("generated disk args should be replaced by the override, got %v", runArgs)
 	}
 
 	// an onRun extra is appended in run mode

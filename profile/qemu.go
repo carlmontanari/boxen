@@ -1,6 +1,7 @@
 package profile
 
 import (
+	"cmp"
 	"context"
 	"crypto/rand"
 	"encoding/json"
@@ -209,8 +210,11 @@ func qemuMachine(p *Profile) []string {
 	return []string{}
 }
 
-func qemuDisk(_ *Profile) []string {
-	return []string{"-drive", "if=ide,file=disk.qcow2,format=qcow2"}
+func qemuDisk(p *Profile) []string {
+	return []string{
+		"-drive",
+		"if=" + cmp.Or(p.VirtualMachine.DiskInterface, "ide") + ",file=disk.qcow2,format=qcow2",
+	}
 }
 
 func qemuSerial(p *Profile) []string {

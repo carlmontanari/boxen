@@ -8,3 +8,9 @@ LICENSE
 Makefile
 README.md
 out
+
+# Generated documentation and its local tooling are not build inputs.
+.venv/
+.cache/
+site/
+.wrangler/

@@ -1,0 +1,267 @@
+---
+name: juniper_vjunos-router
+diskPatterns:
+  - '(?i)vjunos-router-.*\.qcow2$'
+versionPattern: '(?i)\d+\.\d+R\d+(?:-S\d+)?\.\d+'
+scrapliDefinitionNameOrFile: juniper_junos
+scrapliReturnChar: "\r"
+virtualMachine:
+  cpuEmulation: host
+  memory: 5120
+  cpuCores: 4
+  serialPortCount: 1
+  diskInterface: virtio
+  nicType: virtio-net-pci
+  nicCount: 96
+  nicPerBus: 26
+  managementPassthrough: true
+  extras:
+    - onPackage: true
+      onRun: true
+      val:
+        - content: -smbios
+        - content: type=1,product=VM-VMX,family=lab
+        - content: -no-user-config
+        - content: -nodefaults
+        - content: -boot
+        - content: strict=on
+prePackagingCommands:
+  # The outer Linux VM accepts Intel VMX but overlooks AMD SVM.
+  - |
+    set -e
+    cache="$(mktemp -d)"
+    trap 'rm -rf "$cache"' EXIT
+    LIBGUESTFS_CACHEDIR="$cache" guestfish --rw -a disk.qcow2 -m /dev/sda2 sh \
+      "sed -i 's/grep -ci vmx)/grep -Eci \"vmx|svm\")/' /home/pfe/junos/start-junos.sh &&
+       grep -qF 'grep -Eci \"vmx|svm\"' /home/pfe/junos/start-junos.sh"
+packaging:
+  process:
+    # The outer Linux VM briefly exposes its own login prompt before Junos.
+    - &junosBoot
+      type: readUntil
+      readUntil:
+        timeout: 20m
+        until:
+          contains: FreeBSD/amd64
+    - &login
+      type: prompts
+      prompts:
+        timeout: 20m
+        initialInput: "\r"
+        prompts:
+          - prompt:
+              containsPattern: '(?m)^login: ?$'
+            response: root
+            # The nested console can discard input while getty is starting.
+            # Send the return immediately and retry at the next login prompt.
+            hidden: true
+          - prompt:
+              contains: 'Password:'
+            response: 'admin@123'
+            hidden: true
+          - prompt:
+              containsPattern: '(?m)^root@[^\r\n]*[%#] ?$'
+            response: ""
+            hidden: true
+            once: true
+            completes: true
+    # Auto Image Upgrade initially restarts the CLI on an unconfigured disk.
+    # Its DHCP messages appear on the console after logging in to the shell.
+    - type: readUntil
+      readUntil:
+        timeout: 5m
+        until:
+          contains: 'Auto Image Upgrade: DHCP OFFER Client'
+    - &openCli
+      type: write
+      write:
+        content: cli
+    - &cliPrompt
+      type: readUntil
+      readUntil:
+        timeout: 3m
+        until:
+          containsPattern: '(?m)^root(?:@[^\r\n]*)?>[ \t\r]*$'
+    # Factory DHCP status can interrupt echoes; verify prompts and the commit instead.
+    - type: write
+      write:
+        hidden: true
+        content: |
+          set cli screen-length 0
+          set cli screen-width 1024
+          configure
+    - &configPrompt
+      type: readUntil
+      readUntil:
+        timeout: 3m
+        until:
+          containsPattern: '(?m)^root(?:@[^\r\n]*)?#[ \t\r]*$'
+    - type: write
+      write:
+        hidden: true
+        content: |
+          delete chassis auto-image-upgrade
+          set system root-authentication plain-text-password
+    - &newPassword
+      type: readUntil
+      readUntil:
+        timeout: 1m
+        until:
+          contains: 'New password:'
+    - type: write
+      write:
+        content: 'admin@123'
+        hidden: true
+    - &retypePassword
+      type: readUntil
+      readUntil:
+        timeout: 1m
+        until:
+          contains: 'Retype new password:'
+    - type: write
+      write:
+        content: 'admin@123'
+        hidden: true
+    - *configPrompt
+    - type: write
+      write:
+        hidden: true
+        content: |
+          set system host-name boxen-vjunos
+          set system services ssh root-login allow
+          set system services netconf ssh
+          set system management-instance
+          set chassis fpc 0 pic 0 number-of-ports 96
+          delete interfaces fxp0 unit 0
+          set interfaces fxp0 unit 0 family inet address 10.0.0.15/24
+          set routing-instances mgmt_junos routing-options static route 0.0.0.0/0 next-hop 10.0.0.2
+          commit
+    - &commitComplete
+      type: readUntil
+      readUntil:
+        timeout: 5m
+        until:
+          contains: commit complete
+    - type: write
+      write:
+        content: exit
+    - *cliPrompt
+    - type: write
+      write:
+        content: show configuration system host-name
+    - type: readUntil
+      readUntil:
+        timeout: 3m
+        until:
+          contains: 'host-name boxen-vjunos;'
+    - type: write
+      write:
+        content: request system halt
+    - type: prompts
+      prompts:
+        timeout: 5m
+        prompts:
+          - prompt:
+              contains: 'Halt the system'
+            response: 'yes'
+            once: true
+            completes: true
+    - type: readUntil
+      readUntil:
+        timeout: 5m
+        until:
+          contains: 'The operating system has halted.'
+    - type: wait
+      wait:
+        duration: 10s
+run:
+  process:
+    - *junosBoot
+    - *login
+    - *openCli
+    - *cliPrompt
+    - type: write
+      write:
+        content: |
+          set cli screen-length 0
+          set cli screen-width 1024
+          configure
+    - *configPrompt
+    - type: write
+      write:
+        content: |
+          set system host-name {{ .hostname }}
+          set system login user {{ .username }} class super-user
+          set system login user {{ .username }} authentication plain-text-password
+    - *newPassword
+    - type: write
+      write:
+        content: '{{ .password }}'
+        hidden: true
+    - *retypePassword
+    - type: write
+      write:
+        content: '{{ .password }}'
+        hidden: true
+    - *configPrompt
+    - type: write
+      write:
+        content: |
+          delete interfaces fxp0 unit 0
+          delete routing-instances mgmt_junos routing-options
+          {{ if .mgmtDHCP }}
+          set interfaces fxp0 unit 0 family inet dhcp
+          {{ else }}
+          {{ if .mgmtIPv4 }}
+          set interfaces fxp0 unit 0 family inet address {{ .mgmtIPv4 }}
+          {{ end }}
+          {{ if .mgmtIPv4Gateway }}
+          set routing-instances mgmt_junos routing-options static route 0.0.0.0/0 next-hop {{ .mgmtIPv4Gateway }}
+          {{ end }}
+          {{ if .mgmtIPv6 }}
+          set interfaces fxp0 unit 0 family inet6 address {{ .mgmtIPv6 }}
+          {{ end }}
+          {{ if .mgmtIPv6Gateway }}
+          set routing-instances mgmt_junos routing-options rib mgmt_junos.inet6.0 static route ::/0 next-hop {{ .mgmtIPv6Gateway }}
+          {{ end }}
+          {{ end }}
+          commit
+    - *commitComplete
+    - type: write
+      write:
+        content: exit
+    - *cliPrompt
+  configProcess:
+    # Startup configs use Junos hierarchical syntax, as in vrnetlab.
+    - type: write
+      write:
+        content: configure
+    - *configPrompt
+    - type: write
+      write:
+        content: load merge terminal
+    - type: readUntil
+      readUntil:
+        timeout: 1m
+        until:
+          contains: '[Type ^D at a new line to end input]'
+    - type: write
+      write:
+        contentFromStartupConfig: true
+    - type: write
+      write:
+        content: "\x04"
+        hidden: true
+    - type: readUntil
+      readUntil:
+        timeout: 3m
+        until:
+          contains: load complete
+    - type: write
+      write:
+        content: commit
+    - *commitComplete
+    - type: write
+      write:
+        content: exit
+    - *cliPrompt
