@@ -24,6 +24,8 @@ type VirtualMachine struct {
 
 	Display string `yaml:"display"`
 
+	DiskInterface string `yaml:"diskInterface"`
+
 	NicType   string `yaml:"nicType"`
 	NicCount  uint16 `yaml:"nicCount"`
 	NicPerBus uint8  `yaml:"nicPerBus"`

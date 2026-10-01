@@ -10,17 +10,11 @@ virtualMachine:
   memory: 5120
   cpuCores: 4
   serialPortCount: 1
+  diskInterface: virtio
   nicType: virtio-net-pci
   nicCount: 96
   nicPerBus: 26
   managementPassthrough: true
-  overrides:
-    disk:
-      - onPackage: true
-        onRun: true
-        val:
-          - content: -drive
-          - content: if=virtio,file=disk.qcow2,format=qcow2
   extras:
     - onPackage: true
       val:

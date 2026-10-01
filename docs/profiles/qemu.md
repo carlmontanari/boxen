@@ -13,13 +13,14 @@
 | `machine` | Optional QEMU machine type |
 | `serialPortCount` | Serial telnet listeners starting at TCP 5001 |
 | `display` | QEMU display selection; defaults to `none` |
+| `diskInterface` | QEMU drive interface in packaging and runtime; defaults to `ide` |
 | `nicType` | QEMU NIC model for management and data devices |
 | `nicCount` | Number of data NICs, in addition to management |
 | `nicPerBus` | Data NIC bus sizing; must be nonzero |
 | `managementPassthrough` | Default runtime management mode |
 | `natPorts` | Legacy management service forwards |
 
-The default disk uses an IDE drive. Platforms requiring virtio or AHCI should override the `disk` section. QEMU's monitor listens on TCP 4001. The automation console uses the first serial listener on TCP 5001, so normal profiles need at least one serial port.
+Set `diskInterface: virtio` for a VirtIO disk, as in the vJunos-router profile. The disk defaults to IDE when the field is omitted or empty. Custom controller arrangements, such as AHCI, can still override the `disk` section. QEMU's monitor listens on TCP 4001. The automation console uses the first serial listener on TCP 5001, so normal profiles need at least one serial port.
 
 The generator enables `-accel kvm` whenever `/dev/kvm` exists. Without it, QEMU uses its normal software path, which can be very slow or incompatible with a profile requesting `cpuEmulation: host`. Set a suitable CPU model and acceleration override for a platform that supports software emulation; nested virtualization guests require KVM.
 
@@ -50,7 +51,9 @@ virtualMachine:
         onRun: true
         val:
           - content: -drive
-          - content: if=virtio,file=disk.qcow2,format=qcow2
+          - content: if=none,file=disk.qcow2,format=qcow2,id=drive0
+          - content: -device
+          - content: virtio-blk-pci,drive=drive0,bootindex=1
 ```
 
 Each `content` becomes one argument. Include `onPackage` and/or `onRun` explicitly; omitted flags are false. The existence of an override suppresses normal generation even in a phase where none of its fields apply. Supply both phase variants if both need that section.
