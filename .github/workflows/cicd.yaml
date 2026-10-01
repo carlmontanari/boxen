@@ -22,6 +22,13 @@ jobs:
   test:
     uses: ./.github/workflows/test.yaml
 
+  docs:
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/docs.yaml
+    secrets:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
   build:
     runs-on: ubuntu-24.04
     strategy:
@@ -64,9 +71,11 @@ jobs:
           PLATFORM: ${{ matrix.os }}/${{ matrix.arch }}
         run: echo "[$PLATFORM CLI download]($ARTIFACT_URL)" >> "$GITHUB_STEP_SUMMARY"
 
-  comment-binaries:
-    needs: build
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+  comment-builds:
+    needs: [build, docs]
+    if: >-
+      always() && !cancelled() && github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -82,10 +91,15 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - name: Check binary comment logic
+      - name: Check build comment logic
         run: node --test .github/scripts/pr-comment.test.cjs
-      - name: Update binary download comment
+      - name: Update build and preview comment
         uses: actions/github-script@v9
+        env:
+          DOCS_STATUS: ${{ needs.docs.result }}
+          DOCS_PREVIEW_URL: ${{ needs.docs.outputs.preview_url }}
+          DOCS_ALIAS_URL: ${{ needs.docs.outputs.alias_url }}
+          BINARY_STATUS: ${{ needs.build.result }}
         with:
           script: |
-            await require('./.github/scripts/pr-comment.cjs')({ github, context, core, kind: 'binaries' });
+            await require('./.github/scripts/pr-comment.cjs')({ github, context, core });

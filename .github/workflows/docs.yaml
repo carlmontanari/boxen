@@ -16,20 +16,19 @@ on:
       - '.github/workflows/docs.yaml'
       - '.github/scripts/**'
       - 'wrangler.toml'
-  pull_request:
-    paths:
-      - 'docs/**'
-      - 'install.sh'
-      - 'overrides/**'
-      - 'zensical.toml'
-      - 'pyproject.toml'
-      - 'uv.lock'
-      - '.python-version'
-      - 'Makefile'
-      - '.github/vars.env'
-      - '.github/workflows/docs.yaml'
-      - '.github/scripts/**'
-      - 'wrangler.toml'
+  workflow_call:
+    secrets:
+      CLOUDFLARE_API_TOKEN:
+        required: false
+      CLOUDFLARE_ACCOUNT_ID:
+        required: false
+    outputs:
+      preview_url:
+        description: Immutable documentation preview URL
+        value: ${{ jobs.deploy.outputs.preview_url }}
+      alias_url:
+        description: Latest pull-request documentation preview URL
+        value: ${{ jobs.deploy.outputs.alias_url }}
   workflow_dispatch:
 
 permissions:
@@ -69,9 +68,9 @@ jobs:
       (github.event_name != 'pull_request' && github.ref == 'refs/heads/main')
     needs: build
     runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-      pull-requests: write
+    outputs:
+      preview_url: ${{ steps.urls.outputs.preview_url }}
+      alias_url: ${{ steps.urls.outputs.alias_url }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -105,14 +104,17 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: ${{ env.WRANGLER_VERSION }}
           command: versions upload --preview-alias pr-${{ github.event.pull_request.number }}
-      - name: Update preview comment
+      - name: Read preview URLs
         if: github.event_name == 'pull_request'
+        id: urls
         uses: actions/github-script@v9
         env:
           WRANGLER_OUTPUT: ${{ steps.preview.outputs.command-output }}
         with:
           script: |
-            await require('./.github/scripts/pr-comment.cjs')({ github, context, core, kind: 'docs' });
+            const { previewUrl, aliasUrl } = require('./.github/scripts/pr-comment.cjs').parsePreviewOutput(process.env.WRANGLER_OUTPUT);
+            core.setOutput('preview_url', previewUrl);
+            core.setOutput('alias_url', aliasUrl);
       - name: Production summary
         if: github.event_name != 'pull_request'
         run: echo 'Documentation deployed to https://boxen.containerlab.dev/' >> "$GITHUB_STEP_SUMMARY"
