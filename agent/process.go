@@ -37,7 +37,13 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 		return err
 	}
 
-	a.l.Info("handling prompts", "prompts", step.Prompts.Prompts, "timeout", step.Prompts.Timeout)
+	a.l.Info(
+		"handling prompts",
+		"count",
+		len(step.Prompts.Prompts),
+		"timeout",
+		step.Prompts.Timeout,
+	)
 
 	cbs := make([]*scrapligocli.ReadCallback, len(step.Prompts.Prompts))
 
@@ -198,13 +204,9 @@ func (a *Agent) processStepReadUntil(ctx context.Context, step *boxenprofile.Ste
 
 			content := b.GetOrderedContent()
 
-			a.l.Debug(
-				"reading until",
-				"until",
-				step.ReadUntil.Until,
-				"content",
-				string(content),
-			)
+			if len(r) > 0 {
+				a.l.Debug("console output", "content", string(r))
+			}
 
 			check, err := step.ReadUntil.Until.Check(content)
 			if err != nil {

@@ -97,5 +97,5 @@ func anyToString(v any) string {
 		return ""
 	}
 
-	return fmt.Sprintf("%v", v)
+	return fmt.Sprintf("%+v", v)
 }

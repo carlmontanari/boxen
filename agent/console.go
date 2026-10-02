@@ -40,7 +40,7 @@ func (a *Agent) openConsoleConn(ctx context.Context, logFilename string) error {
 					scrapligologging.LogLevel(
 						boxenutil.GetEnvStrOrDefault(
 							boxenconstants.EnvScrapliLogLevel,
-							string(scrapligologging.Debug),
+							string(scrapligologging.Warn),
 						),
 					),
 				),
@@ -148,7 +148,9 @@ func (a *Agent) readUntil(ctx context.Context, s string) error {
 
 		contents := bytes.ReplaceAll(buf.Bytes(), []byte{0}, nil)
 
-		a.l.Debug("checking contents", "until", s, "contents", string(contents))
+		if len(b) > 0 {
+			a.l.Debug("console output", "content", string(b))
+		}
 
 		if bytes.Contains(contents, []byte(s)) {
 			return nil

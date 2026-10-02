@@ -2,9 +2,9 @@ package boxen
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"log/slog"
+	"slices"
 
 	boxenlogging "github.com/carlmontanari/boxen/logging"
 	boxenprotov1 "github.com/carlmontanari/boxen/proto/v1"
@@ -28,22 +28,21 @@ func (b *Boxen) Logger(
 		msg := req.GetMessage()
 		fields := req.GetFields()
 
-		args := make([]any, 0, len(fields)*2) //nolint: mnd
+		args := []any{"component", "builder"}
+		keys := make([]string, 0, len(fields))
+		for k := range fields {
+			keys = append(keys, k)
+		}
+		slices.Sort(keys)
 
-		for k, v := range fields {
-			args = append(args, k, v)
+		for _, k := range keys {
+			args = append(args, k, fields[k])
 		}
 
-		switch boxenlogging.LevelFromString(req.GetLevel()) {
-		case slog.LevelDebug:
-			b.l.Debug(fmt.Sprintf("builder message: %s", msg), args...)
-		case slog.LevelInfo:
-			b.l.Info(fmt.Sprintf("builder message: %s", msg), args...)
-		case slog.LevelWarn:
-			b.l.Warn(fmt.Sprintf("builder message: %s", msg), args...)
-		case slog.LevelError:
-			b.l.Error(fmt.Sprintf("builder message: %s", msg), args...)
+		level := boxenlogging.LevelFromString(req.GetLevel())
+		b.l.Log(stream.Context(), level, msg, args...)
 
+		if level == slog.LevelError {
 			b.agentExited <- struct{}{}
 		}
 	}

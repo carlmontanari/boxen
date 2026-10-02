@@ -59,11 +59,13 @@ func QemuArgsFromProfile(
 		acceleration: qemuAccel,
 		machine:      qemuMachine,
 		disk:         qemuDisk,
-		serial:       qemuSerial,
-		monitor:      qemuMonitor,
-		display:      qemuDisplay,
-		pci:          qemuPCI,
-		dataNICs:     qemuDataNICs,
+		serial: func(p *Profile) []string {
+			return qemuSerial(p, isPackaging)
+		},
+		monitor:  qemuMonitor,
+		display:  qemuDisplay,
+		pci:      qemuPCI,
+		dataNICs: qemuDataNICs,
 	}
 
 	// access via map but always iterate via slice because *must* be in correct order!
@@ -217,16 +219,31 @@ func qemuDisk(p *Profile) []string {
 	}
 }
 
-func qemuSerial(p *Profile) []string {
+func qemuSerial(p *Profile, isPackaging bool) []string {
 	var serialCmd []string //nolint: prealloc
+	bootLog := boxenconstants.RunBootLogFilename
+	if isPackaging {
+		bootLog = boxenconstants.PackageBootLogFilename
+	}
 
 	for idx := range p.VirtualMachine.SerialPortCount {
+		logFilename := bootLog
+		if idx > 0 {
+			logFilename = fmt.Sprintf("%s.%d", bootLog, idx+1)
+		}
+
 		serialCmd = append(
 			serialCmd,
-			"-serial",
+			"-chardev",
 			fmt.Sprintf(
-				"telnet:0.0.0.0:%d,server,nowait",
-				serialPortBaseIdx+int(idx)),
+				"socket,id=serial%d,host=0.0.0.0,port=%d,server=on,wait=off,telnet=on,"+
+					"logfile=%s,logappend=off",
+				idx,
+				serialPortBaseIdx+int(idx),
+				logFilename,
+			),
+			"-serial",
+			fmt.Sprintf("chardev:serial%d", idx),
 		)
 	}
 

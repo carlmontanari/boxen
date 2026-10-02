@@ -29,7 +29,8 @@ func (a *Agent) startInstance(ctx context.Context, isPackaging bool) (*os.Proces
 		return nil, err
 	}
 
-	a.l.Info("starting vm", "command", qemuBinary, "args", launchArgs)
+	a.l.Info("starting vm")
+	a.l.Debug("vm launch command", "command", qemuBinary, "args", strings.Join(launchArgs, "\n"))
 
 	var stderrBuf bytes.Buffer
 
