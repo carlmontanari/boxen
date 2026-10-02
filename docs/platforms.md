@@ -8,6 +8,7 @@ The current checkout includes the profiles below. They describe hardware and boo
 | Cisco CSR 1000v | `cisco_csr1000v` | 4096 | 9 | `iosxe_config.txt` |
 | Cisco Nexus 9000v | `cisco_n9kv` | 10240 | 8 | `OVMF.fd` |
 | Cisco XRv 9000 | `cisco_xrv9k` | 16384 | 16 | None listed |
+| Community SONiC | `community_sonic` | 4096 | 16 | None listed |
 | NVIDIA Cumulus VX | `nvidia_cumulusvx` | 4096 | 16 | None listed |
 | Juniper vJunos-router | `juniper_vjunos-router` | 5120 | 96 | None listed |
 
@@ -18,6 +19,7 @@ All profiles in this checkout set `managementPassthrough: true`. Packaging still
 - [Arista vEOS](arista/ceos/README.md): Aboot media and PCI placement. The existing directory name `ceos` is historical; this is a VM-based vEOS profile.
 - [Cisco CSR 1000v](cisco/csr1000v/README.md): Bootstrap ISO generated from `iosxe_config.txt`.
 - [Cisco Nexus 9000v](cisco/n9kv/README.md): UEFI firmware and AHCI disk setup.
+- Community SONiC: Console provisioning starts with the packaged `admin/admin` credentials. Static management requires a gateway for each configured address family. Restarting a provisioned container is unsupported; remove it and create a fresh node from the image.
 - [Juniper vJunos-router](juniper/vjunos-router/README.md): Nested virtualization, console bootstrap, hierarchical startup configuration, and a longer readiness allowance.
 
 ## Cisco XRv 9000
