@@ -1,7 +1,14 @@
 package profile
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	boxenconstants "github.com/carlmontanari/boxen/constants"
@@ -10,6 +17,53 @@ import (
 const mgmtTemplate = `{{ .mgmtIPv4 }} {{ .mgmtIPv4Address }} {{ .mgmtIPv4PrefixLen }} ` +
 	`{{ .mgmtIPv4Network }} {{ .mgmtIPv4Gateway }} {{ .mgmtIPv6 }} {{ .mgmtIPv6Address }} ` +
 	`{{ .mgmtIPv6PrefixLen }} {{ .mgmtIPv6Network }} {{ .mgmtIPv6Gateway }}`
+
+func TestRenderTemplateShellQuote(t *testing.T) {
+	password := `a'b "c" $(printf injected); ` + "`printf injected`"
+	f := NewFormatters("admin", password, "leaf1", "", &Profile{}, true)
+	command, err := f.RenderTemplate(`printf '%s' {{ shellQuote .password }}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	//nolint:gosec // Exercises shell quoting with fixed test values.
+	output, err := exec.CommandContext(t.Context(), "sh", "-c", command).Output()
+	if err != nil || string(output) != password {
+		t.Fatalf("shell quoting changed the argument: output=%q, err=%v", output, err)
+	}
+	for _, control := range []string{"\n", "\r", "\x00", "\x1b", "\t"} {
+		f.password = "before" + control + "after"
+		if _, err := f.RenderTemplate(`{{ shellQuote .password }}`); err == nil {
+			t.Fatalf("shellQuote accepted console control %q", control)
+		}
+	}
+}
+
+func TestRenderTemplateFileBase64(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "startup.json")
+	content := []byte(
+		`{"literal": "{{ .notATemplate }}", "data": "` + strings.Repeat("x", 8192) + `"}`,
+	)
+	if err := os.WriteFile(path, content, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	f := NewFormatters("", "", "", "", &Profile{}, true)
+	encoded, err := f.RenderTemplate(fmt.Sprintf(`{{ fileBase64 %q }}`, path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for line := range strings.SplitSeq(encoded, "\n") {
+		if len(line) > 76 {
+			t.Fatalf("encoded console line is too long: %d", len(line))
+		}
+	}
+	decoded, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil || !bytes.Equal(decoded, content) {
+		t.Fatalf("encoded startup file changed: err=%v", err)
+	}
+	if _, err := fileBase64(path + ".missing"); err == nil {
+		t.Fatal("expected missing startup file to fail")
+	}
+}
 
 func TestManagementFormattersDefault(t *testing.T) {
 	t.Setenv(boxenconstants.EnvClabMgmtPassthrough, "")

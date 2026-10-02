@@ -3,16 +3,20 @@ package profile
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/netip"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"text/template"
+	"unicode"
 
 	boxenconstants "github.com/carlmontanari/boxen/constants"
+	boxenerrors "github.com/carlmontanari/boxen/errors"
 	boxenutil "github.com/carlmontanari/boxen/util"
 )
 
@@ -140,7 +144,10 @@ func (f *Formatters) RenderTemplate(content string) (string, error) {
 		return content, nil
 	}
 
-	t, err := template.New("content").Option("missingkey=error").Parse(content)
+	t, err := template.New("content").Funcs(template.FuncMap{
+		"shellQuote": shellQuote,
+		"fileBase64": fileBase64,
+	}).Option("missingkey=error").Parse(content)
 	if err != nil {
 		return "", err
 	}
@@ -156,6 +163,40 @@ func (f *Formatters) RenderTemplate(content string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
+	return b.String(), nil
+}
+
+// shellQuote protects one POSIX shell argument sent through a line-oriented console.
+func shellQuote(s string) (string, error) {
+	if strings.IndexFunc(s, unicode.IsControl) >= 0 {
+		return "", fmt.Errorf(
+			"%w: shellQuote cannot send control characters through the console",
+			boxenerrors.ErrBoxen,
+		)
+	}
+
+	return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'", nil
+}
+
+// fileBase64 keeps raw files out of template parsing and below console line limits.
+func fileBase64(path string) (string, error) {
+	//nolint:gosec // Profile paths are trusted, like contentFromFile.
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+
+	const lineWidth = 76
+
+	encoded := base64.StdEncoding.EncodeToString(data)
+	var b strings.Builder
+	for len(encoded) > lineWidth {
+		b.WriteString(encoded[:lineWidth])
+		b.WriteByte('\n')
+		encoded = encoded[lineWidth:]
+	}
+	b.WriteString(encoded)
 
 	return b.String(), nil
 }
