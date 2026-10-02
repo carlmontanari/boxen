@@ -32,6 +32,16 @@ sudo containerlab inspect --topo router-lab.clab.yml
 docker logs -f clab-router-lab-r1
 ```
 
+Docker logs show Boxen's provisioning steps and matching diagnostics. To follow the guest's
+serial output on its own, including the early boot sequence:
+
+```sh
+docker exec clab-router-lab-r1 tail -f /boxen/boot.log
+```
+
+This file starts fresh with each QEMU launch and continues recording after provisioning closes
+the automation console. `/boxen/package.boot.log` retains the sequence from image packaging.
+
 ## Runtime order
 
 1. Read `/boxen/profile.yaml` and construct the template values from the runtime flags.

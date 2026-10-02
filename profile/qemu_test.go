@@ -9,6 +9,34 @@ import (
 	"go.yaml.in/yaml/v4"
 )
 
+func TestQemuSerialBootLogs(t *testing.T) {
+	p := testQemuProfile(false)
+	p.VirtualMachine.SerialPortCount = 2
+	for _, test := range []struct {
+		packaging bool
+		filename  string
+	}{
+		{packaging: true, filename: boxenconstants.PackageBootLogFilename},
+		{packaging: false, filename: boxenconstants.RunBootLogFilename},
+	} {
+		args, err := QemuArgsFromProfile(p, test.packaging)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, want := range []string{
+			"socket,id=serial0,host=0.0.0.0,port=5001,server=on,wait=off,telnet=on," +
+				"logfile=" + test.filename + ",logappend=off",
+			"socket,id=serial1,host=0.0.0.0,port=5002,server=on,wait=off,telnet=on," +
+				"logfile=" + test.filename + ".2,logappend=off",
+			"chardev:serial0", "chardev:serial1",
+		} {
+			if !slices.Contains(args, want) {
+				t.Fatalf("packaging=%v: missing %q in %v", test.packaging, want, args)
+			}
+		}
+	}
+}
+
 func TestQemuDiskInterface(t *testing.T) {
 	for _, test := range []struct {
 		name, setting, expected string

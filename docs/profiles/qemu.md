@@ -26,6 +26,12 @@ The generator enables `-accel kvm` whenever `/dev/kvm` exists. Without it, QEMU 
 
 The YAML field `emulation` exists in the Go type but does not select the QEMU executable. Some older profiles contain `emulate`; that spelling is not a CPU setting. Use `cpuEmulation`, an override, or `QEMU_CPU` for the CPU model.
 
+The generated serial backends tee guest output into `package.boot.log` during packaging and
+`boot.log` during runtime, under `/boxen`. Each additional serial port gets its own numeric suffix
+such as `boot.log.2`. Recording runs for the lifetime of QEMU and each launch replaces that phase's
+recording. If you override or mutate the `serial` section, preserve the chardev `logfile` and
+`logappend=off` options to keep this behavior.
+
 ## Generated sections and precedence
 
 Sections are emitted in this order:

@@ -19,6 +19,27 @@ docker cp boxen-<profile-name>-builder:/boxen/package.console.log ./package.cons
 docker cp clab-<lab>-<node>:/boxen/run.console.log ./run.console.log
 ```
 
+For guest output without Boxen's step messages or matching markers, follow the boot log:
+
+```sh
+docker exec boxen-<profile-name>-builder tail -f /boxen/package.boot.log
+docker exec clab-<lab>-<node> tail -f /boxen/boot.log
+```
+
+These files record the guest's serial output from QEMU startup, even before automation connects
+and after it closes the console. They preserve the bytes sent by the guest, including its terminal
+formatting, and contain no Boxen timestamps or matching diagnostics. Each QEMU launch truncates
+the corresponding file. Additional serial ports use separate files such as `boot.log.2`.
+The existing `*.console.log` files cover only the automation session.
+
+Boxen uses Charm Log for its console messages. Multiline fields appear as indented quote blocks;
+terminal escape sequences, NUL padding, and other control characters are cleaned for display.
+Prompt matching and boot recordings still receive the original data. Color is detected from the
+output terminal, so ordinary Docker logs and redirected output are plain text. Set `NO_COLOR=1`
+to disable terminal colors. Matching markers remain in the Boxen logs; use `--logLevel info`
+or `BOXEN_LOGGING_LEVEL=info` for less detail. Low-level console library diagnostics default to
+`warn`; set `BOXEN_SCRAPLI_LOG_LEVEL=debug` inside the container when investigating the transport.
+
 Console recordings and debug logs can contain configuration or credentials. The `hidden` profile option controls echo handling and does not guarantee log redaction.
 
 ## No profile was resolved

@@ -80,7 +80,13 @@ The failed builder can remain for inspection. Capture its logs and console trans
 
 ```sh
 docker logs boxen-<profile-name>-builder
+docker cp boxen-<profile-name>-builder:/boxen/package.boot.log ./package.boot.log
 docker cp boxen-<profile-name>-builder:/boxen/package.console.log ./package.console.log
 ```
+
+During packaging, `docker exec boxen-<profile-name>-builder tail -f /boxen/package.boot.log`
+shows only the guest's serial output. Recording starts when QEMU launches, including with
+`--vm-console`. The successful image retains `package.boot.log`, so you can also copy it from
+a container started from that image after the builder has been removed.
 
 See [troubleshooting](troubleshooting.md) for RPC connectivity, prompt matching, and disk utility failures. After a successful build, follow [running a lab](running.md) or [image management](images.md).

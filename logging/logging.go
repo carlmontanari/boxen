@@ -22,22 +22,11 @@ func LevelFromString(s string) slog.Level {
 	}
 }
 
-// NewLogger return a slog logger with the given name/leve/dev mode setting.
+// NewLogger returns a logger with readable, terminal-aware console output.
 func NewLogger(level slog.Level) *slog.Logger {
-	var h slog.Handler
-
 	opts := &slog.HandlerOptions{
 		Level: level,
 	}
 
-	if level == slog.LevelDebug {
-		opts.AddSource = true
-	}
-
-	h = NewHandler(
-		os.Stdout,
-		opts,
-	)
-
-	return slog.New(h)
+	return slog.New(NewHandler(os.Stdout, opts))
 }

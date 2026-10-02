@@ -29,7 +29,18 @@ func (a *Agent) startInstance(ctx context.Context, isPackaging bool) (*os.Proces
 		return nil, err
 	}
 
-	a.l.Info("starting vm", "command", qemuBinary, "args", launchArgs)
+	a.l.Info("starting vm")
+
+	logArgs := make([]string, 0, len(launchArgs))
+	for _, arg := range launchArgs {
+		if len(logArgs) > 0 && !strings.HasPrefix(arg, "-") {
+			logArgs[len(logArgs)-1] += " " + arg
+		} else {
+			logArgs = append(logArgs, arg)
+		}
+	}
+
+	a.l.Debug("vm launch command", "command", qemuBinary, "args", strings.Join(logArgs, "\n"))
 
 	var stderrBuf bytes.Buffer
 

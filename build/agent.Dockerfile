@@ -1,5 +1,5 @@
 ARG VERSION=0.0.0
-ARG GO_VERSION
+ARG GO_VERSION=1.27.1
 
 FROM golang:${GO_VERSION}-trixie AS builder
 

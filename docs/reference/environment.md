@@ -15,7 +15,7 @@ Host variables affect the CLI launching the builder. Runtime variables must be s
 | `BOXEN_LISTEN_HOST` | `[::]` | Host RPC listener bind address |
 | `BOXEN_SERVER_HOST` | Supplied by host CLI | Builder agent's host RPC address |
 | `BOXEN_VM_CONSOLE` | Unset | Exact value `true` selects the builder's interactive-console preparation mode |
-| `BOXEN_SCRAPLI_LOG_LEVEL` | `debug` | Agent console library logging level |
+| `BOXEN_SCRAPLI_LOG_LEVEL` | `warn` | Agent console library logging level; set `debug` for protocol diagnostics |
 
 The host currently uses fixed TCP port 10329. `BOXEN_LISTEN_PORT` is declared but not used. `BOXEN_LISTEN_HOST` does not change the host address advertised to the builder.
 
