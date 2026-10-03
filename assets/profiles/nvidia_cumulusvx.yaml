@@ -104,7 +104,7 @@ packaging:
     - type: wait
       wait:
         duration: 5s
-  shrinkify: false
+  shrinkify: true
 
 run:
   process:
