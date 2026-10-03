@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	boxenerrors "github.com/carlmontanari/boxen/errors"
 	boxenprotov1 "github.com/carlmontanari/boxen/proto/v1"
 	"google.golang.org/grpc"
 )
@@ -18,9 +19,12 @@ func (b *Boxen) Filer(
 ) error {
 	filename := req.GetFile()
 
-	resolvedFilename := resolveFilePath(b.disk, filename)
+	b.l.Info("filer request received", "filename", filename)
 
-	b.l.Info("filer request received", "filename", resolvedFilename)
+	resolvedFilename, err := resolveFilePath(b.disk, filename)
+	if err != nil {
+		return err
+	}
 
 	f, err := os.Open(resolvedFilename) //nolint: gosec
 	if err != nil {
@@ -69,18 +73,22 @@ func (b *Boxen) Filer(
 
 // resolves the file at f -- if f exists, great, if not we check in the same directory that the
 // users root disk is (d).
-func resolveFilePath(d, f string) string {
-	_, err := os.Stat(f)
-	if err == nil {
-		return f
+func resolveFilePath(d, f string) (string, error) {
+	maybeF := filepath.Join(filepath.Dir(d), filepath.Base(f))
+	for _, filename := range []string{f, maybeF} {
+		info, err := os.Stat(filename)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return "", err
+		}
+		if info.IsDir() {
+			return "", fmt.Errorf("%w: file %q is a directory", boxenerrors.ErrBoxen, filename)
+		}
+
+		return filename, nil
 	}
 
-	maybeF := fmt.Sprintf("%s/%s", filepath.Dir(d), filepath.Base(f))
-
-	_, err = os.Stat(maybeF)
-	if err == nil {
-		return maybeF
-	}
-
-	return ""
+	return "", fmt.Errorf("%w: file %q not found (also checked %q)", os.ErrNotExist, f, maybeF)
 }

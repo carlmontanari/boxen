@@ -183,6 +183,15 @@ func (b *Boxen) prepareBuild(diskImage, profile string) error {
 		return err
 	}
 
+	for _, filename := range b.p.ExtraFiles {
+		if _, err := resolveFilePath(b.disk, filename); err != nil {
+			b.l.Error("failed resolving profile extra file", "file", filename, "error", err.Error())
+
+			return fmt.Errorf("%w: profile %q extra file %q: %w",
+				boxenerrors.ErrBoxen, b.p.Name, filename, err)
+		}
+	}
+
 	// We'll emit a warning log if we cant compile the pattern.
 	_ = b.resolveVersion()
 

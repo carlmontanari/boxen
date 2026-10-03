@@ -18,7 +18,7 @@ There are three ways to select a profile:
 | Embedded name | `--profile nvidia_cumulusvx` | Looks through profiles embedded in the binary. |
 | Automatic | Omit `--profile` | Matches `diskPatterns` against the disk basename. |
 
-The current lookup checks embedded names and disk patterns together as it walks the embedded files. A disk pattern encountered earlier can win even when a different embedded name was supplied. Use an existing profile file path when you need unambiguous selection.
+An explicit profile name or path must resolve to that profile. Unknown names and missing profile paths fail before the builder starts. Disk patterns are used only when `--profile` is omitted.
 
 For a custom profile file, relative `extraFiles` paths resolve beside the profile.
 Absolute paths are used directly. For embedded profiles, the listed paths are checked
@@ -49,7 +49,7 @@ The name is `[registry/]boxen-<profile.name>:<tag>`. With the default `latest` t
 
 ## What happens during a build
 
-1. **Resolve inputs.** The CLI checks the disk path, reads the profile, and extracts `resolvedVersion` using `versionPattern`.
+1. **Resolve inputs.** The CLI checks the disk path, reads the profile, verifies that its extra files exist and are not directories, and extracts `resolvedVersion` using `versionPattern`.
 2. **Start the builder.** The host listens on TCP 10329 and launches `boxen-<profile.name>-builder` as a privileged Docker container.
 3. **Transfer files.** The agent requests the profile, disk, and extra files. It writes `profile.yaml` for the future runtime.
 4. **Convert the disk.** `qemu-img convert -O qcow2` creates `disk.qcow2` and the transferred source copy is removed.

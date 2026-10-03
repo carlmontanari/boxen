@@ -26,29 +26,13 @@ func (b *Boxen) resolveProfile(
 		b.disk,
 	)
 
-	p := &boxenprofile.Profile{}
-
 	maybeProfileFilename := boxenutil.MustExpandPath(profileNameOrFile)
 
 	_, err := os.Stat(maybeProfileFilename)
 	if !errors.Is(err, os.ErrNotExist) {
-		contents, err := os.ReadFile(maybeProfileFilename) //nolint: gosec
+		p, err := loadProfileFile(maybeProfileFilename)
 		if err != nil {
 			return nil, err
-		}
-
-		err = yaml.Unmarshal(contents, p)
-		if err != nil {
-			return nil, err
-		}
-		profileDirectory, err := filepath.Abs(filepath.Dir(maybeProfileFilename))
-		if err != nil {
-			return nil, err
-		}
-		for i, filename := range p.ExtraFiles {
-			if !filepath.IsAbs(filename) {
-				p.ExtraFiles[i] = filepath.Join(profileDirectory, filename)
-			}
 		}
 
 		b.l.Info(
@@ -68,7 +52,7 @@ func (b *Boxen) resolveProfile(
 	}
 
 	for _, assetFile := range assetFiles {
-		p = &boxenprofile.Profile{}
+		p := &boxenprofile.Profile{}
 
 		if assetFile.IsDir() {
 			continue
@@ -95,6 +79,9 @@ func (b *Boxen) resolveProfile(
 		if maybeAssetProfileName == profileNameOrFile {
 			return p, nil
 		}
+		if profileNameOrFile != "" {
+			continue
+		}
 
 		for _, diskPattern := range p.DiskPatterns {
 			diskRe, err := regexp.Compile(diskPattern)
@@ -110,12 +97,38 @@ func (b *Boxen) resolveProfile(
 		}
 	}
 
+	if profileNameOrFile != "" {
+		return nil, fmt.Errorf("%w: unknown profile %q", boxenerrors.ErrBoxen, profileNameOrFile)
+	}
+
 	return nil, fmt.Errorf(
-		"%w: unable to resolve profile from given profile name %q or disk %q",
+		"%w: unable to resolve profile from disk %q",
 		boxenerrors.ErrBoxen,
-		profileNameOrFile,
 		b.disk,
 	)
+}
+
+func loadProfileFile(filename string) (*boxenprofile.Profile, error) {
+	contents, err := os.ReadFile(filename) //nolint: gosec
+	if err != nil {
+		return nil, err
+	}
+
+	p := &boxenprofile.Profile{}
+	if err := yaml.Unmarshal(contents, p); err != nil {
+		return nil, err
+	}
+	profileDirectory, err := filepath.Abs(filepath.Dir(filename))
+	if err != nil {
+		return nil, err
+	}
+	for i, filename := range p.ExtraFiles {
+		if !filepath.IsAbs(filename) {
+			p.ExtraFiles[i] = filepath.Join(profileDirectory, filename)
+		}
+	}
+
+	return p, nil
 }
 
 func (b *Boxen) resolveVersion() error {
