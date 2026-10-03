@@ -35,9 +35,6 @@ const (
 
 	device = "-device"
 
-	monitorPort       = 4_001
-	serialPortBaseIdx = 5_001
-
 	accelerationKVM = "kvm"
 )
 
@@ -46,11 +43,16 @@ func QemuArgsFromProfile(
 	p *Profile,
 	isPackaging bool,
 ) ([]string, error) {
+	instanceUUID := p.InstanceUUID
+	if isPackaging || instanceUUID == "" {
+		instanceUUID = uuid.NewString()
+	}
+
 	out := []string{
 		"-name",
 		p.Name,
 		"-uuid",
-		uuid.NewString(),
+		instanceUUID,
 	}
 
 	fs := map[string]func(p *Profile) []string{
@@ -117,13 +119,39 @@ func QemuArgsFromProfile(
 		out = e.Apply(isPackaging, out)
 	}
 
-	qemuAdditionalArgs := os.Getenv(boxenconstants.EnvClabQemuAdditionalArgs)
-
-	if qemuAdditionalArgs != "" {
-		out = append(out, strings.Split(qemuAdditionalArgs, " ")...)
+	if !isPackaging {
+		out = useRunDisk(out)
 	}
 
+	out = append(out, strings.Fields(os.Getenv(boxenconstants.EnvClabQemuAdditionalArgs))...)
+
 	return out, nil
+}
+
+// useRunDisk points the VM at the per-container overlay instead of the packaged disk. It rewrites
+// every reference to the packaged disk, including ones from profile overrides, mutators, and
+// extras, so the packaged disk is only ever opened read-only as the overlay's backing file.
+func useRunDisk(args []string) []string {
+	const fileOpt = "file="
+
+	for idx, arg := range args {
+		if arg == boxenconstants.DiskFilename {
+			args[idx] = boxenconstants.RunDiskFilename
+
+			continue
+		}
+
+		opts := strings.Split(arg, ",")
+
+		for optIdx, opt := range opts {
+			if opt == fileOpt+boxenconstants.DiskFilename {
+				opts[optIdx] = fileOpt + boxenconstants.RunDiskFilename
+				args[idx] = strings.Join(opts, ",")
+			}
+		}
+	}
+
+	return args
 }
 
 func qemuCPU(p *Profile) []string {
@@ -215,7 +243,8 @@ func qemuMachine(p *Profile) []string {
 func qemuDisk(p *Profile) []string {
 	return []string{
 		"-drive",
-		"if=" + cmp.Or(p.VirtualMachine.DiskInterface, "ide") + ",file=disk.qcow2,format=qcow2",
+		"if=" + cmp.Or(p.VirtualMachine.DiskInterface, "ide") +
+			",file=" + boxenconstants.DiskFilename + ",format=qcow2",
 	}
 }
 
@@ -239,7 +268,7 @@ func qemuSerial(p *Profile, isPackaging bool) []string {
 				"socket,id=serial%d,host=0.0.0.0,port=%d,server=on,wait=off,telnet=on,"+
 					"logfile=%s,logappend=off",
 				idx,
-				serialPortBaseIdx+int(idx),
+				boxenconstants.ConsolePort+int(idx),
 				logFilename,
 			),
 			"-serial",
@@ -253,7 +282,7 @@ func qemuSerial(p *Profile, isPackaging bool) []string {
 func qemuMonitor(_ *Profile) []string {
 	return []string{
 		"-monitor",
-		fmt.Sprintf("tcp:0.0.0.0:%d,server,nowait", monitorPort),
+		fmt.Sprintf("tcp:0.0.0.0:%d,server,nowait", boxenconstants.MonitorPort),
 	}
 }
 
@@ -299,7 +328,7 @@ func qemuMgmtNIC(p *Profile, isPackaging bool) []string {
 		}
 	}
 
-	deviceArgs := fmt.Sprintf("%s,netdev=mgmt", p.VirtualMachine.NicType)
+	deviceArgs := fmt.Sprintf("%s,netdev=mgmt", p.VirtualMachine.GetNicType())
 	if mac != "" {
 		deviceArgs = fmt.Sprintf("%s,mac=%s", deviceArgs, mac)
 	}
@@ -320,14 +349,15 @@ func qemuMgmtNIC(p *Profile, isPackaging bool) []string {
 	mgmtIntf := "user,id=mgmt,net=10.0.0.0/24,host=10.0.0.2," +
 		"dns=10.0.0.3,dhcpstart=10.0.0.15,tftp=/tftpboot"
 
-	nats := make([]string, len(p.VirtualMachine.NatPorts))
+	natPorts := p.VirtualMachine.GetNatPorts()
+	nats := make([]string, len(natPorts))
 
-	for idx := range p.VirtualMachine.NatPorts {
+	for idx := range natPorts {
 		nats[idx] = fmt.Sprintf(
 			"hostfwd=%s:0.0.0.0:%d-10.0.0.15:%d",
-			p.VirtualMachine.NatPorts[idx].Type,
-			p.VirtualMachine.NatPorts[idx].LocalPort,
-			p.VirtualMachine.NatPorts[idx].LocalPort,
+			natPorts[idx].Type,
+			natPorts[idx].LocalPort,
+			natPorts[idx].LocalPort,
 		)
 	}
 
@@ -378,7 +408,7 @@ func buildDataNic(
 		device,
 		fmt.Sprintf(
 			"%s,netdev=p%s,bus=pci.%d,addr=0x%x,mac=%s",
-			p.VirtualMachine.NicType,
+			p.VirtualMachine.GetNicType(),
 			paddedNicID,
 			busID,
 			busAddr,

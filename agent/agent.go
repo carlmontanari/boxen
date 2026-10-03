@@ -3,6 +3,7 @@ package agent
 import (
 	"log/slog"
 	"os"
+	"strings"
 
 	boxenlogging "github.com/carlmontanari/boxen/logging"
 	boxenprofile "github.com/carlmontanari/boxen/profile"
@@ -31,7 +32,13 @@ type Agent struct {
 
 	stdoutF *os.File
 
-	conn *scrapligocli.Cli
+	conn         *scrapligocli.Cli
+	consoleRelay *consoleRelay
+
+	// startupConfigFile is the node's existing startup config file, empty when there is none.
+	startupConfigFile string
+	// captured accumulates the output recorded by capture steps.
+	captured strings.Builder
 }
 
 // NewAgent returns a new boxen Agent instance.

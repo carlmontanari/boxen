@@ -39,6 +39,8 @@ type Formatters struct {
 	p              *Profile
 	isPackaging    bool
 
+	startupConfigFile string
+
 	management *managementFormatters
 }
 
@@ -111,7 +113,7 @@ func NewFormatters(
 ) *Formatters {
 	// disk is always disk.qcow2 in "run" mode, but we maybe have a disk that we resolved
 	// during packaging, so override that if thats the case
-	disk := "disk.qcow2"
+	disk := boxenconstants.DiskFilename
 
 	if p.ResolvedDisk != "" {
 		// resolved disk we received from boxen builder (the main cli) will be fully qualified,
@@ -136,6 +138,11 @@ func NewFormatters(
 		p:              p,
 		isPackaging:    isPackaging,
 	}
+}
+
+// SetStartupConfigFile sets the startup config path exposed as {{ .startupConfigFile }}.
+func (f *Formatters) SetStartupConfigFile(path string) {
+	f.startupConfigFile = path
 }
 
 // RenderTemplate renders write content with named Go template values.
@@ -211,6 +218,8 @@ func (f *Formatters) TemplateData() (map[string]any, error) {
 		"password":       f.password,
 		"hostname":       f.hostname,
 		"connectionMode": f.connectionMode,
+
+		"startupConfigFile": f.startupConfigFile,
 	}
 
 	management, err := f.getManagementFormatters()

@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	boxenconstants "github.com/carlmontanari/boxen/constants"
 	boxenerrors "github.com/carlmontanari/boxen/errors"
 	boxenprofile "github.com/carlmontanari/boxen/profile"
 	boxenutilringbuffer "github.com/carlmontanari/boxen/util/ringbuffer"
@@ -50,6 +49,11 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 	for idx, p := range step.Prompts.Prompts {
 		cbName := promptCallbackName(idx, p.Name)
 
+		response, err := a.f.RenderTemplate(p.Response)
+		if err != nil {
+			return fmt.Errorf("rendering response of %s: %w", cbName, err)
+		}
+
 		a.l.Debug(
 			"building prompts callback",
 			"callback name",
@@ -57,7 +61,7 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 			"prompt",
 			p.Prompt,
 			"response",
-			p.Response,
+			response,
 			"completes",
 			p.Completes,
 		)
@@ -113,18 +117,18 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 					"notContains",
 					p.Prompt.NotContains,
 					"response",
-					p.Response,
+					response,
 					"hidden",
 					p.Hidden,
 					"reading until response",
-					p.Response,
+					response,
 					"searchBuf",
 					searchBuf,
 				)
 
 				defer a.l.Info("callback completed", "callback name", cbName)
 
-				err = c.Write(p.Response)
+				err := c.Write(response)
 				if err != nil {
 					return err
 				}
@@ -133,7 +137,7 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 					return c.WriteReturn()
 				}
 
-				err = a.readUntil(ctx, p.Response)
+				err = a.readUntil(ctx, response)
 				if err != nil {
 					return err
 				}
@@ -188,7 +192,7 @@ func (a *Agent) processStepReadUntil(ctx context.Context, step *boxenprofile.Ste
 				return
 			}
 
-			r, err := a.conn.Read()
+			r, err := a.readConsole()
 			if err != nil {
 				doneOrErr <- err
 
@@ -254,14 +258,18 @@ func (a *Agent) processStepWrite(
 
 		c = string(b)
 	case step.Write.ContentFromStartupConfig:
-		b, err := os.ReadFile(boxenconstants.StartupConfigFilePath)
+		if a.startupConfigFile == "" {
+			return fmt.Errorf("%w: no startup config file present", boxenerrors.ErrBoxen)
+		}
+
+		b, err := os.ReadFile(a.startupConfigFile)
 		if err != nil {
 			return err
 		}
 
 		c = string(b)
 	default:
-		panic("unimplemented write type")
+		return fmt.Errorf("%w: write step has no content", boxenerrors.ErrBoxen)
 	}
 
 	a.l.Info("writing to console", "content", c)

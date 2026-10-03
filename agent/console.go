@@ -13,12 +13,15 @@ import (
 )
 
 const (
-	consoleHost           = "localhost"
+	consoleHost           = "127.0.0.1"
 	consoleOpenAttempts   = 5
 	consoleOpenRetryDelay = 3 * time.Second
 )
 
-func (a *Agent) openConsoleConn(ctx context.Context, logFilename string) error {
+// openConsoleConn opens the console session used by profile steps. With wake set, the guest is sent
+// a return so that an idle console prints its prompt; leave it unset while the guest boots, where a
+// stray return could answer a boot dialog.
+func (a *Agent) openConsoleConn(ctx context.Context, logFilename string, wake bool) error {
 	a.l.Info("opening console connection...")
 
 	returnChar := "\r\n"
@@ -31,10 +34,17 @@ func (a *Agent) openConsoleConn(ctx context.Context, logFilename string) error {
 
 	go func() {
 		for attempt := 1; attempt <= consoleOpenAttempts; attempt++ {
+			relay, err := startConsoleRelay(ctx, consoleAddress, wake)
+			if err != nil {
+				errs <- err
+
+				return
+			}
+
 			conn, err := scrapligocli.NewCli(
 				consoleHost,
 				scrapligooptions.WithDefinitionFileOrName(".scrapligo_definition.yaml"),
-				scrapligooptions.WithPort(5_001), //nolint: mnd
+				scrapligooptions.WithPort(relay.port),
 				scrapligooptions.WithLogger(a.l.l),
 				scrapligooptions.WithLoggerLevel(
 					scrapligologging.LogLevel(
@@ -50,6 +60,7 @@ func (a *Agent) openConsoleConn(ctx context.Context, logFilename string) error {
 				scrapligooptions.WithSessionRecorderPath(logFilename),
 			)
 			if err != nil {
+				relay.Close()
 				a.l.Error("failed creating console connection", "error", err.Error())
 				errs <- err
 
@@ -59,10 +70,14 @@ func (a *Agent) openConsoleConn(ctx context.Context, logFilename string) error {
 			_, err = conn.Open(ctx)
 			if err == nil {
 				a.conn = conn
+				a.consoleRelay = relay
 				success <- struct{}{}
 
 				return
 			}
+
+			// a failed open can leave its connection behind, holding the single console session
+			relay.Close()
 
 			if attempt == consoleOpenAttempts {
 				errs <- err
@@ -110,6 +125,11 @@ func (a *Agent) openConsoleConn(ctx context.Context, logFilename string) error {
 		a.l.Error("failed opening console connection", "error", err.Error())
 
 		return err
+	case <-ctx.Done():
+		// opening a telnet session can block until the guest prints something
+		a.l.Error("failed opening console connection", "error", ctx.Err().Error())
+
+		return ctx.Err()
 	}
 }
 
@@ -117,11 +137,44 @@ func (a *Agent) closeConsoleConn(ctx context.Context) error {
 	a.l.Info("closing console connection...")
 
 	_, err := a.conn.Close(ctx)
-	if err != nil {
-		return err
+
+	// always free the console session for other clients
+	if a.consoleRelay != nil {
+		a.consoleRelay.Close()
+		a.consoleRelay = nil
 	}
 
-	return nil
+	return err
+}
+
+// maxDrainReads bounds a single drain of the console session, so that a guest flooding the console
+// cannot keep a reader from checking its conditions.
+const maxDrainReads = 1024
+
+// drainReads calls read until it returns no data, at most maxDrainReads times, and returns
+// everything read: a single console read returns at most one small chunk.
+func drainReads(read func() ([]byte, error)) ([]byte, error) {
+	var out []byte
+
+	for range maxDrainReads {
+		b, err := read()
+		if err != nil {
+			return out, err
+		}
+
+		if len(b) == 0 {
+			break
+		}
+
+		out = append(out, b...)
+	}
+
+	return out, nil
+}
+
+// readConsole returns everything the console session has buffered so far, without blocking.
+func (a *Agent) readConsole() ([]byte, error) {
+	return drainReads(func() ([]byte, error) { return a.conn.Read() })
 }
 
 func (a *Agent) readUntil(ctx context.Context, s string) error {
@@ -136,7 +189,7 @@ func (a *Agent) readUntil(ctx context.Context, s string) error {
 
 		// this read cant block because its only reading off the internally buffered
 		// bits that the session has already read
-		b, err := a.conn.Read()
+		b, err := a.readConsole()
 		if err != nil {
 			return err
 		}

@@ -8,7 +8,7 @@ scrapliReturnChar: "\r"
 extraFiles:
   - OVMF.fd
 virtualMachine:
-  emulate: max
+  cpuEmulation: max
   memory: 10240
   cpuCores: 4
   serialPortCount: 1
@@ -126,7 +126,6 @@ packaging:
     - type: wait
       wait:
         duration: 10s
-  sparsify: false
 run:
   process:
     - type: prompts

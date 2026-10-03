@@ -35,4 +35,8 @@ type Profile struct {
 
 	PreRunCommands []string `yaml:"preRunCommands"`
 	Run            *Run     `yaml:"run"`
+
+	// InstanceUUID is set by the agent at runtime so the VM keeps its system UUID across restarts
+	// of the same container; packaging uses a random UUID.
+	InstanceUUID string `yaml:"-"`
 }

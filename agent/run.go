@@ -2,18 +2,20 @@ package agent
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"time"
 
 	boxenconstants "github.com/carlmontanari/boxen/constants"
+	boxenerrors "github.com/carlmontanari/boxen/errors"
 	boxenprofile "github.com/carlmontanari/boxen/profile"
 	boxenutil "github.com/carlmontanari/boxen/util"
 	"go.yaml.in/yaml/v4"
 )
+
+// defaultIntfWaitTimeout bounds the wait for containerlab data interfaces before starting the vm.
+const defaultIntfWaitTimeout = 2 * time.Minute
 
 // Run runs the packaged container -- starting the vm, handling containerlab inputs, etc.
 func (a *Agent) Run(
@@ -31,6 +33,13 @@ func (a *Agent) Run(
 	}
 
 	a.f = boxenprofile.NewFormatters(username, password, hostname, connectionMode, a.p, false)
+
+	a.startupConfigFile, err = a.resolveStartupConfigFile()
+	if err != nil {
+		return err
+	}
+
+	a.f.SetStartupConfigFile(a.startupConfigFile)
 
 	defer func() {
 		if a.stdoutF == nil {
@@ -65,21 +74,7 @@ func (a *Agent) startRun(ctx context.Context, errs chan error) {
 		a.l.Error("failed writing booting health status", "error", err.Error())
 	}
 
-	err := a.runClabNICProvisionDelay(ctx)
-	if err != nil {
-		errs <- err
-
-		return
-	}
-
-	err = a.runClabStartDelay(ctx)
-	if err != nil {
-		errs <- err
-
-		return
-	}
-
-	err = a.runPreCommands(ctx)
+	err := a.runPrepare(ctx)
 	if err != nil {
 		errs <- err
 
@@ -88,18 +83,20 @@ func (a *Agent) startRun(ctx context.Context, errs chan error) {
 
 	// no need to capture the process to kill as we passed the root ctx so itll cancel anyway
 	// if we catch a sigint/sigkill
-	_, err = a.startInstance(ctx, false)
+	proc, err := a.startInstance(ctx, false)
 	if err != nil {
 		errs <- err
 
 		return
 	}
 
+	go a.watchInstance(ctx, proc, errs)
+
 	// start the tc service that stitches the container interfaces to the vm taps;
 	// this only runs during `run` (not packaging)
 	a.startTCService(ctx)
 
-	err = a.openConsoleConn(ctx, "run.console.log")
+	err = a.openConsoleConn(ctx, "run.console.log", false)
 	if err != nil {
 		errs <- err
 
@@ -139,6 +136,24 @@ func (a *Agent) startRun(ctx context.Context, errs chan error) {
 	<-ctx.Done()
 
 	a.done <- struct{}{}
+}
+
+// runPrepare does everything that has to happen before the vm starts.
+func (a *Agent) runPrepare(ctx context.Context) error {
+	for _, prepare := range []func(context.Context) error{
+		a.runClabNICProvisionDelay,
+		a.runClabStartDelay,
+		a.runPreCommands,
+		a.runPrepareDisk,
+		func(context.Context) error { return a.runResolveInstanceUUID() },
+	} {
+		err := prepare(ctx)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (a *Agent) runLoadProfile() error {
@@ -199,19 +214,43 @@ func (a *Agent) runClabNICProvisionDelay(ctx context.Context) error {
 		return nil
 	}
 
+	timeout, err := intfWaitTimeout()
+	if err != nil {
+		return err
+	}
+
 	intfPrefix := boxenutil.ClabIntfPrefix()
 
-	a.l.Info("waiting for clab nics to be priviosined", "count", clabIntfCount)
+	a.l.Info(
+		"waiting for clab nics to be provisioned",
+		"count", clabIntfCount,
+		"timeout", timeout,
+	)
 
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
+
+	deadline := time.NewTimer(timeout)
+	defer deadline.Stop()
+
+	var provisionedNics []string
 
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
+		case <-deadline.C:
+			// CLAB_INTFS is fixed when the container is created, so it overcounts once links are
+			// removed from a running node; the tc service wires late interfaces when they appear
+			a.l.Warn(
+				"not all clab nics were provisioned in time, starting the vm anyway",
+				"expected", clabIntfCount,
+				"provisioned", max(len(provisionedNics)-1, 0),
+			)
+
+			return nil
 		case <-ticker.C:
-			provisionedNics, err := filepath.Glob(fmt.Sprintf("/sys/class/net/%s*", intfPrefix))
+			provisionedNics, err = filepath.Glob(fmt.Sprintf("/sys/class/net/%s*", intfPrefix))
 			if err != nil {
 				return err
 			}
@@ -225,69 +264,63 @@ func (a *Agent) runClabNICProvisionDelay(ctx context.Context) error {
 	}
 }
 
-func (a *Agent) runProcesses(ctx context.Context) error {
-	for idx := range a.p.Run.Process {
-		step := &a.p.Run.Process[idx]
-
-		a.l.Info("starting run process", "step", idx, "type", step.Type)
-
-		var err error
-
-		switch step.Type {
-		case boxenprofile.StepTypePrompts:
-			err = a.processStepPrompts(ctx, step)
-		case boxenprofile.StepTypeReadUntil:
-			err = a.processStepReadUntil(ctx, step)
-		case boxenprofile.StepTypeWrite:
-			err = a.processStepWrite(ctx, step)
-		case boxenprofile.StepTypeWait:
-			err = a.processStepWait(ctx, step)
-		default:
-			panic("unimplemented step type")
-		}
-
-		if err != nil {
-			return err
-		}
+func intfWaitTimeout() (time.Duration, error) {
+	v := os.Getenv(boxenconstants.EnvIntfWaitTimeout)
+	if v == "" {
+		return defaultIntfWaitTimeout, nil
 	}
 
-	return nil
+	timeout, err := time.ParseDuration(v)
+	if err != nil {
+		return 0, fmt.Errorf(
+			"%w: invalid %s value %q: %w",
+			boxenerrors.ErrBoxen,
+			boxenconstants.EnvIntfWaitTimeout,
+			v,
+			err,
+		)
+	}
+
+	return timeout, nil
+}
+
+// watchInstance reports the VM exiting on its own (crash or guest power off) as a run failure,
+// so the node becomes unhealthy and the container exits instead of looking healthy without a VM.
+func (a *Agent) watchInstance(ctx context.Context, proc *os.Process, errs chan<- error) {
+	state, err := proc.Wait()
+	if ctx.Err() != nil {
+		// the vm is stopped because the container is shutting down
+		return
+	}
+
+	if healthErr := a.writeHealth(boxenconstants.HealthStatusVMExited); healthErr != nil {
+		a.l.Error("failed writing vm exited health status", "error", healthErr.Error())
+	}
+
+	if err == nil {
+		err = fmt.Errorf("%w: vm exited: %s", boxenerrors.ErrBoxen, state.String())
+	}
+
+	select {
+	case errs <- err:
+	default:
+	}
+}
+
+func (a *Agent) runProcesses(ctx context.Context) error {
+	return a.runSteps(ctx, "run process", a.p.Run.Process)
 }
 
 func (a *Agent) runStartupConfig(ctx context.Context) error {
 	a.l.Info("handling startup config")
 
-	_, err := os.Stat(boxenconstants.StartupConfigFilePath)
-	if errors.Is(err, fs.ErrNotExist) {
+	if a.startupConfigFile == "" {
 		a.l.Debug("startup config file not present, nothing to do")
 
 		return nil
 	}
 
-	for idx := range a.p.Run.ConfigProcess {
-		step := &a.p.Run.ConfigProcess[idx]
+	a.l.Info("applying startup config", "file", a.startupConfigFile)
 
-		a.l.Info("starting run configProcess", "step", idx, "type", step.Type)
-
-		var err error
-
-		switch step.Type {
-		case boxenprofile.StepTypePrompts:
-			err = a.processStepPrompts(ctx, step)
-		case boxenprofile.StepTypeReadUntil:
-			err = a.processStepReadUntil(ctx, step)
-		case boxenprofile.StepTypeWrite:
-			err = a.processStepWrite(ctx, step)
-		case boxenprofile.StepTypeWait:
-			err = a.processStepWait(ctx, step)
-		default:
-			panic("unimplemented step type")
-		}
-
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return a.runSteps(ctx, "run configProcess", a.p.Run.ConfigProcess)
 }

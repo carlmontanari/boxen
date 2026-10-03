@@ -198,3 +198,41 @@ run:
         timeout: 1m
         until:
           contains: "cumulus@"
+  saveProcess:
+    # The console is normally still logged in from provisioning.
+    - type: prompts
+      prompts:
+        timeout: 2m
+        initialInput: "\n"
+        prompts:
+          - name: enter login
+            prompt:
+              containsPattern: "(?im)login: ?$"
+            response: cumulus
+            once: true
+          - name: enter password
+            prompt:
+              contains: "Password:"
+            response: Clab123!
+            hidden: true
+            once: true
+          - name: shell ready
+            prompt:
+              containsPattern: "(?m)^[^\\r\\n]*@[^\\r\\n]*\\$ ?$"
+            response: ""
+            hidden: true
+            once: true
+            completes: true
+    # NVUE commands, which configProcess replays before applying them. NVUE masks local user
+    # passwords as '*', and replaying that would lock the account, so those lines are dropped.
+    - type: capture
+      capture:
+        timeout: 2m
+        hidden: true
+        command: >-
+          printf 'BOXEN_%s\n' BEGIN; nv config show -o commands | grep -vF "hashed-password '*'";
+          printf 'BOXEN_%s\n' END
+        start:
+          contains: BOXEN_BEGIN
+        end:
+          contains: BOXEN_END
