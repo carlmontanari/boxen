@@ -103,9 +103,10 @@ Choose one content source. The implementation prioritizes nonempty `content`, th
 The selected content is rendered as a [Go template](templates.md), split on newlines, and written line by line. By default Boxen waits for each line's echo before sending return. Set `hidden: true` for a password or another input that does not echo. A `write` step does not verify the OS accepted a command; follow it with a `readUntil` check when the result matters.
 
 The Cumulus VX profile uses `contentFromFile: nvidia_cumulusvx_breakout.sh.tmpl`
-for guest breakout setup. Its user-supplied companion files contain the commands
+for guest breakout setup. Its embedded companion files contain the commands
 and layout logic, while the profile controls their position and the following
-completion check. List companion files in `extraFiles` to package them into `/boxen`,
+completion check. A custom YAML profile can list user files in `extraFiles` with the
+same names to override them. List companion files in `extraFiles` to package them into `/boxen`,
 or bind-mount them at runtime. Templates can also read data with `readFile` and
 call external functions with `starlark`.
 

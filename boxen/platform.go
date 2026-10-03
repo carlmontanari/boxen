@@ -54,11 +54,12 @@ func (b *Boxen) resolveProfile(
 	for _, assetFile := range assetFiles {
 		p := &boxenprofile.Profile{}
 
-		if assetFile.IsDir() {
+		extension := filepath.Ext(assetFile.Name())
+		if assetFile.IsDir() || (extension != ".yaml" && extension != ".yml") {
 			continue
 		}
 
-		maybeAssetProfileName := strings.TrimSuffix(assetFile.Name(), ".yaml")
+		maybeAssetProfileName := strings.TrimSuffix(assetFile.Name(), extension)
 
 		b.l.Debug(
 			"checking asset profile",

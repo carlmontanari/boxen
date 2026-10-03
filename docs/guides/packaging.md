@@ -21,10 +21,12 @@ There are three ways to select a profile:
 An explicit profile name or path must resolve to that profile. Unknown names and missing profile paths fail before the builder starts. Disk patterns are used only when `--profile` is omitted.
 
 For a custom profile file, relative `extraFiles` paths resolve beside the profile.
-Absolute paths are used directly. For embedded profiles, the listed paths are checked
-from the current directory. If a listed file is unavailable, Boxen also checks beside
-the disk under its basename. Companion scripts and templates are external files;
-selecting an embedded profile does not embed or supply those companions.
+Absolute paths are used directly. For embedded profiles, Boxen supplies included
+companions from the binary; the Cumulus VX Starlark module and shell template are
+included this way. Other listed files are checked from the current directory.
+If a host file is unavailable, Boxen also checks beside the disk under its basename.
+A custom YAML profile's `extraFiles` use host files even when their basenames match
+embedded companions, allowing users to override the included versions.
 
 Files arrive in `/boxen` under their basenames. Reference those container paths in
 `write.contentFromFile` and Starlark `load(...)`; those references do not transfer

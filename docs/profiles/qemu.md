@@ -63,13 +63,14 @@ virtualMachine:
 ```
 
 The YAML `|` stores the indented program as a multiline string. When Boxen executes
-it, `load(...)` reads the external `.star` file and imports its `layout` function;
+it, `load(...)` reads the packaged `.star` file and imports its `layout` function;
 the import defines the function without calling it yet. `extraFiles` transfers the
 companions under their basenames into `/boxen`, so this import normally reads
 `/boxen/nvidia_cumulusvx_breakout.star`. It does not fetch a host file itself.
-For a custom profile file, relative `extraFiles` paths resolve beside the YAML;
-embedded profiles look from the current working directory, with a fallback beside
-the source disk. See [packaging file lookup](../guides/packaging.md#choose-the-inputs).
+The embedded Cumulus profile supplies both companions from the binary. For a custom
+profile file, relative `extraFiles` paths resolve beside the YAML and override the
+embedded files even with matching filenames. Other host files use the
+[packaging file lookup](../guides/packaging.md#choose-the-inputs).
 
 The return expression is equivalent to:
 

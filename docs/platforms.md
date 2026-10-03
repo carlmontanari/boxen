@@ -9,7 +9,7 @@ The current checkout includes the profiles below. They describe hardware and boo
 | Cisco Nexus 9000v | `cisco_n9kv` | 10240 | 8 | `OVMF.fd` |
 | Cisco XRv 9000 | `cisco_xrv9k` | 16384 | 16 | None listed |
 | Community SONiC | `community_sonic` | 4096 | 16 | None listed |
-| NVIDIA Cumulus VX | `nvidia_cumulusvx` | 4096 | 16 | External `nvidia_cumulusvx_breakout.star` and `.sh.tmpl` |
+| NVIDIA Cumulus VX | `nvidia_cumulusvx` | 4096 | 16 | Embedded `nvidia_cumulusvx_breakout.star` and `.sh.tmpl` |
 | Juniper vJunos-router | `juniper_vjunos-router` | 5120 | 96 | None listed |
 
 All profiles in this checkout set `managementPassthrough: true`. Packaging still uses legacy QEMU user networking. Use a custom YAML path to adapt hardware or boot procedures for a different OS release.
@@ -35,15 +35,17 @@ The current profile uses both IPv4 and IPv6 static template values directly and 
 ### Simulated breakout ports
 
 The Cumulus recipe uses the generic profile instruments; its layout parser and
-console commands live in two external companion files beside the YAML profile:
-`nvidia_cumulusvx_breakout.star` and `nvidia_cumulusvx_breakout.sh.tmpl`. Their contents
-are not embedded in Boxen. Keep them beside a custom profile and build using its
-file path, or supply them beside the source disk when selecting the embedded profile.
+console commands live in two embedded companion files:
+`nvidia_cumulusvx_breakout.star` and `nvidia_cumulusvx_breakout.sh.tmpl`. Boxen supplies
+them automatically when selecting the embedded profile by name or disk detection.
 
 The YAML lists both files in `extraFiles`. Its `virtualMachine.configure` function
-calls the external Starlark layout function to set `nicCount`; its ordinary
+calls the Starlark layout function to set `nicCount`; its ordinary
 `write.contentFromFile` step uses the same function before applying guest commands.
-Users can edit the files and profile without recompiling Boxen.
+To customize the companions without recompiling Boxen, copy the profile and files,
+edit them, and build using the custom YAML file path. Its `extraFiles` entries resolve
+beside that YAML and override the embedded companions, including when they use the
+same filenames. Both embedded and custom companions are transferred into `/boxen`.
 
 Bind a user-provided layout at `/config/ports.conf`. The path is set in the `.star`
 file and can be changed there to read a packaged companion instead. A missing layout

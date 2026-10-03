@@ -36,11 +36,11 @@ type testCumulusLane struct {
 
 func prepareCumulusFiles(t *testing.T) string {
 	t.Helper()
-	module, err := os.ReadFile("../assets/profiles/nvidia_cumulusvx_breakout.star")
+	module, err := boxenassets.Assets.ReadFile("profiles/nvidia_cumulusvx_breakout.star")
 	if err != nil {
 		t.Fatal(err)
 	}
-	template, err := os.ReadFile("../assets/profiles/nvidia_cumulusvx_breakout.sh.tmpl")
+	template, err := boxenassets.Assets.ReadFile("profiles/nvidia_cumulusvx_breakout.sh.tmpl")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -181,12 +181,15 @@ func TestCumulusPortLayoutErrors(t *testing.T) {
 	}
 }
 
-func TestCumulusExternalFilesAndPackaging(t *testing.T) {
+func TestCumulusEmbeddedFilesAndPackaging(t *testing.T) {
 	for _, name := range []string{
 		"nvidia_cumulusvx_breakout.star", "nvidia_cumulusvx_breakout.sh.tmpl",
 	} {
-		if _, err := boxenassets.Assets.ReadFile("profiles/" + name); !os.IsNotExist(err) {
-			t.Fatalf("companion must remain external: %s error=%v", name, err)
+		if data, err := boxenassets.Assets.ReadFile(
+			"profiles/" + name,
+		); err != nil ||
+			len(data) == 0 {
+			t.Fatalf("companion must be embedded: %s error=%v", name, err)
 		}
 	}
 	path := prepareCumulusFiles(t)

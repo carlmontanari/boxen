@@ -4,9 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 
+	boxenassets "github.com/carlmontanari/boxen/assets"
 	boxenerrors "github.com/carlmontanari/boxen/errors"
 	boxenprotov1 "github.com/carlmontanari/boxen/proto/v1"
 	"google.golang.org/grpc"
@@ -21,12 +23,7 @@ func (b *Boxen) Filer(
 
 	b.l.Info("filer request received", "filename", filename)
 
-	resolvedFilename, err := resolveFilePath(b.disk, filename)
-	if err != nil {
-		return err
-	}
-
-	f, err := os.Open(resolvedFilename) //nolint: gosec
+	f, err := openFile(b.disk, filename)
 	if err != nil {
 		return err
 	}
@@ -69,6 +66,27 @@ func (b *Boxen) Filer(
 	b.l.Info("filer sent file", "filename", filename)
 
 	return nil
+}
+
+// openFile uses embedded companions for profile names and host files for custom
+// profiles, whose extraFiles paths are made absolute by loadProfileFile.
+func openFile(disk, filename string) (fs.File, error) {
+	if filename != disk && !filepath.IsAbs(filename) {
+		f, err := boxenassets.Assets.Open("profiles/" + filepath.ToSlash(filename))
+		if err == nil {
+			return f, nil
+		}
+		if !errors.Is(err, os.ErrNotExist) {
+			return nil, err
+		}
+	}
+
+	path, err := resolveFilePath(disk, filename)
+	if err != nil {
+		return nil, err
+	}
+
+	return os.Open(path) //nolint:gosec // Profile-controlled paths.
 }
 
 // resolves the file at f -- if f exists, great, if not we check in the same directory that the
