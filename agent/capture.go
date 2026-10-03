@@ -12,7 +12,7 @@ import (
 	boxenprofile "github.com/carlmontanari/boxen/profile"
 )
 
-const captureReadInterval = 250 * time.Millisecond
+const captureReadInterval = 100 * time.Millisecond
 
 // processStepCapture sends the capture command and records its output, which is appended to the
 // agent's captured content.
@@ -41,7 +41,7 @@ func (a *Agent) processStepCapture(ctx context.Context, step *boxenprofile.Step)
 	} else {
 		err = a.conn.Write(command)
 		if err == nil {
-			err = a.readUntil(taskCtx, command)
+			err = a.waitForEcho(taskCtx, command)
 		}
 
 		if err == nil {

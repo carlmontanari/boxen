@@ -3,13 +3,20 @@ package agent
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"time"
 
 	boxenconstants "github.com/carlmontanari/boxen/constants"
+	boxenerrors "github.com/carlmontanari/boxen/errors"
 	boxenutil "github.com/carlmontanari/boxen/util"
 	scrapligocli "github.com/scrapli/scrapligo/v2/cli"
 	scrapligologging "github.com/scrapli/scrapligo/v2/logging"
 	scrapligooptions "github.com/scrapli/scrapligo/v2/options"
+)
+
+const (
+	echoTimeout      = 2 * time.Minute
+	echoPollInterval = 20 * time.Millisecond
 )
 
 const (
@@ -152,13 +159,19 @@ func (a *Agent) closeConsoleConn(ctx context.Context) error {
 // cannot keep a reader from checking its conditions.
 const maxDrainReads = 1024
 
+const (
+	readAttempts   = 5
+	readRetryDelay = 200 * time.Millisecond
+)
+
 // drainReads calls read until it returns no data, at most maxDrainReads times, and returns
-// everything read: a single console read returns at most one small chunk.
+// everything read: a single console read returns at most one small chunk. A failed read is retried
+// a few times, since reading right after the session opened can fail transiently.
 func drainReads(read func() ([]byte, error)) ([]byte, error) {
 	var out []byte
 
 	for range maxDrainReads {
-		b, err := read()
+		b, err := readWithRetry(read)
 		if err != nil {
 			return out, err
 		}
@@ -171,6 +184,25 @@ func drainReads(read func() ([]byte, error)) ([]byte, error) {
 	}
 
 	return out, nil
+}
+
+func readWithRetry(read func() ([]byte, error)) ([]byte, error) {
+	var err error
+
+	for attempt := range readAttempts {
+		if attempt > 0 {
+			time.Sleep(readRetryDelay)
+		}
+
+		var b []byte
+
+		b, err = read()
+		if err == nil {
+			return b, nil
+		}
+	}
+
+	return nil, err
 }
 
 // readConsole returns output put back by a previous step followed by everything the console
@@ -193,16 +225,21 @@ func (a *Agent) unreadConsole(b []byte) {
 	a.pendingConsole = append(append([]byte(nil), b...), a.pendingConsole...)
 }
 
-func (a *Agent) readUntil(ctx context.Context, s string) error {
+// waitForEcho waits until the console echoed written text, so that following input is not sent
+// before the guest processed it. Whitespace is ignored, since CLIs do not always echo it verbatim
+// and wrap long lines, and an echo that never arrives fails the step instead of blocking it.
+func (a *Agent) waitForEcho(ctx context.Context, s string) error {
+	want, _ := withoutWhitespace([]byte(s))
+	if len(want) == 0 {
+		return nil
+	}
+
+	echoCtx, cancel := context.WithTimeout(ctx, echoTimeout)
+	defer cancel()
+
 	var buf bytes.Buffer
 
 	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-
 		// this read cant block because its only reading off the internally buffered
 		// bits that the session has already read
 		b, err := a.readConsole()
@@ -210,23 +247,48 @@ func (a *Agent) readUntil(ctx context.Context, s string) error {
 			return err
 		}
 
-		_, err = buf.Write(b)
-		if err != nil {
-			return err
-		}
-
-		contents := bytes.ReplaceAll(buf.Bytes(), []byte{0}, nil)
-
 		if len(b) > 0 {
 			a.l.Debug("console output", "content", string(b))
 		}
 
-		if idx := bytes.Index(contents, []byte(s)); idx >= 0 {
-			a.unreadConsole(contents[idx+len(s):])
+		buf.Write(b)
+
+		contents, offsets := withoutWhitespace(buf.Bytes())
+
+		if idx := bytes.Index(contents, want); idx >= 0 {
+			a.unreadConsole(buf.Bytes()[offsets[idx+len(want)-1]+1:])
 
 			return nil
 		}
 
-		time.Sleep(time.Second)
+		select {
+		case <-echoCtx.Done():
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+
+			return fmt.Errorf("%w: console did not echo %q", boxenerrors.ErrBoxen, s)
+		case <-time.After(echoPollInterval):
+		}
 	}
+}
+
+// withoutWhitespace returns b without whitespace, and without the NUL, bell, and backspace bytes
+// that line editors emit, for example when wrapping a line, and the offset in b of each returned
+// byte.
+func withoutWhitespace(b []byte) (out []byte, offsets []int) {
+	out = make([]byte, 0, len(b))
+	offsets = make([]int, 0, len(b))
+
+	for idx, c := range b {
+		switch c {
+		case ' ', '\t', '\r', '\n', 0, '\a', '\b':
+			continue
+		}
+
+		out = append(out, c)
+		offsets = append(offsets, idx)
+	}
+
+	return out, offsets
 }

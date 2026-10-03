@@ -143,10 +143,12 @@ The following values are available:
 | `{{ .password }}`          | `admin`                     | Containerlab-provided password during run.         |
 | `{{ .hostname }}`          | `leaf1`                     | Containerlab node hostname during run.             |
 | `{{ .startupConfigFile }}` | `/config/startup-config.cfg` | Startup config file during run, empty if none. |
+| `{{ .dataNICMACs }}` | `[aa:c1:ab:94:6d:16 ...]` | Data NIC MACs in NIC order during run. |
 | `{{ .mgmtDHCP }}`          | `false`                     | Whether management config should use DHCP.         |
 | `{{ .mgmtIPv4 }}`          | `172.20.20.10/24`           | IPv4 management address in CIDR notation.          |
 | `{{ .mgmtIPv4Address }}`   | `172.20.20.10`              | IPv4 management address without prefix length.     |
 | `{{ .mgmtIPv4PrefixLen }}` | `24`                        | IPv4 management prefix length.                     |
+| `{{ .mgmtIPv4Netmask }}`   | `255.255.255.0`             | IPv4 management netmask.                           |
 | `{{ .mgmtIPv4Network }}`   | `172.20.20.0/24`            | IPv4 management network in CIDR notation.          |
 | `{{ .mgmtIPv4Gateway }}`   | `172.20.20.1`               | IPv4 management default gateway.                   |
 | `{{ .mgmtIPv6 }}`          | `2001:db8:20::10/64`        | IPv6 management address in CIDR notation.          |

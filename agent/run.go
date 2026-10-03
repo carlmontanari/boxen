@@ -14,8 +14,12 @@ import (
 	"go.yaml.in/yaml/v4"
 )
 
-// defaultIntfWaitTimeout bounds the wait for containerlab data interfaces before starting the vm.
-const defaultIntfWaitTimeout = 2 * time.Minute
+const (
+	// defaultIntfWaitTimeout bounds the wait for containerlab data interfaces before starting the
+	// vm.
+	defaultIntfWaitTimeout = 2 * time.Minute
+	intfPollInterval       = 250 * time.Millisecond
+)
 
 // Run runs the packaged container -- starting the vm, handling containerlab inputs, etc.
 func (a *Agent) Run(
@@ -146,6 +150,11 @@ func (a *Agent) runPrepare(ctx context.Context) error {
 		a.runPreCommands,
 		a.runPrepareDisk,
 		func(context.Context) error { return a.runResolveInstanceUUID() },
+		func(context.Context) error {
+			a.p.ResolveDataNICMACs()
+
+			return nil
+		},
 	} {
 		err := prepare(ctx)
 		if err != nil {
@@ -227,7 +236,7 @@ func (a *Agent) runClabNICProvisionDelay(ctx context.Context) error {
 		"timeout", timeout,
 	)
 
-	ticker := time.NewTicker(time.Second)
+	ticker := time.NewTicker(intfPollInterval)
 	defer ticker.Stop()
 
 	deadline := time.NewTimer(timeout)

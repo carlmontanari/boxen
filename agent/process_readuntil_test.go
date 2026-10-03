@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"log/slog"
 	"strings"
 	"testing"
@@ -100,5 +101,69 @@ func TestCaptureKeepsEndMarker(t *testing.T) {
 
 	if err := a.processStepReadUntil(t.Context(), readUntilStep("leaf1#")); err != nil {
 		t.Fatalf("the prompt after the capture was lost: %v", err)
+	}
+}
+
+func TestWaitForEchoIgnoresSurroundingWhitespace(t *testing.T) {
+	a := NewAgent(slog.LevelError)
+
+	// the CLI does not echo the indentation of the written line
+	fakeConsoleOutput(a, "csr1(config-cert-chain)#  quit\r\ncsr1(config)#")
+
+	if err := a.waitForEcho(t.Context(), "      quit"); err != nil {
+		t.Fatal(err)
+	}
+
+	// output after the echo stays available
+	if err := a.processStepReadUntil(t.Context(), readUntilStep("csr1(config)#")); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWaitForEchoSkipsBlankLines(t *testing.T) {
+	a := NewAgent(slog.LevelError)
+
+	fakeConsoleOutput(a)
+
+	if err := a.waitForEcho(t.Context(), "   "); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWaitForEchoHonorsContext(t *testing.T) {
+	a := NewAgent(slog.LevelError)
+
+	fakeConsoleOutput(a, "nothing echoed")
+
+	ctx, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
+	defer cancel()
+
+	if err := a.waitForEcho(ctx, "write memory"); err == nil {
+		t.Fatal("expected the missing echo to fail the wait")
+	}
+}
+
+func TestWaitForEchoIgnoresLineWrapping(t *testing.T) {
+	a := NewAgent(slog.LevelError)
+
+	// the CLI wraps the echoed line at 80 columns, inserting whitespace
+	fakeConsoleOutput(
+		a,
+		"n9k1(config)# username clab password 5 $5$KIMDOK$lHm/.buQQV4wh.phni5K730KPrcImsJ",
+		" \bGfB9zIaaUvI/  role network-admin\r\nn9k1(config)# ",
+	)
+
+	err := a.waitForEcho(
+		t.Context(),
+		"username clab password 5 $5$KIMDOK$lHm/.buQQV4wh.phni5K730KPrcImsJGfB9zIaaUvI/"+
+			"  role network-admin",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// the prompt after the echo stays available
+	if err := a.processStepReadUntil(t.Context(), readUntilStep("n9k1(config)#")); err != nil {
+		t.Fatal(err)
 	}
 }

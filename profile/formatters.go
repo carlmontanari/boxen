@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/netip"
 	"os"
 	"os/exec"
@@ -49,6 +50,7 @@ type managementFormatters struct {
 	ipv4          string
 	ipv4Address   string
 	ipv4PrefixLen string
+	ipv4Netmask   string
 	ipv4Network   string
 	ipv4Gateway   string
 	ipv6          string
@@ -65,6 +67,7 @@ func (m *managementFormatters) toMap() map[string]string {
 		"mgmtIPv4":          m.ipv4,
 		"mgmtIPv4Address":   m.ipv4Address,
 		"mgmtIPv4PrefixLen": m.ipv4PrefixLen,
+		"mgmtIPv4Netmask":   m.ipv4Netmask,
 		"mgmtIPv4Network":   m.ipv4Network,
 		"mgmtIPv4Gateway":   m.ipv4Gateway,
 		"mgmtIPv6":          m.ipv6,
@@ -154,6 +157,8 @@ func (f *Formatters) RenderTemplate(content string) (string, error) {
 	t, err := template.New("content").Funcs(template.FuncMap{
 		"shellQuote": shellQuote,
 		"fileBase64": fileBase64,
+		"add":        add,
+		"ciscoMAC":   ciscoMAC,
 	}).Option("missingkey=error").Parse(content)
 	if err != nil {
 		return "", err
@@ -184,6 +189,30 @@ func shellQuote(s string) (string, error) {
 	}
 
 	return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'", nil
+}
+
+// add returns the sum of a and b, for example to turn a range index into an interface number.
+func add(a, b int) int {
+	return a + b
+}
+
+// ciscoMAC formats a MAC address in the dotted notation of Cisco CLIs, such as aabb.ccdd.eeff.
+func ciscoMAC(mac string) (string, error) {
+	hw, err := net.ParseMAC(mac)
+	if err != nil {
+		return "", err
+	}
+
+	hex := fmt.Sprintf("%x", []byte(hw))
+
+	var groups []string
+
+	for hex != "" {
+		groups = append(groups, hex[:4])
+		hex = hex[4:]
+	}
+
+	return strings.Join(groups, "."), nil
 }
 
 // fileBase64 keeps raw files out of template parsing and below console line limits.
@@ -220,6 +249,7 @@ func (f *Formatters) TemplateData() (map[string]any, error) {
 		"connectionMode": f.connectionMode,
 
 		"startupConfigFile": f.startupConfigFile,
+		"dataNICMACs":       f.dataNICMACs(),
 	}
 
 	management, err := f.getManagementFormatters()
@@ -237,6 +267,14 @@ func (f *Formatters) TemplateData() (map[string]any, error) {
 	}
 
 	return data, nil
+}
+
+func (f *Formatters) dataNICMACs() []string {
+	if f.p == nil {
+		return nil
+	}
+
+	return f.p.DataNICMACs
 }
 
 func (f *Formatters) getManagementFormatters() (*managementFormatters, error) {
@@ -404,10 +442,16 @@ func (m *managementFormatters) applyIPv4CIDR(cidr string) error {
 		return err
 	}
 
+	bits, err := strconv.Atoi(prefixLen)
+	if err != nil {
+		return err
+	}
+
 	m.ipv4 = cidr
 	m.ipv4Address = address
 	m.ipv4PrefixLen = prefixLen
 	m.ipv4Network = network
+	m.ipv4Netmask = net.IP(net.CIDRMask(bits, net.IPv4len*8)).String() //nolint: mnd
 
 	return nil
 }

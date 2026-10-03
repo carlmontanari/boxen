@@ -387,6 +387,23 @@ func qemuDataNICs(p *Profile) []string {
 	return nicCmd
 }
 
+// ResolveDataNICMACs sets the MAC of each data nic: the MAC of the matching container interface
+// when it exists, so the guest uses the MAC containerlab assigned, otherwise a generated one.
+func (p *Profile) ResolveDataNICMACs() {
+	p.DataNICMACs = make([]string, p.VirtualMachine.NicCount)
+
+	for idx := range p.DataNICMACs {
+		nicID := idx + 1
+
+		mac := getIntfMac(context.Background(), boxenutil.ClabIntfName(nicID))
+		if mac == "" {
+			mac = generateMac(nicID)
+		}
+
+		p.DataNICMACs[idx] = mac
+	}
+}
+
 func buildDataNic(
 	p *Profile,
 	nicID,
@@ -394,13 +411,11 @@ func buildDataNic(
 	busAddr int,
 	paddedNicID string,
 ) []string {
-	intfName := boxenutil.ClabIntfName(nicID)
-
-	// try to get the mac from the container interface so things match in bridge mode
-	mac := getIntfMac(context.Background(), intfName)
-	if mac == "" {
-		mac = generateMac(nicID)
+	if len(p.DataNICMACs) != int(p.VirtualMachine.NicCount) {
+		p.ResolveDataNICMACs()
 	}
+
+	mac := p.DataNICMACs[nicID-1]
 
 	// the tap is always created (script=no); the boxen tc service brings it up and
 	// stitches it to the container interface when that interface appears

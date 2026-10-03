@@ -36,6 +36,10 @@ type Profile struct {
 	PreRunCommands []string `yaml:"preRunCommands"`
 	Run            *Run     `yaml:"run"`
 
+	// DataNICMACs holds the MAC of each data nic, in nic order; it is resolved before the VM
+	// starts and exposed to templates as {{ .dataNICMACs }}.
+	DataNICMACs []string `yaml:"-"`
+
 	// InstanceUUID is set by the agent at runtime so the VM keeps its system UUID across restarts
 	// of the same container; packaging uses a random UUID.
 	InstanceUUID string `yaml:"-"`

@@ -140,7 +140,7 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 					return c.WriteReturn()
 				}
 
-				err = a.readUntil(ctx, response)
+				err = a.waitForEcho(ctx, response)
 				if err != nil {
 					return err
 				}
@@ -181,7 +181,7 @@ func (a *Agent) processStepReadUntil(ctx context.Context, step *boxenprofile.Ste
 	taskCtx, cancel := context.WithTimeout(ctx, t)
 	defer cancel()
 
-	ticker := time.NewTicker(time.Second)
+	ticker := time.NewTicker(readUntilPollInterval)
 	defer ticker.Stop()
 
 	var window []byte
@@ -287,7 +287,7 @@ func (a *Agent) processStepWrite(
 			return err
 		}
 
-		err = a.readUntil(ctx, s)
+		err = a.waitForEcho(ctx, s)
 		if err != nil {
 			return err
 		}
