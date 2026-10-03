@@ -83,7 +83,7 @@ The next build can then reuse its name. Builds for the same profile should not r
 
 ## Missing extra file or firmware
 
-Boxen looks at the profile's listed path first, then beside the disk under the same basename. Ensure filenames match exactly. Nexus 9000v needs `OVMF.fd`; vEOS needs its Aboot ISO; CSR 1000v needs `iosxe_config.txt`. Files are transferred into the container, not automatically into the guest filesystem.
+Boxen looks at the profile's listed path first, then beside the disk under the same basename. Ensure filenames match exactly. Nexus 9000v needs `OVMF.fd`; vEOS needs its Aboot ISO. Files are transferred into the container, not automatically into the guest filesystem.
 
 ## Disk conversion or sparsification fails
 

@@ -172,3 +172,49 @@ func TestSonicSaveCapture(t *testing.T) {
 		t.Fatalf("got (%q, %v, %v), want %q", got, done, err, content)
 	}
 }
+
+func TestCiscoSaveCapture(t *testing.T) {
+	for _, test := range []struct {
+		profile string
+		raw     string
+		want    string
+	}{
+		{
+			profile: "cisco_csr1000v",
+			raw: "show running-config brief | exclude " +
+				"^ certificate|^platform console|^diagnostic bootup|^license udi\r\n" +
+				"Building configuration...\r\n\r\n" +
+				"Current configuration : 1234 bytes\r\n!\r\nhostname csr1\r\n!\r\nend\r\n\r\ncsr1#",
+			want: "!\nhostname csr1\n!\nend\n\n",
+		},
+		{
+			profile: "cisco_n9kv",
+			raw: "show running-config\r\n\r\n!Command: show running-config\r\n" +
+				"!Time: Sat Oct  3 12:00:00 2026\r\n\r\nversion 10.6(3) Bios:version\r\n" +
+				"hostname n9k1\r\n\r\nn9k1# ",
+			want: "!Time: Sat Oct  3 12:00:00 2026\n\n" +
+				"version 10.6(3) Bios:version\nhostname n9k1\n\n",
+		},
+		{
+			profile: "cisco_xrv9k",
+			raw: "show running-config\r\nBuilding configuration...\r\n" +
+				"!! IOS XR Configuration 24.3.1\r\n" +
+				"hostname xr1\r\nrouter static\r\n vrf clab-mgmt\r\n !\r\n!\r\nend\r\n\r\n" +
+				"RP/0/RP0/CPU0:xr1#",
+			want: "!! IOS XR Configuration 24.3.1\nhostname xr1\n" +
+				"router static\n vrf clab-mgmt\n !\n!\n",
+		},
+	} {
+		t.Run(test.profile, func(t *testing.T) {
+			capture := saveCaptureStep(t, loadEmbeddedProfile(t, test.profile))
+
+			// the echoed command is consumed before the output is read
+			raw := strings.TrimPrefix(test.raw, capture.Command)
+
+			got, _, done, err := extractCapture([]byte(raw), capture)
+			if err != nil || !done || got != test.want {
+				t.Fatalf("got (%q, %v, %v), want %q", got, done, err, test.want)
+			}
+		})
+	}
+}
