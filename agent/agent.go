@@ -34,6 +34,10 @@ type Agent struct {
 
 	conn         *scrapligocli.Cli
 	consoleRelay *consoleRelay
+	// readConsoleChunk reads one chunk of buffered console output without blocking.
+	readConsoleChunk func() ([]byte, error)
+	// pendingConsole holds console output read past a step's match, for the following steps.
+	pendingConsole []byte
 
 	// startupConfigFile is the node's existing startup config file, empty when there is none.
 	startupConfigFile string

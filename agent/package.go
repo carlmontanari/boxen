@@ -25,8 +25,9 @@ const (
 	stderrCheckInterval = time.Second
 	stderrCheckDuration = 10 * time.Second
 
-	readUntilSearchDepth = 256
-	readUntilRingBufSize = 1_000
+	// readUntilWindowSize is how much earlier output a readUntil step keeps, so that matches
+	// spanning reads are found.
+	readUntilWindowSize = 1_000
 )
 
 // Package begins the packaging process for the container.

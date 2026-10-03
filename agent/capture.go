@@ -76,12 +76,15 @@ func (a *Agent) readCapture(ctx context.Context, c *boxenprofile.StepCapture) (s
 
 		buf.Write(b)
 
-		output, ok, err := extractCapture(buf.Bytes(), c)
+		output, rest, ok, err := extractCapture(buf.Bytes(), c)
 		if err != nil {
 			return "", err
 		}
 
 		if ok {
+			// the end marker and output after it belong to the following steps
+			a.unreadConsole(rest)
+
 			return output, nil
 		}
 
@@ -102,7 +105,7 @@ func (a *Agent) readCapture(ctx context.Context, c *boxenprofile.StepCapture) (s
 func extractCapture(
 	raw []byte,
 	c *boxenprofile.StepCapture,
-) (output string, done bool, err error) {
+) (output string, rest []byte, done bool, err error) {
 	content := bytes.ReplaceAll(raw, []byte{0}, nil)
 	content = bytes.ReplaceAll(content, []byte("\r"), nil)
 
@@ -111,13 +114,13 @@ func extractCapture(
 	if c.Start.Contains != "" || c.Start.ContainsPattern != "" {
 		loc, err := c.Start.Find(content)
 		if err != nil || loc == nil {
-			return "", false, err
+			return "", nil, false, err
 		}
 
 		// recording begins on the line after the start marker
 		lineEnd := bytes.IndexByte(content[loc[1]:], '\n')
 		if lineEnd < 0 {
-			return "", false, nil
+			return "", nil, false, nil
 		}
 
 		begin = loc[1] + lineEnd + 1
@@ -125,27 +128,28 @@ func extractCapture(
 
 	loc, err := c.End.Find(content[begin:])
 	if err != nil || loc == nil {
-		return "", false, err
+		return "", nil, false, err
 	}
 
+	rest = content[begin+loc[0]:]
 	output = strings.TrimLeft(string(content[begin:begin+loc[0]]), "\n")
 
 	if c.Decode == boxenprofile.CaptureDecodeBase64 {
 		decoded, err := base64.StdEncoding.DecodeString(strings.Join(strings.Fields(output), ""))
 		if err != nil {
-			return "", false, fmt.Errorf(
+			return "", nil, false, fmt.Errorf(
 				"%w: decoding captured base64 output: %w",
 				boxenerrors.ErrBoxen,
 				err,
 			)
 		}
 
-		return string(decoded), true, nil
+		return string(decoded), rest, true, nil
 	}
 
 	if output != "" && !strings.HasSuffix(output, "\n") {
 		output += "\n"
 	}
 
-	return output, true, nil
+	return output, rest, true, nil
 }

@@ -70,6 +70,7 @@ func (a *Agent) openConsoleConn(ctx context.Context, logFilename string, wake bo
 			_, err = conn.Open(ctx)
 			if err == nil {
 				a.conn = conn
+				a.readConsoleChunk = func() ([]byte, error) { return conn.Read() }
 				a.consoleRelay = relay
 				success <- struct{}{}
 
@@ -172,9 +173,24 @@ func drainReads(read func() ([]byte, error)) ([]byte, error) {
 	return out, nil
 }
 
-// readConsole returns everything the console session has buffered so far, without blocking.
+// readConsole returns output put back by a previous step followed by everything the console
+// session has buffered so far, without blocking.
 func (a *Agent) readConsole() ([]byte, error) {
-	return drainReads(func() ([]byte, error) { return a.conn.Read() })
+	pending := a.pendingConsole
+	a.pendingConsole = nil
+
+	b, err := drainReads(a.readConsoleChunk)
+
+	return append(pending, b...), err
+}
+
+// unreadConsole puts output read past a step's match back, so the following steps see it.
+func (a *Agent) unreadConsole(b []byte) {
+	if len(b) == 0 {
+		return
+	}
+
+	a.pendingConsole = append(append([]byte(nil), b...), a.pendingConsole...)
 }
 
 func (a *Agent) readUntil(ctx context.Context, s string) error {
@@ -205,7 +221,9 @@ func (a *Agent) readUntil(ctx context.Context, s string) error {
 			a.l.Debug("console output", "content", string(b))
 		}
 
-		if bytes.Contains(contents, []byte(s)) {
+		if idx := bytes.Index(contents, []byte(s)); idx >= 0 {
+			a.unreadConsole(contents[idx+len(s):])
+
 			return nil
 		}
 

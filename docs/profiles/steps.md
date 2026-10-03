@@ -68,7 +68,7 @@ Give a successful terminal prompt `completes: true`; otherwise the step can cont
 
 `until` supports `contains`, `containsPattern`, and `notContains`. A literal match or regex match is sufficient unless excluded by `notContains`. Use a specific success marker, especially after a command that saves configuration or changes CLI mode.
 
-The reader searches a bounded buffer of recent output, so short prompt patterns are more reliable than expressions depending on a complete boot transcript. Regex syntax is Go's regular-expression syntax; lookarounds and backreferences are not available.
+The reader checks all new output plus a bounded tail of earlier output, so short prompt patterns are more reliable than expressions depending on a complete boot transcript. Output read past the match stays available to the following steps, so consecutive `readUntil` steps can wait for output that arrives together, such as a save confirmation and the next prompt. A `prompts` step reads the console on its own and starts from fresh output. Regex syntax is Go's regular-expression syntax; lookarounds and backreferences are not available.
 
 ## `write`: send commands or configuration
 

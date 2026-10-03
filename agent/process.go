@@ -9,7 +9,6 @@ import (
 
 	boxenerrors "github.com/carlmontanari/boxen/errors"
 	boxenprofile "github.com/carlmontanari/boxen/profile"
-	boxenutilringbuffer "github.com/carlmontanari/boxen/util/ringbuffer"
 	scrapligocli "github.com/scrapli/scrapligo/v2/cli"
 )
 
@@ -35,6 +34,10 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 
 		return err
 	}
+
+	// the prompts engine reads the session itself and cannot see output read before it, so
+	// that output is stale once this step runs
+	a.pendingConsole = nil
 
 	a.l.Info(
 		"handling prompts",
@@ -160,8 +163,6 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 }
 
 func (a *Agent) processStepReadUntil(ctx context.Context, step *boxenprofile.Step) error {
-	b := boxenutilringbuffer.NewRingBuffer(readUntilRingBufSize)
-
 	t, err := time.ParseDuration(step.ReadUntil.Timeout)
 	if err != nil {
 		a.l.Error(
@@ -177,67 +178,52 @@ func (a *Agent) processStepReadUntil(ctx context.Context, step *boxenprofile.Ste
 
 	a.l.Info("reading until", "until", step.ReadUntil.Until, "timeout", step.ReadUntil.Timeout)
 
-	start := time.Now()
-	end := start.Add(t)
-	doneOrErr := make(chan error)
+	taskCtx, cancel := context.WithTimeout(ctx, t)
+	defer cancel()
 
-	go func() {
-		for {
-			time.Sleep(time.Second)
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
 
-			// ensure this goroutine exits. we cant have this continue reading from the
-			// session buf screwing up other reads (esp since this is going around the
-			// operation loop in libscrapli ffi bits)
-			if time.Now().After(end) {
-				return
-			}
+	var window []byte
 
-			r, err := a.readConsole()
-			if err != nil {
-				doneOrErr <- err
-
-				return
-			}
-
-			_, err = b.Write(r)
-			if err != nil {
-				doneOrErr <- err
-
-				return
-			}
-
-			content := b.GetOrderedContent()
-
-			if len(r) > 0 {
-				a.l.Debug("console output", "content", string(r))
-			}
-
-			check, err := step.ReadUntil.Until.Check(content)
-			if err != nil {
-				doneOrErr <- err
-
-				return
-			}
-
-			if check {
-				doneOrErr <- err
-
-				return
-			}
-		}
-	}()
-
-	select {
-	case err = <-doneOrErr:
+	for {
+		r, err := a.readConsole()
 		if err != nil {
 			return err
 		}
 
-		return nil
-	case <-time.After(t):
-		return fmt.Errorf("%w: read until timeout expired", boxenerrors.ErrBoxen)
-	case <-ctx.Done():
-		return ctx.Err()
+		if len(r) > 0 {
+			a.l.Debug("console output", "content", string(r))
+		}
+
+		// check all new output, plus the tail of earlier output for matches spanning reads
+		window = append(window, r...)
+
+		loc, err := step.ReadUntil.Until.Find(window)
+		if err != nil {
+			return err
+		}
+
+		if loc != nil {
+			// output past the match belongs to the following steps
+			a.unreadConsole(window[loc[1]:])
+
+			return nil
+		}
+
+		if len(window) > readUntilWindowSize {
+			window = append([]byte(nil), window[len(window)-readUntilWindowSize:]...)
+		}
+
+		select {
+		case <-taskCtx.Done():
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+
+			return fmt.Errorf("%w: read until timeout expired", boxenerrors.ErrBoxen)
+		case <-ticker.C:
+		}
 	}
 }
 

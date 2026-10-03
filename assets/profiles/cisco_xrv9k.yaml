@@ -10,7 +10,7 @@ virtualMachine:
   cpuEmulation: "qemu64,+ssse3,+sse4.1,+sse4.2"
   machine: ""
   memory: 16384
-  cpuCores: 0
+  cpuCores: 4
   cpuThreads: 0
   cpuSockets: 0
   serialPortCount: 1
@@ -19,18 +19,19 @@ virtualMachine:
   nicPerBus: 26
   managementPassthrough: true
   mutators:
-    # add the additional "ctrl" and "dev" nics after the "normal" nic
+    # add the additional "ctrl" and "dev" nics after the "normal" nic; their taps are named so they
+    # do not take the tapN names of the data nics
     mgmtNIC: |
       def mutate(items):
           items.append("-device")
           items.append("virtio-net-pci,netdev=ctrl")
           items.append("-netdev")
-          items.append("tap,id=ctrl,script=no,downscript=no")
+          items.append("tap,id=ctrl,ifname=xrctrl,script=no,downscript=no")
 
           items.append("-device")
           items.append("virtio-net-pci,netdev=dev")
           items.append("-netdev")
-          items.append("tap,id=dev,script=no,downscript=no")
+          items.append("tap,id=dev,ifname=xrdev,script=no,downscript=no")
 
           return items
   extras: []

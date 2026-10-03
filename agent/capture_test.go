@@ -66,7 +66,7 @@ func TestExtractCapture(t *testing.T) {
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			got, done, err := extractCapture([]byte(test.raw), &test.capture)
+			got, _, done, err := extractCapture([]byte(test.raw), &test.capture)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -90,14 +90,14 @@ func TestExtractCaptureBase64(t *testing.T) {
 
 	raw := "BEGIN\r\n" + encoded[:20] + "\r\n" + encoded[20:] + "\r\nEND\r\n"
 
-	got, done, err := extractCapture([]byte(raw), &capture)
+	got, _, done, err := extractCapture([]byte(raw), &capture)
 	if err != nil || !done || got != content {
 		t.Fatalf("got (%q, %v, %v), want %q", got, done, err, content)
 	}
 
-	_, _, err = extractCapture([]byte("BEGIN\r\nnot base64!\r\nEND\r\n"), &capture)
+	got, _, done, err = extractCapture([]byte("BEGIN\r\nnot base64!\r\nEND\r\n"), &capture)
 	if err == nil {
-		t.Fatal("expected a decode error")
+		t.Fatalf("expected a decode error, got (%q, %v)", got, done)
 	}
 }
 
@@ -142,7 +142,7 @@ func TestCumulusSaveCapture(t *testing.T) {
 		"BOXEN_END\r\n" +
 		"\x1b[?2004hcumulus@leaf1:mgmt:~$ "
 
-	got, done, err := extractCapture([]byte(raw), capture)
+	got, _, done, err := extractCapture([]byte(raw), capture)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,7 +167,7 @@ func TestSonicSaveCapture(t *testing.T) {
 	raw := "admin@leaf1:~$ " + capture.Command + "\r\n" +
 		"BOXEN_BEGIN\r\n" + encoded + "\r\nBOXEN_END\r\nadmin@leaf1:~$ "
 
-	got, done, err := extractCapture([]byte(raw), capture)
+	got, _, done, err := extractCapture([]byte(raw), capture)
 	if err != nil || !done || got != content {
 		t.Fatalf("got (%q, %v, %v), want %q", got, done, err, content)
 	}

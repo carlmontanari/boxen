@@ -28,4 +28,6 @@ const (
 	FlagContainerlabHostname       = "hostname"
 	FlagContainerlabConnectionMode = "connection-mode"
 	FlagContainerlabTrace          = "trace"
+	FlagContainerlabVCPU           = "vcpu"
+	FlagContainerlabRAM            = "ram"
 )
