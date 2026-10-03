@@ -41,6 +41,15 @@ func (b *Boxen) resolveProfile(
 		if err != nil {
 			return nil, err
 		}
+		profileDirectory, err := filepath.Abs(filepath.Dir(maybeProfileFilename))
+		if err != nil {
+			return nil, err
+		}
+		for i, filename := range p.ExtraFiles {
+			if !filepath.IsAbs(filename) {
+				p.ExtraFiles[i] = filepath.Join(profileDirectory, filename)
+			}
+		}
 
 		b.l.Info(
 			"resolved profile from path",

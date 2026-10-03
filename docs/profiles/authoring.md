@@ -9,7 +9,7 @@ mkdir -p profiles
 cp assets/profiles/nvidia_cumulusvx.yaml profiles/example.yaml
 ```
 
-Change `name`, disk and version patterns, memory, CPU, disk bus, and NIC layout. Check the vendor's virtualization requirements. List necessary firmware and boot media in `extraFiles`; place those files beside the source disk.
+Change `name`, disk and version patterns, memory, CPU, disk bus, and NIC layout. Check the vendor's virtualization requirements. List necessary firmware, scripts, templates, and boot media in `extraFiles`; relative paths in a custom profile resolve beside that profile. When copying the Cumulus profile, also copy its `.star` and `.sh.tmpl` companions.
 
 Use the file path while developing so you exercise your edits directly:
 
@@ -47,6 +47,6 @@ If a run stops at a prompt, inspect `package.console.log` or `run.console.log` a
 
 ## 6. Make it an embedded profile
 
-Place the finished YAML in `assets/profiles/` and rebuild the CLI with `make build`. The asset package embeds that directory at compile time, so editing a profile file does not change an already-built binary's embedded copy.
+Place the finished YAML in `assets/profiles/` and rebuild the CLI with `make build`. The asset package embeds YAML profiles at compile time, so editing a profile file does not change an already-built binary's embedded copy. Companion files remain external: list them in `extraFiles` and document where users must supply them. Reference their transferred basenames with `write.contentFromFile` or Starlark `load(...)`.
 
 Document the disk naming, companion files, hardware requirements, Containerlab kind, credentials, startup syntax, and interface mapping. Run `make fmt`, `make lint`, and the relevant Go tests when submitting repository changes. Add a focused test when a platform depends on custom QEMU argument generation or new runtime logic.

@@ -64,6 +64,11 @@ The runtime expects `virtualMachine`, `packaging`, and `run` to be present where
 
 `resolvedDisk` is internal and is not a YAML setting. Disk and companion-file lookup is described in [packaging](../guides/packaging.md).
 
+For a profile supplied by file path, relative `extraFiles` paths are resolved beside
+that profile. Packaging transfers their basenames into `/boxen`. Embedded profiles
+still require users to supply companion files; their contents are not embedded in
+the Boxen binary. Runtime files can also be bind-mounted into the node container.
+
 ## Console settings
 
 `scrapliReturnChar` overrides the console line ending, which defaults to `\r\n`. Junos and some Cisco profiles use `"\r"`.

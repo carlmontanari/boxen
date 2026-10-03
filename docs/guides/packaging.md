@@ -20,7 +20,18 @@ There are three ways to select a profile:
 
 The current lookup checks embedded names and disk patterns together as it walks the embedded files. A disk pattern encountered earlier can win even when a different embedded name was supplied. Use an existing profile file path when you need unambiguous selection.
 
-Extra files are found at the listed path if it exists, otherwise beside the disk under the listed basename. They arrive in `/boxen` under their basenames. Use distinct names and avoid `disk.qcow2`, which is reserved for the converted disk. Also give the source disk a vendor filename rather than the literal `disk.qcow2`: the current conversion routine uses that name for its output and deletes the transferred source afterward.
+For a custom profile file, relative `extraFiles` paths resolve beside the profile.
+Absolute paths are used directly. For embedded profiles, the listed paths are checked
+from the current directory. If a listed file is unavailable, Boxen also checks beside
+the disk under its basename. Companion scripts and templates are external files;
+selecting an embedded profile does not embed or supply those companions.
+
+Files arrive in `/boxen` under their basenames. Reference those container paths in
+`write.contentFromFile` and Starlark `load(...)`; those references do not transfer
+files themselves. Use distinct names and avoid `disk.qcow2`, which is reserved for
+the converted disk. Also give the source disk a vendor filename rather than the
+literal `disk.qcow2`: the current conversion routine uses that name for its output
+and deletes the transferred source afterward.
 
 ## Name the image
 
@@ -42,7 +53,7 @@ The name is `[registry/]boxen-<profile.name>:<tag>`. With the default `latest` t
 2. **Start the builder.** The host listens on TCP 10329 and launches `boxen-<profile.name>-builder` as a privileged Docker container.
 3. **Transfer files.** The agent requests the profile, disk, and extra files. It writes `profile.yaml` for the future runtime.
 4. **Convert the disk.** `qemu-img convert -O qcow2` creates `disk.qcow2` and the transferred source copy is removed.
-5. **Prepare and boot.** `prePackagingCommands` run through `/bin/bash -c`, then QEMU starts with packaging-specific arguments.
+5. **Prepare and boot.** `prePackagingCommands` run through `/bin/bash -c`, the optional `virtualMachine.configure` Starlark function derives VM settings, then QEMU starts with packaging-specific arguments.
 6. **Automate the console.** `packaging.process` handles dialogs, credentials, and baseline configuration over serial TCP 5001.
 7. **Finalize the disk.** Boxen closes its console, kills QEMU, optionally runs `virt-sparsify --compress`, and executes `postPackagingCommands`.
 8. **Commit the image.** The host changes the entrypoint to `/boxen/boxen run`, records applicable exposed ports, commits the image, and removes the completed builder.
