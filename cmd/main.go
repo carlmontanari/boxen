@@ -33,6 +33,7 @@ func main() {
 			runCommand(),
 			healthCommand(),
 			saveCommand(),
+			resetCommand(),
 		},
 	}
 
@@ -319,6 +320,28 @@ func saveCommand() *urfavecli.Command {
 			)
 
 			return err
+		},
+	}
+}
+
+func resetCommand() *urfavecli.Command {
+	return &urfavecli.Command{
+		Name: "reset",
+		Usage: "hard reset the vm of a running node, the guest reboots from its disk; " +
+			"run inside the node container, e.g. with docker exec",
+		Action: func(ctx context.Context, _ *urfavecli.Command) error {
+			l := boxenlogging.NewLogger(boxenlogging.LevelFromString("info"))
+
+			err := boxenagent.Reset(ctx)
+			if err != nil {
+				l.Error("boxen reset failed", "error", err.Error())
+
+				return err
+			}
+
+			l.Info("vm reset")
+
+			return nil
 		},
 	}
 }

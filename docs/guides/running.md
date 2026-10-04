@@ -133,6 +133,14 @@ docker exec -it clab-router-lab-r1 telnet localhost 5001
 
 Exit telnet with `Ctrl+]`, then `q`. Avoid taking over the console while profile automation is running.
 
+To reboot a hung guest without recreating the node, reset the VM:
+
+```sh
+docker exec clab-router-lab-r1 /boxen/boxen reset
+```
+
+The guest boots from its disk; only saved configuration survives, and provisioning does not run again.
+
 ## Stop and recreate
 
 ```sh

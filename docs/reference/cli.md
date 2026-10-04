@@ -1,6 +1,6 @@
 # CLI commands
 
-Boxen exposes `build`, `package`, `run`, `health`, and `save`. Use each command's `--help` output for the binary installed on your host. This reference describes the current checkout.
+Boxen exposes `build`, `package`, `run`, `health`, `save`, and `reset`. Use each command's `--help` output for the binary installed on your host. This reference describes the current checkout.
 
 ## `boxen build`
 
@@ -83,6 +83,14 @@ docker exec clab-<lab>-<node> /boxen/boxen save
 | `--logLevel` | `info` | Logging level |
 
 The command runs the profile's `run.saveProcess` over the serial console and writes the recorded configuration to the node's startup config file: the existing file from `run.startupConfigFiles`, otherwise the first listed path. Containerlab VM kinds bind that directory from the lab directory, so the saved file is applied by `run.configProcess` the next time the node is created. The command fails when the profile defines no save process, while the node is still provisioning, or when the console cannot be opened within a minute, for example because another session holds it.
+
+## `boxen reset`
+
+```sh
+docker exec clab-<lab>-<node> /boxen/boxen reset
+```
+
+Hard resets the VM through the QEMU monitor, like pressing its reset button. The guest reboots from its disk, so unsaved guest configuration is lost, and provisioning does not run again.
 
 ## Global help and version
 
