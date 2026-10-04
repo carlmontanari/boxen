@@ -1,6 +1,7 @@
 package profile
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -252,5 +253,28 @@ func TestQemuArgsOverridesAndExtras(t *testing.T) {
 	// the onPackage-only extra is present in packaging mode
 	if !slices.Contains(packageArgs, "-cdrom") || !slices.Contains(packageArgs, "config.iso") {
 		t.Fatalf("expected onPackage extra in packaging args, got %v", packageArgs)
+	}
+}
+
+func TestQemuBridgeBoundaries(t *testing.T) {
+	for _, count := range []uint16{25, 26, 27, 52, 70} {
+		p := testQemuProfile(false)
+		p.VirtualMachine.NicCount = count
+		p.VirtualMachine.NicPerBus = 26
+		args, err := QemuArgsFromProfile(p, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for index := 1; index <= int(count); index++ {
+			bridge := fmt.Sprintf("pci-bridge,chassis_nr=%d,id=pci.%d",
+				index/26+1, index/26+1)
+			if !slices.Contains(args, bridge) {
+				t.Fatalf("NIC %d of %d references a missing bridge: %s", index, count, bridge)
+			}
+			if !slices.Contains(args,
+				fmt.Sprintf("tap,id=p%03d,ifname=tap%d,script=no,downscript=no", index, index)) {
+				t.Fatalf("missing tap%d", index)
+			}
+		}
 	}
 }

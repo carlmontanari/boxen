@@ -13,6 +13,7 @@ Boxen renders Go templates in `write.content` and in content loaded by `write.co
 | `.password` | Node-specific password | Runtime flag; empty during packaging |
 | `.hostname` | `leaf1` | Runtime flag; empty during packaging |
 | `.connectionMode` | Value passed by Containerlab | Runtime flag; empty during packaging |
+| `.isPackaging` | `true` or `false` | Whether the current operation is packaging |
 
 Although `.disk` contains the source basename during packaging, conversion has already produced the working `disk.qcow2` before console steps run. Do not assume the source filename still exists inside the builder.
 
@@ -70,6 +71,40 @@ The exact commands depend on the OS. Use the [management guide](../guides/manage
 Templates expand in the text that a `write` step sends. They do not expand in `prompts.response`, `readUntil` matchers, shell hooks, the `contentFromFile` pathname, or QEMU argument overrides. Static prompt responses should log into the prepared baseline; use runtime `write` steps for node-specific credentials.
 
 Go template syntax is not shell syntax. Use `{{ if ... }}` and `{{ end }}` to guard optional values; avoid accessing a missing management key before the DHCP branch.
+
+## Runtime files and Starlark
+
+`readFile` reads raw container file contents when the template is rendered. It does
+not interpret templates contained in that data. Required files fail if unavailable;
+an optional second argument supplies a default only when the file is missing:
+
+```yaml
+write:
+  content: |
+    {{ readFile "/config/commands.txt" }}
+    {{ readFile "/config/optional.txt" "" }}
+```
+
+`starlark` loads a user-supplied script, calls an exported function, and returns its
+result to the template. Arguments and results can be JSON-compatible values,
+including dictionaries and lists:
+
+```yaml
+write:
+  content: |
+    {{ $settings := starlark "settings.star" "commands" (readFile "/config/settings.json") }}
+    {{ range $settings.commands }}{{ . }}
+    {{ end }}
+```
+
+Starlark receives `is_packaging`, `read_file(path, default="...")`, and the `json`
+module. `read_file` uses the same missing-file rules as `readFile`. `load(...)` reads
+other user-supplied modules, relative to the importing script. Paths passed to
+`read_file` are relative to the container working directory, normally `/boxen`.
+Each invocation reads current files; modules are cached only within that invocation.
+List scripts in `extraFiles` to transfer them during packaging, or mount them at runtime.
+
+The same instruments are available to [VM configuration and QEMU mutators](qemu.md).
 
 ## Shell arguments and file transfer
 

@@ -2,7 +2,7 @@ package assets
 
 import "embed"
 
-// Assets is the embedded assets objects for the included profile yaml data.
+// Assets contains the included profiles and their embedded companion files.
 //
-//go:embed profiles/*.yaml
+//go:embed profiles/*
 var Assets embed.FS

@@ -10,6 +10,9 @@ diskPatterns:
   - "(?i)cumulus.*\\.qcow2"
 versionPattern: "(?i)\\d+\\.\\d+\\.\\d+"
 scrapliDefinitionNameOrFile: generic
+extraFiles:
+  - nvidia_cumulusvx_breakout.star
+  - nvidia_cumulusvx_breakout.sh.tmpl
 virtualMachine:
   cpuEmulation: host
   memory: 4096
@@ -19,6 +22,10 @@ virtualMachine:
   nicCount: 16
   nicPerBus: 26
   managementPassthrough: true
+  configure: |
+    load("nvidia_cumulusvx_breakout.star", "layout")
+    def configure(vm):
+        return {"nicCount": layout(vm["nicCount"])["nicCount"]}
 packaging:
   sparsify: true
   process:
@@ -105,7 +112,7 @@ run:
       readUntil:
         timeout: 20m
         until:
-          contains: "cumulus login:"
+          containsPattern: '(?m)^[^\r\n]+ login: *$'
     - type: write # enter newline to resurface the prompt
       write:
         content: "\n"
@@ -125,16 +132,25 @@ run:
             hidden: true
             once: true
           - name: finish login
-            prompt:
-              contains: "cumulus@cumulus:mgmt"
+            prompt: &cumulusShell
+              containsPattern: '(?m)cumulus@[^\r\n]+\$ *$'
             response: ""
+            hidden: true
             once: true
             completes: true
     - type: readUntil
       readUntil:
         timeout: 1m
+        until: *cumulusShell
+    - type: write
+      write:
+        hidden: true
+        contentFromFile: nvidia_cumulusvx_breakout.sh.tmpl
+    - type: readUntil
+      readUntil:
+        timeout: 6m
         until:
-          contains: "cumulus@cumulus:mgmt"
+          containsPattern: '(?m)^BOXEN_BREAKOUT_OK\r?\n[^\r\n]*\$ *\r?$'
     - type: write
       write:
         content: |

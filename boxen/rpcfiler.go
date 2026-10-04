@@ -4,9 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 
+	boxenassets "github.com/carlmontanari/boxen/assets"
+	boxenerrors "github.com/carlmontanari/boxen/errors"
 	boxenprotov1 "github.com/carlmontanari/boxen/proto/v1"
 	"google.golang.org/grpc"
 )
@@ -18,11 +21,9 @@ func (b *Boxen) Filer(
 ) error {
 	filename := req.GetFile()
 
-	resolvedFilename := resolveFilePath(b.disk, filename)
+	b.l.Info("filer request received", "filename", filename)
 
-	b.l.Info("filer request received", "filename", resolvedFilename)
-
-	f, err := os.Open(resolvedFilename) //nolint: gosec
+	f, err := openFile(b.disk, filename)
 	if err != nil {
 		return err
 	}
@@ -67,20 +68,45 @@ func (b *Boxen) Filer(
 	return nil
 }
 
+// openFile uses embedded companions for profile names and host files for custom
+// profiles, whose extraFiles paths are made absolute by loadProfileFile.
+func openFile(disk, filename string) (fs.File, error) {
+	if filename != disk && !filepath.IsAbs(filename) {
+		f, err := boxenassets.Assets.Open("profiles/" + filepath.ToSlash(filename))
+		if err == nil {
+			return f, nil
+		}
+		if !errors.Is(err, os.ErrNotExist) {
+			return nil, err
+		}
+	}
+
+	path, err := resolveFilePath(disk, filename)
+	if err != nil {
+		return nil, err
+	}
+
+	return os.Open(path) //nolint:gosec // Profile-controlled paths.
+}
+
 // resolves the file at f -- if f exists, great, if not we check in the same directory that the
 // users root disk is (d).
-func resolveFilePath(d, f string) string {
-	_, err := os.Stat(f)
-	if err == nil {
-		return f
+func resolveFilePath(d, f string) (string, error) {
+	maybeF := filepath.Join(filepath.Dir(d), filepath.Base(f))
+	for _, filename := range []string{f, maybeF} {
+		info, err := os.Stat(filename)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return "", err
+		}
+		if info.IsDir() {
+			return "", fmt.Errorf("%w: file %q is a directory", boxenerrors.ErrBoxen, filename)
+		}
+
+		return filename, nil
 	}
 
-	maybeF := fmt.Sprintf("%s/%s", filepath.Dir(d), filepath.Base(f))
-
-	_, err = os.Stat(maybeF)
-	if err == nil {
-		return maybeF
-	}
-
-	return ""
+	return "", fmt.Errorf("%w: file %q not found (also checked %q)", os.ErrNotExist, f, maybeF)
 }

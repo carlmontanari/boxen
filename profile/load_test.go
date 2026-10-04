@@ -1,6 +1,7 @@
 package profile
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -35,6 +36,11 @@ func TestEmbeddedProfilesLoad(t *testing.T) {
 	}
 
 	for _, entry := range entries {
+		extension := filepath.Ext(entry.Name())
+		if entry.IsDir() || (extension != ".yaml" && extension != ".yml") {
+			continue
+		}
+
 		t.Run(entry.Name(), func(t *testing.T) {
 			b, err := boxenassets.Assets.ReadFile("profiles/" + entry.Name())
 			if err != nil {
