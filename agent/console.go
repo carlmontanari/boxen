@@ -17,6 +17,10 @@ import (
 const (
 	echoTimeout      = 2 * time.Minute
 	echoPollInterval = 20 * time.Millisecond
+	// echoWindowExtra is how much output besides the echoed line waitForEcho keeps, so that the
+	// echo survives guest output arriving between polls and the bytes that CLIs insert when
+	// wrapping a line.
+	echoWindowExtra = 4_096
 )
 
 const (
@@ -206,9 +210,11 @@ func (a *Agent) unreadConsole(b []byte) {
 
 // waitForEcho waits until the console echoed written text, so that following input is not sent
 // before the guest processed it. Whitespace is ignored, since CLIs do not always echo it verbatim
-// and wrap long lines, and an echo that never arrives fails the step instead of blocking it.
+// and wrap long lines, and an echo that never arrives fails the step instead of blocking it. Only
+// output read after the write is matched, and the echo itself is consumed, so repeated identical
+// lines wait for their own echo; output past the echo stays available for the following steps.
 func (a *Agent) waitForEcho(ctx context.Context, s string) error {
-	want := withoutWhitespace([]byte(s))
+	want, _ := withoutWhitespace([]byte(s))
 	if len(want) == 0 {
 		return nil
 	}
@@ -216,29 +222,39 @@ func (a *Agent) waitForEcho(ctx context.Context, s string) error {
 	echoCtx, cancel := context.WithTimeout(ctx, echoTimeout)
 	defer cancel()
 
-	var buf bytes.Buffer
+	// output carried over from before the write can never be its echo, so it is excluded from
+	// matching and kept for the following steps
+	pending := a.pendingConsole
+	a.pendingConsole = nil
+
+	var raw []byte
 
 	for {
 		// this read cant block because its only reading off the internally buffered
 		// bits that the session has already read
-		b, err := a.readConsole()
+		b, err := drainReads(a.readConsoleChunk)
 		if err != nil {
 			return err
 		}
 
 		if len(b) > 0 {
 			a.l.Debug("console output", "content", string(b))
+
+			raw = append(raw, b...)
 		}
 
-		buf.Write(b)
+		contents, offsets := withoutWhitespace(raw)
 
-		contents := withoutWhitespace(buf.Bytes())
-
-		if bytes.Contains(contents, want) {
-			// put everything read back, so the following steps see output past the echo
-			a.unreadConsole(buf.Bytes())
+		if idx := bytes.Index(contents, want); idx >= 0 {
+			// the echo is consumed; only output past it goes back for the following steps
+			a.unreadConsole(raw[offsets[idx+len(want)-1]+1:])
+			a.unreadConsole(pending)
 
 			return nil
+		}
+
+		if len(raw) > len(want)+echoWindowExtra {
+			raw = append([]byte(nil), raw[len(raw)-len(want)-echoWindowExtra:]...)
 		}
 
 		select {
@@ -254,18 +270,21 @@ func (a *Agent) waitForEcho(ctx context.Context, s string) error {
 }
 
 // withoutWhitespace returns b without whitespace, and without the NUL, bell, and backspace bytes
-// that line editors emit, for example when wrapping a line.
-func withoutWhitespace(b []byte) []byte {
-	out := make([]byte, 0, len(b))
+// that line editors emit, for example when wrapping a line, along with the index in b of each
+// returned byte, so a match in the returned bytes maps back to the raw ones.
+func withoutWhitespace(b []byte) (out []byte, offsets []int) {
+	out = make([]byte, 0, len(b))
+	offsets = make([]int, 0, len(b))
 
-	for _, c := range b {
+	for idx, c := range b {
 		switch c {
 		case ' ', '\t', '\r', '\n', 0, '\a', '\b':
 			continue
 		}
 
 		out = append(out, c)
+		offsets = append(offsets, idx)
 	}
 
-	return out
+	return out, offsets
 }

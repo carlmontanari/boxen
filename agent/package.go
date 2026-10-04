@@ -279,6 +279,12 @@ func (a *Agent) packageGetProfile(ctx context.Context) error {
 		return err
 	}
 
+	// validate to fail fast on a broken profile, and to compile readUntil patterns once since
+	// the packaging loop matches on them on every poll
+	if err := p.Validate(); err != nil {
+		return err
+	}
+
 	// also write it to disk so its available in the final committed image
 	err = os.WriteFile(profileFilename, b, profilePermissions)
 	if err != nil {

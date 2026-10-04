@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"bytes"
 	"context"
 	"log/slog"
 	"strings"
@@ -147,5 +148,39 @@ func TestWaitForEchoIgnoresLineWrapping(t *testing.T) {
 	// the prompt after the echo stays available
 	if err := a.processStepReadUntil(t.Context(), readUntilStep("n9k1(config)#")); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestWaitForEchoIgnoresOutputFromPreviousSteps(t *testing.T) {
+	a := NewAgent(slog.LevelError)
+
+	// output read before the write, carried over from a previous step, can never be its echo
+	a.pendingConsole = []byte("exit\r\n")
+
+	fakeConsoleOutput(a)
+
+	ctx, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
+	defer cancel()
+
+	if err := a.waitForEcho(ctx, "exit"); err == nil {
+		t.Fatal("output from previous steps must not satisfy the echo wait")
+	}
+}
+
+func TestWaitForEchoConsumesTheEcho(t *testing.T) {
+	a := NewAgent(slog.LevelError)
+
+	fakeConsoleOutput(a, "exit\r\nswitch# ")
+
+	if err := a.waitForEcho(t.Context(), "exit"); err != nil {
+		t.Fatal(err)
+	}
+
+	if bytes.Contains(a.pendingConsole, []byte("exit")) {
+		t.Fatal("the echo must be consumed so repeated identical lines wait for their own echo")
+	}
+
+	if err := a.processStepReadUntil(t.Context(), readUntilStep("switch#")); err != nil {
+		t.Fatalf("output past the echo was lost: %v", err)
 	}
 }
