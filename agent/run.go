@@ -152,7 +152,9 @@ func (a *Agent) runLoadProfile() error {
 		return err
 	}
 
-	return nil
+	// validate to fail fast on a broken profile, and to compile readUntil patterns once since
+	// the run loop matches on them on every poll
+	return a.p.Validate()
 }
 
 func (a *Agent) runClabStartDelay(ctx context.Context) error {

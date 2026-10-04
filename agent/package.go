@@ -23,10 +23,14 @@ const (
 	commandBinary  = "/bin/bash"
 
 	stderrCheckInterval = time.Second
+	// the console opens after the stderr check: connecting to it in the first seconds of a boot
+	// stalls the Nexus 9000v loader for minutes.
 	stderrCheckDuration = 10 * time.Second
 
-	readUntilSearchDepth = 256
-	readUntilRingBufSize = 1_000
+	// readUntilWindowSize is how much earlier output a readUntil step keeps, so that matches
+	// spanning reads are found.
+	readUntilWindowSize   = 1_000
+	readUntilPollInterval = 100 * time.Millisecond
 )
 
 // Package begins the packaging process for the container.
@@ -272,6 +276,12 @@ func (a *Agent) packageGetProfile(ctx context.Context) error {
 
 	err = yaml.Unmarshal(b, p)
 	if err != nil {
+		return err
+	}
+
+	// validate to fail fast on a broken profile, and to compile readUntil patterns once since
+	// the packaging loop matches on them on every poll
+	if err := p.Validate(); err != nil {
 		return err
 	}
 

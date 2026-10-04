@@ -78,7 +78,7 @@ This transfers and converts the disk, runs pre-packaging commands, and boots the
 Leave telnet with `Ctrl+]`, then `q`. Reconnect with:
 
 ```sh
-docker exec -it boxen-<profile-name>-builder telnet localhost 5001
+docker exec -it boxen-<profile-name>-builder telnet 127.0.0.1 5001
 ```
 
 After inspection, remove that specific builder before starting another build with the same profile:

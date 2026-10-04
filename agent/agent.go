@@ -32,6 +32,10 @@ type Agent struct {
 	stdoutF *os.File
 
 	conn *scrapligocli.Cli
+	// readConsoleChunk reads one chunk of buffered console output without blocking.
+	readConsoleChunk func() ([]byte, error)
+	// pendingConsole holds console output read past a step's match, for the following steps.
+	pendingConsole []byte
 }
 
 // NewAgent returns a new boxen Agent instance.

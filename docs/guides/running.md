@@ -113,7 +113,7 @@ The base image checks readiness every five seconds and allows a five-minute star
 After provisioning closes the automation console, connect manually:
 
 ```sh
-docker exec -it clab-router-lab-r1 telnet localhost 5001
+docker exec -it clab-router-lab-r1 telnet 127.0.0.1 5001
 ```
 
 Exit telnet with `Ctrl+]`, then `q`. Avoid taking over the console while profile automation is running.

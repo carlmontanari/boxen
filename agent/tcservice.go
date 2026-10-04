@@ -15,6 +15,17 @@ import (
 
 const tapMTU = "65000"
 
+// maxSerialConsoles is the number of serial console ports kept reachable on the container
+// management address in transparent management mode.
+const maxSerialConsoles = 8
+
+// consolePortRange is the tc flower dst_port range of the serial console ports.
+var consolePortRange = fmt.Sprintf(
+	"%d-%d",
+	boxenconstants.ConsolePort,
+	boxenconstants.ConsolePort+maxSerialConsoles-1,
+)
+
 // interfacePollInterval is how often watchers poll /sys/class/net for interfaces to
 // appear.
 var interfacePollInterval = 2 * time.Second
@@ -259,10 +270,10 @@ func (a *Agent) bringMgmtTapUp(ctx context.Context, tap string) error {
 func (a *Agent) wireMgmtTap(ctx context.Context, tap, mgmt string) error {
 	err := a.runTC(ctx, [][]string{
 		{"qdisc", "replace", "dev", mgmt, "clsact"},
-		// keep the QEMU serial console (tcp 5001-5008) reachable on the container
+		// keep the QEMU serial consoles reachable on the container
 		{
 			"filter", "replace", "dev", mgmt, "ingress", "prio", "1", "protocol", "ip",
-			"flower", "ip_proto", "tcp", "dst_port", "5001-5008", "action", "pass",
+			"flower", "ip_proto", "tcp", "dst_port", consolePortRange, "action", "pass",
 		},
 		// mirror ARP so the container network stack can still resolve neighbors
 		{

@@ -33,9 +33,6 @@ const (
 
 	device = "-device"
 
-	monitorPort       = 4_001
-	serialPortBaseIdx = 5_001
-
 	accelerationKVM = "kvm"
 )
 
@@ -240,7 +237,7 @@ func qemuSerial(p *Profile, isPackaging bool) []string {
 				"socket,id=serial%d,host=0.0.0.0,port=%d,server=on,wait=off,telnet=on,"+
 					"logfile=%s,logappend=off",
 				idx,
-				serialPortBaseIdx+int(idx),
+				boxenconstants.ConsolePort+int(idx),
 				logFilename,
 			),
 			"-serial",
@@ -254,7 +251,7 @@ func qemuSerial(p *Profile, isPackaging bool) []string {
 func qemuMonitor(_ *Profile) []string {
 	return []string{
 		"-monitor",
-		fmt.Sprintf("tcp:0.0.0.0:%d,server,nowait", monitorPort),
+		fmt.Sprintf("tcp:0.0.0.0:%d,server,nowait", boxenconstants.MonitorPort),
 	}
 }
 
