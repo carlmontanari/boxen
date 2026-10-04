@@ -96,7 +96,7 @@ These override generated QEMU fields where supported. `QEMU_SMP` is considered w
 
 ## Interface wiring
 
-By default, `eth0` is management and `eth1` through `ethN` are data ports. Boxen creates corresponding `tap0` for transparent management and `tap1` through `tapN` for data traffic. A background TC service redirects frames in both directions, notices interfaces that appear after startup, and reattaches recreated interfaces.
+By default, `eth0` is management and `eth1` through `ethN` are data ports. Boxen creates corresponding `tap0` for transparent management and `tap1` through `tapN` for data traffic. A background TC service redirects frames in both directions, notices interfaces that appear after startup, and reattaches recreated interfaces, which it recognizes by their new interface index even when Containerlab removes and adds a link between two of its checks.
 
 Containerlab kind aliases map the first NOS data port to `eth1`; the NOS's port numbering can start at zero. `CLAB_INTF_PREFIX` and `CLAB_MGMT_INTF` let an integration supply different container interface names.
 

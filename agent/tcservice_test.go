@@ -77,12 +77,14 @@ func TestWireDataTap(t *testing.T) {
 	}
 
 	assertCalls(t, *calls, [][]string{
-		{"tc", "qdisc", "replace", "dev", "eth1", "ingress"},
+		{"tc", "qdisc", "del", "dev", "eth1", "ingress"},
+		{"tc", "qdisc", "del", "dev", "tap1", "ingress"},
+		{"tc", "qdisc", "add", "dev", "eth1", "ingress"},
 		{
 			"tc", "filter", "add", "dev", "eth1", "parent", "ffff:", "protocol", "all",
 			"u32", "match", "u8", "0", "0", "action", "mirred", "egress", "redirect", "dev", "tap1",
 		},
-		{"tc", "qdisc", "replace", "dev", "tap1", "ingress"},
+		{"tc", "qdisc", "add", "dev", "tap1", "ingress"},
 		{
 			"tc", "filter", "add", "dev", "tap1", "parent", "ffff:", "protocol", "all",
 			"u32", "match", "u8", "0", "0", "action", "mirred", "egress", "redirect", "dev", "eth1",
@@ -239,16 +241,41 @@ func TestWireMgmtTapChecksumFailure(t *testing.T) {
 // fakeNet is a concurrency-safe stand-in for the host network state used to
 // drive watchNIC transitions deterministically.
 type fakeNet struct {
-	mu      sync.Mutex
-	present map[string]bool
-	calls   []capturedCmd
+	mu        sync.Mutex
+	present   map[string]bool
+	index     map[string]int
+	lastIndex int
+	calls     []capturedCmd
 }
 
+// setPresent adds or removes an interface; an added interface gets a new index.
 func (f *fakeNet) setPresent(name string, present bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
+	if present && !f.present[name] {
+		f.newIndex(name)
+	}
+
 	f.present[name] = present
+}
+
+// replug removes and adds an interface at once, as between two polls.
+func (f *fakeNet) replug(name string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	f.newIndex(name)
+	f.present[name] = true
+}
+
+func (f *fakeNet) newIndex(name string) {
+	if f.index == nil {
+		f.index = map[string]int{}
+	}
+
+	f.lastIndex++
+	f.index[name] = f.lastIndex
 }
 
 func (f *fakeNet) exists(name string) bool {
@@ -256,6 +283,13 @@ func (f *fakeNet) exists(name string) bool {
 	defer f.mu.Unlock()
 
 	return f.present[name]
+}
+
+func (f *fakeNet) indexOf(name string) (int, bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	return f.index[name], f.present[name]
 }
 
 func (f *fakeNet) record(name string, args ...string) {
@@ -280,8 +314,10 @@ func (f *fakeNet) count(pred func(capturedCmd) bool) int {
 	return n
 }
 
-func waitFor(t *testing.T, timeout time.Duration, cond func() bool) {
+func waitFor(t *testing.T, cond func() bool) {
 	t.Helper()
+
+	const timeout = time.Second
 
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
@@ -303,8 +339,10 @@ func TestWatchNICWireAndRewire(t *testing.T) {
 	fn := &fakeNet{present: map[string]bool{}}
 
 	origExists := intfExists
+	origIndex := intfIndex
 	origRun := runNetCommand
 	intfExists = fn.exists
+	intfIndex = fn.indexOf
 	runNetCommand = func(_ context.Context, name string, args ...string) ([]byte, error) {
 		fn.record(name, args...)
 
@@ -313,14 +351,15 @@ func TestWatchNICWireAndRewire(t *testing.T) {
 
 	t.Cleanup(func() {
 		intfExists = origExists
+		intfIndex = origIndex
 		runNetCommand = origRun
 	})
 
-	// count "tc qdisc replace dev eth1 ingress" as a proxy for a (re)wire
+	// count "tc qdisc add dev eth1 ingress" as a proxy for a (re)wire
 	wireCount := func() int {
 		return fn.count(func(c capturedCmd) bool {
 			return c.name == "tc" &&
-				slices.Equal(c.args, []string{"qdisc", "replace", "dev", "eth1", "ingress"})
+				slices.Equal(c.args, []string{"qdisc", "add", "dev", "eth1", "ingress"})
 		})
 	}
 
@@ -347,7 +386,7 @@ func TestWatchNICWireAndRewire(t *testing.T) {
 	}()
 
 	// the tap should be brought up even before the container interface appears
-	waitFor(t, time.Second, func() bool { return tapUpCount() >= 1 })
+	waitFor(t, func() bool { return tapUpCount() >= 1 })
 
 	if wireCount() != 0 {
 		t.Fatalf("should not wire before eth1 exists, got %d", wireCount())
@@ -355,7 +394,7 @@ func TestWatchNICWireAndRewire(t *testing.T) {
 
 	// container interface appears -> wired once
 	fn.setPresent("eth1", true)
-	waitFor(t, time.Second, func() bool { return wireCount() == 1 })
+	waitFor(t, func() bool { return wireCount() == 1 })
 
 	// while it stays present, it must not be re-wired on every tick
 	time.Sleep(40 * time.Millisecond)
@@ -367,7 +406,16 @@ func TestWatchNICWireAndRewire(t *testing.T) {
 	fn.setPresent("eth1", false)
 	time.Sleep(40 * time.Millisecond)
 	fn.setPresent("eth1", true)
-	waitFor(t, time.Second, func() bool { return wireCount() == 2 })
+	waitFor(t, func() bool { return wireCount() == 2 })
+
+	// removed and re-added between two polls -> recognized by its new index
+	fn.replug("eth1")
+	waitFor(t, func() bool { return wireCount() == 3 })
+
+	time.Sleep(40 * time.Millisecond)
+	if got := wireCount(); got != 3 {
+		t.Fatalf("expected no further wiring while eth1 stays present, got %d", got)
+	}
 
 	cancel()
 
