@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
+	"strings"
 	"time"
 
 	boxenconstants "github.com/carlmontanari/boxen/constants"
@@ -41,6 +43,22 @@ var intfExists = func(name string) bool {
 	return err == nil
 }
 
+// intfIndex returns the index of a network interface in the container netns, and whether the
+// interface is present. An interface removed and added again gets a new index.
+var intfIndex = func(name string) (int, bool) {
+	b, err := os.ReadFile("/sys/class/net/" + name + "/ifindex") //nolint: gosec // sysfs path
+	if err != nil {
+		return 0, false
+	}
+
+	index, err := strconv.Atoi(strings.TrimSpace(string(b)))
+	if err != nil {
+		return 0, false
+	}
+
+	return index, true
+}
+
 // startTCService launches the boxen tc service: a watcher goroutine per data NIC
 // that stitches the container's ethN<->tapN with tc and reacts to hotplug, plus
 // a one-shot setup of the management interface when transparent management is
@@ -62,7 +80,8 @@ func (a *Agent) startTCService(ctx context.Context) {
 
 // watchNIC waits for tap (created by QEMU) to appear and runs setup once, then
 // keeps the tc rules in sync with eth appearing/disappearing, re-wiring when a
-// hotplugged interface is re-added.
+// hotplugged interface is re-added. A re-added interface is recognized by its new
+// index, also when it was removed and added again between two polls.
 func (a *Agent) watchNIC(
 	ctx context.Context,
 	tap, eth string,
@@ -70,7 +89,8 @@ func (a *Agent) watchNIC(
 	wire func(context.Context, string, string) error,
 ) {
 	tapReady := false
-	wired := false
+	// index of the wired interface, 0 while not wired
+	wiredIndex := 0
 
 	ticker := time.NewTicker(interfacePollInterval)
 	defer ticker.Stop()
@@ -94,10 +114,10 @@ func (a *Agent) watchNIC(
 				tapReady = true
 			}
 
-			ethUp := intfExists(eth)
+			ethIndex, ethUp := intfIndex(eth)
 
 			switch {
-			case ethUp && !wired:
+			case ethUp && ethIndex != wiredIndex:
 				if err := wire(ctx, tap, eth); err != nil {
 					a.l.Error(
 						"tc service: wiring failed",
@@ -109,15 +129,15 @@ func (a *Agent) watchNIC(
 
 				a.l.Info("tc service: interface wired", "tap", tap, "eth", eth)
 
-				wired = true
-			case !ethUp && wired:
+				wiredIndex = ethIndex
+			case !ethUp && wiredIndex != 0:
 				// interface was removed; allow re-wire when it comes back
 				a.l.Info(
 					"tc service: interface removed, will re-wire on return",
 					"tap", tap, "eth", eth,
 				)
 
-				wired = false
+				wiredIndex = 0
 			}
 		}
 	}
@@ -161,17 +181,24 @@ func (a *Agent) bringTapUp(ctx context.Context, tap string) error {
 }
 
 // wireDataTap installs the bidirectional tc mirred redirect rules between the
-// container data interface and the VM tap. `qdisc replace` keeps it idempotent
-// so initial wiring, hotplug, and re-plug all converge cleanly.
+// container data interface and the VM tap. The ingress qdiscs are recreated, which
+// drops the rules of an earlier wiring, so initial wiring, hotplug, and re-plug all
+// converge to one redirect per direction; a re-plugged interface would otherwise
+// leave the tap redirecting to its removed predecessor.
 func (a *Agent) wireDataTap(ctx context.Context, tap, eth string) error {
+	for _, dev := range []string{eth, tap} {
+		// a new interface has no ingress qdisc to delete yet
+		_, _ = runNetCommand(ctx, "tc", "qdisc", "del", "dev", dev, "ingress")
+	}
+
 	return a.runTC(ctx, [][]string{
-		{"qdisc", "replace", "dev", eth, "ingress"},
+		{"qdisc", "add", "dev", eth, "ingress"},
 		{
 			"filter", "add", "dev", eth, "parent", "ffff:", "protocol", "all",
 			"u32", "match", "u8", "0", "0",
 			"action", "mirred", "egress", "redirect", "dev", tap,
 		},
-		{"qdisc", "replace", "dev", tap, "ingress"},
+		{"qdisc", "add", "dev", tap, "ingress"},
 		{
 			"filter", "add", "dev", tap, "parent", "ffff:", "protocol", "all",
 			"u32", "match", "u8", "0", "0",
