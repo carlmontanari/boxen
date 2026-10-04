@@ -172,3 +172,32 @@ func TestSonicSaveCapture(t *testing.T) {
 		t.Fatalf("got (%q, %v, %v), want %q", got, done, err, content)
 	}
 }
+
+func TestCiscoSaveCapture(t *testing.T) {
+	for _, test := range []struct {
+		profile string
+		raw     string
+		want    string
+	}{
+		{
+			profile: "cisco_csr1000v",
+			raw: "show running-config brief | exclude " +
+				"^ certificate|^platform console|^diagnostic bootup|^license udi\r\n" +
+				"Building configuration...\r\n\r\n" +
+				"Current configuration : 1234 bytes\r\n!\r\nhostname csr1\r\n!\r\nend\r\n\r\ncsr1#",
+			want: "!\nhostname csr1\n!\nend\n\n",
+		},
+	} {
+		t.Run(test.profile, func(t *testing.T) {
+			capture := saveCaptureStep(t, loadEmbeddedProfile(t, test.profile))
+
+			// the echoed command is consumed before the output is read
+			raw := strings.TrimPrefix(test.raw, capture.Command)
+
+			got, _, done, err := extractCapture([]byte(raw), capture)
+			if err != nil || !done || got != test.want {
+				t.Fatalf("got (%q, %v, %v), want %q", got, done, err, test.want)
+			}
+		})
+	}
+}
