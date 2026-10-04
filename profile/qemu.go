@@ -43,11 +43,16 @@ func QemuArgsFromProfile(
 	p *Profile,
 	isPackaging bool,
 ) ([]string, error) {
+	instanceUUID := p.InstanceUUID
+	if isPackaging || instanceUUID == "" {
+		instanceUUID = uuid.NewString()
+	}
+
 	out := []string{
 		"-name",
 		p.Name,
 		"-uuid",
-		uuid.NewString(),
+		instanceUUID,
 	}
 
 	fs := map[string]func(p *Profile) []string{
@@ -114,6 +119,10 @@ func QemuArgsFromProfile(
 		out = e.Apply(isPackaging, out)
 	}
 
+	if !isPackaging {
+		out = useRunDisk(out)
+	}
+
 	qemuAdditionalArgs := os.Getenv(boxenconstants.EnvClabQemuAdditionalArgs)
 
 	if qemuAdditionalArgs != "" {
@@ -121,6 +130,32 @@ func QemuArgsFromProfile(
 	}
 
 	return out, nil
+}
+
+// useRunDisk points the VM at the per-container overlay instead of the packaged disk. It rewrites
+// every reference to the packaged disk, including ones from profile overrides, mutators, and
+// extras, so the packaged disk is only ever opened read-only as the overlay's backing file.
+func useRunDisk(args []string) []string {
+	const fileOpt = "file="
+
+	for idx, arg := range args {
+		if arg == boxenconstants.DiskFilename {
+			args[idx] = boxenconstants.RunDiskFilename
+
+			continue
+		}
+
+		opts := strings.Split(arg, ",")
+
+		for optIdx, opt := range opts {
+			if opt == fileOpt+boxenconstants.DiskFilename {
+				opts[optIdx] = fileOpt + boxenconstants.RunDiskFilename
+				args[idx] = strings.Join(opts, ",")
+			}
+		}
+	}
+
+	return args
 }
 
 func qemuCPU(p *Profile) []string {
@@ -212,7 +247,8 @@ func qemuMachine(p *Profile) []string {
 func qemuDisk(p *Profile) []string {
 	return []string{
 		"-drive",
-		"if=" + cmp.Or(p.VirtualMachine.DiskInterface, "ide") + ",file=disk.qcow2,format=qcow2",
+		"if=" + cmp.Or(p.VirtualMachine.DiskInterface, "ide") +
+			",file=" + boxenconstants.DiskFilename + ",format=qcow2",
 	}
 }
 

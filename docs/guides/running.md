@@ -46,16 +46,21 @@ the automation console. `/boxen/package.boot.log` retains the sequence from imag
 
 1. Read `/boxen/profile.yaml` and construct the template values from the runtime flags.
 2. Write `1 booting` to `/health`.
-3. Wait for interfaces when `CLAB_INTFS` specifies a count, then honor `BOOT_DELAY` in seconds.
+3. Wait for interfaces when `CLAB_INTFS` specifies a count, for at most `BOXEN_INTF_WAIT_TIMEOUT`, then honor `BOOT_DELAY` in seconds.
 4. Execute `preRunCommands` in the container shell.
-5. Launch QEMU with the packaged disk and runtime hardware settings.
-6. Start the TC service that joins container interfaces to guest TAPs.
-7. Open the serial console and execute `run.process`.
-8. If `/config/startup-config.cfg` exists, execute `run.configProcess`.
-9. Close the automation console and write `0 running` to `/health`.
-10. Keep the container running until its context is cancelled.
+5. Create the disk overlay and resolve the VM UUID, reusing both on a restart of the same container.
+6. Launch QEMU with the overlay and runtime hardware settings.
+7. Start the TC service that joins container interfaces to guest TAPs.
+8. Open the serial console and execute `run.process`.
+9. If `/config/startup-config.cfg` exists, execute `run.configProcess`.
+10. Close the automation console and write `0 running` to `/health`.
+11. Keep the container running until its context is cancelled.
 
-Provisioning errors stop the run process before it can mark the node healthy. Boxen does not rerun packaging during this phase.
+Provisioning errors stop the run process before it can mark the node healthy. Boxen does not rerun packaging during this phase. If the VM exits on its own afterwards, for example because the guest powered off, Boxen writes `1 vm exited` to `/health` and the container exits.
+
+## The disk overlay
+
+The VM writes to `/boxen/disk.overlay.qcow2`, a qcow2 overlay backed by the packaged `/boxen/disk.qcow2`. The packaged disk is only read, so starting a node does not copy it into the container's writable layer; the layer holds just the guest's changes. A restart of the same container reuses the overlay and keeps those changes, and a new container starts from the packaged disk again.
 
 ## Startup configuration
 
@@ -124,4 +129,4 @@ Exit telnet with `Ctrl+]`, then `q`. Avoid taking over the console while profile
 sudo containerlab destroy --topo router-lab.clab.yml
 ```
 
-Removing a node removes its writable disk changes unless you arranged separate persistence. A newly created node uses the packaged image baseline plus its runtime and startup configuration.
+Removing a node removes its disk overlay and so its guest changes unless you arranged separate persistence. A newly created node uses the packaged image baseline plus its runtime and startup configuration.

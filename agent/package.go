@@ -378,7 +378,7 @@ func (a *Agent) packageConvertDisk(ctx context.Context) error {
 		"-O",
 		"qcow2",
 		localFilename,
-		"disk.qcow2",
+		boxenconstants.DiskFilename,
 	)
 
 	err := cmd.Run()
@@ -407,7 +407,7 @@ func (a *Agent) packageProcess(ctx context.Context) error {
 }
 
 func (a *Agent) packageShrinkify(ctx context.Context) error {
-	err := os.Rename("disk.qcow2", "fat.qcow2")
+	err := os.Rename(boxenconstants.DiskFilename, "fat.qcow2")
 	if err != nil {
 		return err
 	}
@@ -417,7 +417,7 @@ func (a *Agent) packageShrinkify(ctx context.Context) error {
 		_ = os.RemoveAll("/var/tmp/.guestfs-0")
 	}()
 
-	args := []string{"fat.qcow2", "--compress", "disk.qcow2"}
+	args := []string{"fat.qcow2", "--compress", boxenconstants.DiskFilename}
 
 	a.l.Info(
 		"starting disk sparsify, this can take 10+ minutes...",
@@ -425,7 +425,7 @@ func (a *Agent) packageShrinkify(ctx context.Context) error {
 		"args", args,
 	)
 
-	cmd := exec.CommandContext(ctx, sparsifyBinary, args...)
+	cmd := exec.CommandContext(ctx, sparsifyBinary, args...) //nolint: gosec
 
 	err = cmd.Run()
 	if err != nil {

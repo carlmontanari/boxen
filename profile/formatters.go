@@ -111,7 +111,7 @@ func NewFormatters(
 ) *Formatters {
 	// disk is always disk.qcow2 in "run" mode, but we maybe have a disk that we resolved
 	// during packaging, so override that if thats the case
-	disk := "disk.qcow2"
+	disk := boxenconstants.DiskFilename
 
 	if p.ResolvedDisk != "" {
 		// resolved disk we received from boxen builder (the main cli) will be fully qualified,

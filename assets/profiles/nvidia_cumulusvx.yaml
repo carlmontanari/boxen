@@ -101,11 +101,12 @@ packaging:
 
 run:
   process:
+    # the login prompt and shell prompt show the node hostname once the run process set it
     - type: readUntil
       readUntil:
         timeout: 20m
         until:
-          contains: "cumulus login:"
+          containsPattern: '(?m)^\S+ login:'
     - type: write # enter newline to resurface the prompt
       write:
         content: "\n"
@@ -126,7 +127,7 @@ run:
             once: true
           - name: finish login
             prompt:
-              contains: "cumulus@cumulus:mgmt"
+              containsPattern: 'cumulus@[^:\s]+:mgmt'
             response: ""
             once: true
             completes: true
@@ -134,7 +135,7 @@ run:
       readUntil:
         timeout: 1m
         until:
-          contains: "cumulus@cumulus:mgmt"
+          containsPattern: 'cumulus@[^:\s]+:mgmt'
     - type: write
       write:
         content: |

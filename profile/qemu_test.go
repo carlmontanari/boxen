@@ -57,7 +57,11 @@ func TestQemuDiskInterface(t *testing.T) {
 					t.Fatal(err)
 				}
 				idx := slices.Index(args, "-drive")
-				expected := "if=" + test.expected + ",file=disk.qcow2,format=qcow2"
+				disk := boxenconstants.RunDiskFilename
+				if packaging {
+					disk = boxenconstants.DiskFilename
+				}
+				expected := "if=" + test.expected + ",file=" + disk + ",format=qcow2"
 				if idx < 0 || idx+1 >= len(args) || args[idx+1] != expected {
 					t.Fatalf("packaging=%v: expected -drive %q, got %v", packaging, expected, args)
 				}
@@ -225,12 +229,15 @@ func TestQemuArgsOverridesAndExtras(t *testing.T) {
 		t.Fatalf("building run qemu args failed: %v", err)
 	}
 
-	// the override replaces the default disk section entirely
-	if !slices.Contains(runArgs, "if=none,file=disk.qcow2,format=qcow2,id=drive0") {
+	// the override replaces the default disk section entirely, and at runtime its disk reference
+	// points at the overlay
+	if !slices.Contains(runArgs, "if=none,file=disk.overlay.qcow2,format=qcow2,id=drive0") {
 		t.Fatalf("expected disk override content in run args, got %v", runArgs)
 	}
 
-	if slices.Contains(runArgs, "if=virtio,file=disk.qcow2,format=qcow2") {
+	if slices.ContainsFunc(runArgs, func(arg string) bool {
+		return strings.HasPrefix(arg, "if=virtio,")
+	}) {
 		t.Fatalf("generated disk args should be replaced by the override, got %v", runArgs)
 	}
 
@@ -252,5 +259,53 @@ func TestQemuArgsOverridesAndExtras(t *testing.T) {
 	// the onPackage-only extra is present in packaging mode
 	if !slices.Contains(packageArgs, "-cdrom") || !slices.Contains(packageArgs, "config.iso") {
 		t.Fatalf("expected onPackage extra in packaging args, got %v", packageArgs)
+	}
+
+	// packaging writes the packaged disk itself
+	if !slices.Contains(packageArgs, "if=none,file=disk.qcow2,format=qcow2,id=drive0") {
+		t.Fatalf("expected packaged disk in packaging args, got %v", packageArgs)
+	}
+}
+
+func TestUseRunDisk(t *testing.T) {
+	args := useRunDisk([]string{
+		"-drive", "if=none,file=disk.qcow2,format=qcow2",
+		"-hda", "disk.qcow2",
+		"-drive", "file=disk.qcow2.bak,format=qcow2",
+		"-cdrom", "config.iso",
+	})
+
+	want := []string{
+		"-drive", "if=none,file=disk.overlay.qcow2,format=qcow2",
+		"-hda", "disk.overlay.qcow2",
+		"-drive", "file=disk.qcow2.bak,format=qcow2",
+		"-cdrom", "config.iso",
+	}
+
+	if !slices.Equal(args, want) {
+		t.Fatalf("got %v, want %v", args, want)
+	}
+}
+
+func TestQemuInstanceUUID(t *testing.T) {
+	p := testQemuProfile(false)
+	p.InstanceUUID = "123e4567-e89b-12d3-a456-426614174000"
+
+	runArgs, err := QemuArgsFromProfile(p, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if runArgs[3] != p.InstanceUUID {
+		t.Fatalf("expected run uuid %q, got %v", p.InstanceUUID, runArgs[:4])
+	}
+
+	packageArgs, err := QemuArgsFromProfile(p, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if packageArgs[3] == p.InstanceUUID || packageArgs[3] == "" {
+		t.Fatalf("expected a random packaging uuid, got %v", packageArgs[:4])
 	}
 }

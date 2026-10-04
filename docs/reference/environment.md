@@ -37,13 +37,15 @@ boxen build --disk /path/to/vendor.qcow2 --profile /path/to/profile.yaml
 | `CLAB_MGMT_INTF` | `<prefix>0` | Container management interface name |
 | `CLAB_INTF_PREFIX` | `eth` | Prefix used for container interface names |
 | `CLAB_INTFS` | `0` | Requested data-interface count; a nonzero count enables startup waiting for interfaces |
+| `BOXEN_INTF_WAIT_TIMEOUT` | `2m` | Go duration bounding the `CLAB_INTFS` wait; the VM then starts and later interfaces are wired when they appear |
 | `BOOT_DELAY` | `0` | Delay in seconds after interface provisioning and before guest boot |
 | `QEMU_MEMORY` | Profile `memory` | Override generated `-m` value |
 | `QEMU_CPU` | Profile `cpuEmulation` | Override generated CPU model |
 | `QEMU_SMP` | Profile CPU topology | Override generated SMP value when `cpuCores` is nonzero |
 | `QEMU_ADDITIONAL_ARGS` | Empty | Append space-split arguments after profile extras |
+| `UUID` | Generated once per container | VM system UUID; a generated UUID is kept across restarts of the same container |
 
-The integer helpers fall back to defaults for invalid integer input. Keep counts and delays nonnegative. Profile section overrides bypass the corresponding generators, so CPU and memory environment values do not replace explicitly overridden sections.
+`CLAB_INTFS` is fixed when Containerlab creates the container, so it overcounts after links are removed from a running node; the bounded wait keeps such a node from waiting for interfaces that no longer exist. The integer helpers fall back to defaults for invalid integer input. Keep counts and delays nonnegative. Profile section overrides bypass the corresponding generators, so CPU and memory environment values do not replace explicitly overridden sections.
 
 ```yaml
 topology:

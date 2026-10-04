@@ -63,7 +63,7 @@ This command expects `/boxen/profile.yaml`, the prepared disk, and the container
 docker exec clab-<lab>-<node> /boxen/boxen health
 ```
 
-Exits 0 when the first whitespace-separated field of `/health` is `0`. A missing file, empty file, or any other status returns a nonzero exit code. Boxen writes `1 booting` during startup and `0 running` after successful runtime and startup-config processing.
+Exits 0 when the first whitespace-separated field of `/health` is `0`. A missing file, empty file, or any other status returns a nonzero exit code. Boxen writes `1 booting` during startup, `0 running` after successful runtime and startup-config processing, and `1 vm exited` when the VM stops on its own.
 
 ## Global help and version
 

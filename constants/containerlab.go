@@ -16,12 +16,16 @@ const (
 	EnvClabQemuSMP            = "QEMU_SMP"
 	EnvClabQemuAdditionalArgs = "QEMU_ADDITIONAL_ARGS"
 
+	// EnvClabUUID sets the VM system UUID, as in vrnetlab.
+	EnvClabUUID = "UUID"
+
 	StartupConfigFilePath = "/config/startup-config.cfg"
 
 	// HealthFilePath is read by the container healthcheck; its first whitespace
 	// separated field is the status code (0 == healthy), vrnetlab-compatible.
 	HealthFilePath = "/health"
 
-	HealthStatusBooting = "1 booting"
-	HealthStatusRunning = "0 running"
+	HealthStatusBooting  = "1 booting"
+	HealthStatusRunning  = "0 running"
+	HealthStatusVMExited = "1 vm exited"
 )
