@@ -261,7 +261,7 @@ func (a *Agent) processStepWrite(
 
 		c = string(b)
 	default:
-		panic("unimplemented write type")
+		return fmt.Errorf("%w: write step has no content", boxenerrors.ErrBoxen)
 	}
 
 	a.l.Info("writing to console", "content", c)

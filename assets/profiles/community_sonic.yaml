@@ -15,7 +15,7 @@ virtualMachine:
   nicPerBus: 26
   managementPassthrough: true
 packaging:
-  shrinkify: true
+  sparsify: true
   process:
     - type: readUntil
       readUntil:

@@ -27,7 +27,7 @@ virtualMachine:
 prePackagingCommands: []
 packaging:
   stdErrIgnore: []
-  shrinkify: false
+  sparsify: false
   process:
     - type: readUntil
       readUntil:
@@ -49,7 +49,7 @@ run:
   configProcess: []
 ```
 
-The runtime expects `virtualMachine`, `packaging`, and `run` to be present where their code paths use them. This checkout does not provide a separate profile schema-validation command. Keep required hardware values explicit, especially `memory`, a usable `nicType`, nonzero `nicPerBus`, and a serial console reachable on port 5001.
+`boxen build` validates the profile before starting the builder and reports every problem at once: unknown keys, missing `virtualMachine`, `packaging`, or `run` sections, missing `memory`, `nicType`, or serial port, a zero `nicPerBus` with data NICs, and invalid steps. The serial console listens on port 5001.
 
 ## Identity and files
 
@@ -85,7 +85,7 @@ Shell hooks operate in the container, while console steps operate in the guest. 
 
 ## Packaging options
 
-`packaging.shrinkify` enables disk sparsification after the VM stops. `packaging.stdErrIgnore` is a list of substrings that permit known QEMU startup messages on stderr. This ignore list is also consulted during runtime startup. Keep entries specific; an ignored message should be understood first.
+`packaging.sparsify` enables disk sparsification after the VM stops. `packaging.stdErrIgnore` is a list of substrings that permit known QEMU startup messages on stderr. This ignore list is also consulted during runtime startup. Keep entries specific; an ignored message should be understood first.
 
 ## YAML reuse
 

@@ -26,6 +26,7 @@ virtualMachine:
 prePackagingCommands:
   - "genisoimage -l -o config.iso iosxe_config.txt"
 packaging:
+  sparsify: true
   process:
     # handle initial poap/provisioning dialog
     - type: prompts
@@ -84,7 +85,6 @@ packaging:
     - type: wait
       wait:
         duration: 10s
-  sparsify: false
 run:
   process:
     - type: prompts

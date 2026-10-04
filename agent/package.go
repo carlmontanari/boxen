@@ -157,8 +157,8 @@ func (a *Agent) startPackage(ctx context.Context, errs chan error) {
 		return
 	}
 
-	if a.p.Packaging.Shrinkify {
-		err = a.packageShrinkify(ctx)
+	if a.p.Packaging.Sparsify {
+		err = a.packageSparsify(ctx)
 		if err != nil {
 			errs <- err
 
@@ -399,35 +399,10 @@ func (a *Agent) packagePreCommands(ctx context.Context) error {
 }
 
 func (a *Agent) packageProcess(ctx context.Context) error {
-	for idx := range a.p.Packaging.Process {
-		step := &a.p.Packaging.Process[idx]
-
-		a.l.Info("starting package process", "step", idx, "type", step.Type)
-
-		var err error
-
-		switch step.Type {
-		case boxenprofile.StepTypePrompts:
-			err = a.processStepPrompts(ctx, step)
-		case boxenprofile.StepTypeReadUntil:
-			err = a.processStepReadUntil(ctx, step)
-		case boxenprofile.StepTypeWrite:
-			err = a.processStepWrite(ctx, step)
-		case boxenprofile.StepTypeWait:
-			err = a.processStepWait(ctx, step)
-		default:
-			panic("unimplemented step type")
-		}
-
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return a.runSteps(ctx, "package process", a.p.Packaging.Process)
 }
 
-func (a *Agent) packageShrinkify(ctx context.Context) error {
+func (a *Agent) packageSparsify(ctx context.Context) error {
 	err := os.Rename("disk.qcow2", "fat.qcow2")
 	if err != nil {
 		return err

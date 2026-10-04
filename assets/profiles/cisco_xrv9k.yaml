@@ -7,7 +7,7 @@ scrapliDefinitionNameOrFile: cisco_iosxr
 scrapliReturnChar: "\r"
 extraFiles: []
 virtualMachine:
-  emulate: "qemu64,+ssse3,+sse4.1,+sse4.2"
+  cpuEmulation: "qemu64,+ssse3,+sse4.1,+sse4.2"
   machine: ""
   memory: 16384
   cpuCores: 0
@@ -35,6 +35,7 @@ virtualMachine:
           return items
   extras: []
 packaging:
+  sparsify: true
   process:
     # handle initial config dialog bits
     - type: prompts
@@ -148,7 +149,6 @@ packaging:
     - type: wait
       wait:
         duration: 10s
-  sparsify: false
 run:
   process:
     - type: prompts
