@@ -66,6 +66,7 @@ func (p *Profile) Validate() error {
 	}
 
 	errs = append(errs, p.VirtualMachine.validate()...)
+	errs = append(errs, p.Variants.validate()...)
 
 	if p.Packaging == nil {
 		errs = append(errs, fmt.Errorf("packaging %w", errRequired))

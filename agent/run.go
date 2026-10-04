@@ -27,11 +27,17 @@ func (a *Agent) Run(
 	username,
 	password,
 	hostname,
-	connectionMode string,
+	connectionMode,
+	variant string,
 ) error {
 	a.l.Info("boxen run starting...")
 
 	err := a.runLoadProfile()
+	if err != nil {
+		return err
+	}
+
+	err = a.applyVariant(variant)
 	if err != nil {
 		return err
 	}
@@ -69,6 +75,33 @@ func (a *Agent) Run(
 
 		return nil
 	}
+}
+
+// applyVariant resolves the hardware variant the node runs as, which sizes the VM and sets
+// template values, before anything uses the profile.
+func (a *Agent) applyVariant(name string) error {
+	if a.p.Variants == nil {
+		if name != "" {
+			a.l.Warn("ignoring variant, the profile defines no variants", "variant", name)
+		}
+
+		return nil
+	}
+
+	err := a.p.ApplyVariant(name)
+	if err != nil {
+		return err
+	}
+
+	if a.p.Variant != nil {
+		a.l.Info(
+			"running as variant",
+			"name", a.p.Variant.Name,
+			"settings", a.p.Variant.Settings,
+		)
+	}
+
+	return nil
 }
 
 func (a *Agent) startRun(ctx context.Context, errs chan error) {

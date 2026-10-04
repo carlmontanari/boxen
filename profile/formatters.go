@@ -250,6 +250,18 @@ func (f *Formatters) TemplateData() (map[string]any, error) {
 
 		"startupConfigFile": f.startupConfigFile,
 		"dataNICMACs":       f.dataNICMACs(),
+		"variant":           "",
+		"variantName":       "",
+		"variantValues":     map[string]string{},
+	}
+
+	if f.p != nil {
+		data["variantValues"] = f.p.variantTemplateValues()
+
+		if f.p.Variant != nil {
+			data["variant"] = f.p.Variant.Settings
+			data["variantName"] = f.p.Variant.Name
+		}
 	}
 
 	management, err := f.getManagementFormatters()

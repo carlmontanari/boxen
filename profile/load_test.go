@@ -150,6 +150,15 @@ func TestValidateReportsProblems(t *testing.T) {
 			want: "run.saveProcess[0]: capture.end",
 		},
 		{
+			name: "variant settings",
+			mutate: func(p *Profile) {
+				p.Variants = &Variants{Definitions: map[string]VariantDefinition{
+					"big": {Settings: "ram=lots"},
+				}}
+			},
+			want: "variants.definitions.big: invalid variant: ram=lots",
+		},
+		{
 			name: "capture with unknown decode",
 			mutate: func(p *Profile) {
 				c := validCapture()

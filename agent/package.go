@@ -78,6 +78,12 @@ func (a *Agent) Package(ctx context.Context, host string) error {
 		return err
 	}
 
+	// packaging runs as the default variant
+	err = a.applyVariant("")
+	if err != nil {
+		return err
+	}
+
 	a.f = boxenprofile.NewFormatters("", "", "", "", a.p, true)
 
 	errs := make(chan error, 1)

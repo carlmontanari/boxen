@@ -15,6 +15,9 @@ Boxen renders Go templates in `write.content` and in content loaded by `write.co
 | `.connectionMode` | Value passed by Containerlab | Runtime flag; empty during packaging |
 | `.startupConfigFile` | `/config/startup-config.cfg` | Runtime path of the node's startup config file; empty when there is none |
 | `.dataNICMACs` | `[aa:c1:ab:94:6d:16 52:54:00:3f:1a:02]` | MAC of each data NIC in NIC order: the container interface MAC when it exists at boot, otherwise a generated one; empty during packaging |
+| `.variant` | `slot=A chassis=sr-1 card=cpm-1` | Settings of the [hardware variant](structure.md#hardware-variants) that do not size the VM; empty without variants |
+| `.variantName` | `sr-1` | Name of the variant definition; empty for a custom variant |
+| `.variantValues` | `.variantValues.config` | Values of the variant definition; keys the variant does not set are empty |
 
 Although `.disk` contains the source basename during packaging, conversion has already produced the working `disk.qcow2` before console steps run. Do not assume the source filename still exists inside the builder.
 

@@ -20,6 +20,11 @@ type Profile struct {
 	ExtraFiles     []string        `yaml:"extraFiles"`
 	VirtualMachine *VirtualMachine `yaml:"virtualMachine"`
 
+	// Variants are the hardware variants a node can run as; the variant a node runs as is
+	// resolved before the VM starts and exposed to templates.
+	Variants *Variants        `yaml:"variants"`
+	Variant  *ResolvedVariant `yaml:"-"`
+
 	ScrapliDefinitionNameOrFile string `yaml:"scrapliDefinitionNameOrFile"`
 	// ScrapliReturnChar if unset will be \r\n -- your platform may not enjoy that, so you can
 	// override it here.

@@ -61,8 +61,28 @@ run:
 | `resolvedVersion` | Saved version exposed to runtime templates. Usually filled by the host during packaging. |
 | `extraFiles` | Additional host files to transfer. They are stored in the builder under their basenames. |
 | `virtualMachine` | Generated QEMU arguments, phase-specific additions, and overrides. |
+| `variants` | Hardware variants a node can run as; see [hardware variants](#hardware-variants). |
 
 `resolvedDisk` is internal and is not a YAML setting. Disk and companion-file lookup is described in [packaging](../guides/packaging.md).
+
+## Hardware variants
+
+Some network OSes emulate several chassis or card types from one disk. `variants` lists them, and `boxen run --variant` selects one at runtime; Containerlab passes the node type with this flag for the kinds that use variants, such as Nokia SR OS. The default variant applies without a selection and during packaging.
+
+```yaml
+variants:
+  default: small
+  definitions:
+    small:
+      settings: cpu=2 ram=4 max_nics=6 chassis=small card=a
+      values:
+        config: |
+          configure card 1 card-type a
+```
+
+Definition names match case-insensitively. `settings` are space-separated `key=value` settings: `cpu` sets the vCPUs, `ram` the memory in GiB, and `max_nics` the number of data NICs, overriding `cpuCores`, `memory`, and `nicCount`; `QEMU_SMP` and `QEMU_MEMORY` still win. These are the keys Containerlab uses for node components. The remaining settings are available as `{{ .variant }}`, and `values` as `{{ .variantValues.<key> }}`, where a key that the selected variant does not set is empty.
+
+A selection that names no definition is a custom variant whose settings are the selection itself, for example `--variant "cpu=4 chassis=big card=b"`. A custom variant has no `values`. A selection that is neither fails the start and lists the known variants. Profiles without `variants` ignore the flag.
 
 ## Console settings
 
