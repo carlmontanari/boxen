@@ -51,7 +51,7 @@ The profile controls guest configuration and saving it. Ending a `write` step me
 
 ## Sparsification
 
-Set `packaging.sparsify: true` to reclaim unused disk space and compress the QCOW2 image after the guest stops. It can take more than ten minutes and depends on libguestfs and the host kernel mounts. It is disabled when omitted.
+Set `packaging.sparsify: true` to reclaim unused disk space and compress the QCOW2 image after the guest stops. It can take more than ten minutes and depends on libguestfs and the host kernel mounts. It is disabled when omitted; all shipped profiles set it to `true`.
 
 ## Inspect the boot interactively
 
