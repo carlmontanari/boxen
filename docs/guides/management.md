@@ -9,7 +9,7 @@ Boxen provides two management paths. The profile sets the default, and `CLAB_MGM
 | Guest IPv4 | `10.0.0.15/24` | Container management address |
 | IPv4 gateway | `10.0.0.2` | Container management default route |
 | Reachable services | Profile's configured host forwards | Services listening on the guest management addresses |
-| QEMU `hostfwd` rules | Generated from `natPorts` | Omitted |
+| QEMU `hostfwd` rules | Generated from `natPorts`, or the default ports | Omitted |
 
 ## Transparent management
 
@@ -48,7 +48,7 @@ The current generator uses `localPort` on both sides of the forward, producing `
 
 Docker host port publishing is a separate step. To reach a standalone container from the host through an explicit mapped port, supply a Docker mapping such as `-p 2222:22`. Image `EXPOSE` metadata alone does not publish a port.
 
-Profiles in this checkout default to transparent management and may not define `natPorts`. Forcing legacy mode on such a profile does not create SSH forwards automatically. Add the desired ports to a custom profile, or use the serial console for inspection.
+When a profile defines no `natPorts`, legacy mode forwards the common management ports: TCP 22, 80, 443, 830, 6030, 8080, 9339, 32767, 50051, and 57400, and UDP 161. Profiles in this checkout default to transparent management and define no `natPorts`, so forcing legacy mode on them forwards these defaults.
 
 ## DHCP and optional IPv6
 

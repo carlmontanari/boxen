@@ -18,7 +18,7 @@
 | `nicCount` | Number of data NICs, in addition to management |
 | `nicPerBus` | Data NIC bus sizing; must be nonzero |
 | `managementPassthrough` | Default runtime management mode |
-| `natPorts` | Legacy management service forwards |
+| `natPorts` | Legacy management service forwards; defaults to the common management ports when empty |
 
 Set `diskInterface: virtio` for a VirtIO disk, as in the vJunos-router profile. The disk defaults to IDE when the field is omitted or empty. Custom controller arrangements, such as AHCI, can still override the `disk` section. QEMU's monitor listens on TCP 4001. The automation console uses the first serial listener on TCP 5001, so normal profiles need at least one serial port.
 
@@ -201,6 +201,6 @@ This attaches preparation media only during packaging. It must already exist in 
 
 ## Environment overrides
 
-`QEMU_MEMORY`, `QEMU_CPU`, and `QEMU_SMP` override values in their normal generators. `QEMU_SMP` requires the profile's `cpuCores` to be nonzero. A full `cpu` or `memory` profile override bypasses the corresponding generator and therefore its environment overrides.
+`QEMU_MEMORY`, `QEMU_CPU`, `QEMU_SMP`, and `QEMU_NIC_TYPE` override values in their normal generators. `QEMU_SMP` requires the profile's `cpuCores` to be nonzero. A full `cpu` or `memory` profile override bypasses the corresponding generator and therefore its environment overrides.
 
-`QEMU_ADDITIONAL_ARGS` is split on literal spaces, not parsed as a shell command. Use YAML `extras` when an argument itself needs spaces or precise quoting. See the [environment reference](../reference/environment.md) for runtime settings.
+`QEMU_ADDITIONAL_ARGS` is split on whitespace, not parsed as a shell command. Use YAML `extras` when an argument itself needs spaces or precise quoting. See the [environment reference](../reference/environment.md) for runtime settings.
