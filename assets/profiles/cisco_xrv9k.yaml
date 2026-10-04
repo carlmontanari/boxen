@@ -1,108 +1,128 @@
 ---
+# Packaging creates the "boxen" root-system user that the runtime and save processes log in with,
+# so that containerlab can set any credentials.
 name: cisco_xrv9k
 diskPatterns:
-  - "(?i)xrv9k-.*.qcow2"
-versionPattern: "(?i)\\d\\.\\d+\\.\\w+"
+  - "(?i)xrv9k-.*\\.qcow2$"
+versionPattern: "(?i)(\\d+\\.\\d+\\.\\d+)"
 scrapliDefinitionNameOrFile: cisco_iosxr
 scrapliReturnChar: "\r"
-extraFiles: []
 virtualMachine:
-  emulate: "qemu64,+ssse3,+sse4.1,+sse4.2"
-  machine: ""
+  cpuEmulation: "qemu64,+ssse3,+sse4.1,+sse4.2"
   memory: 16384
-  cpuCores: 0
-  cpuThreads: 0
-  cpuSockets: 0
+  cpuCores: 4
   serialPortCount: 1
   nicType: virtio-net-pci
   nicCount: 16
   nicPerBus: 26
   managementPassthrough: true
   mutators:
-    # add the additional "ctrl" and "dev" nics after the "normal" nic
+    # add the additional "ctrl" and "dev" nics after the "normal" nic; their taps are named so they
+    # do not take the tapN names of the data nics
     mgmtNIC: |
       def mutate(items):
           items.append("-device")
           items.append("virtio-net-pci,netdev=ctrl")
           items.append("-netdev")
-          items.append("tap,id=ctrl,script=no,downscript=no")
+          items.append("tap,id=ctrl,ifname=xrctrl,script=no,downscript=no")
 
           items.append("-device")
           items.append("virtio-net-pci,netdev=dev")
           items.append("-netdev")
-          items.append("tap,id=dev,script=no,downscript=no")
+          items.append("tap,id=dev,ifname=xrdev,script=no,downscript=no")
 
           return items
-  extras: []
 packaging:
   process:
-    # handle initial config dialog bits
+    # create the root-system user
     - type: prompts
       prompts:
-        timeout: 20m
+        timeout: 30m
         prompts:
-          - prompt:
+          - name: get started
+            prompt:
               contains: "Press RETURN to get started"
             response: ""
             once: true
-          - prompt:
+          - name: root-system username
+            prompt:
               contains: "Enter root-system username"
-            response: admin
+            response: boxen
             once: true
-          - prompt:
-              contains: "secret:"
-            response: "P@ssw0rd!"
-            once: true
+          - name: secret
+            prompt:
+              contains: "Enter secret:"
+            response: Boxen123!
             hidden: true
-          - prompt:
-              contains: "secret again:"
-            response: "P@ssw0rd!"
             once: true
+          - name: secret again
+            prompt:
+              contains: "Enter secret again:"
+            response: Boxen123!
             hidden: true
+            once: true
             completes: true
-    - type: prompts
+    - &login
+      type: prompts
       prompts:
-        timeout: 2m
+        timeout: 30m
+        initialInput: "\r"
         prompts:
-          - prompt:
-              contains: "Username:"
-              notContains: "Password:"
-            response: admin
-          - prompt:
+          - name: get started
+            prompt:
+              contains: "Press RETURN to get started"
+            response: ""
+          - name: username
+            prompt:
+              containsPattern: '(?m)^Username: ?$'
+            response: boxen
+          - name: password
+            prompt:
               contains: "Password:"
-            response: "P@ssw0rd!"
+            response: Boxen123!
             hidden: true
-          - prompt:
-              contains: "RP/0/RP0/CPU0:ios#"
+          - name: exec prompt
+            prompt:
+              containsPattern: 'RP/0/RP0/CPU0:[\w.-]+#'
             response: ""
             once: true
             completes: true
-    # pagination
-    - type: write
+    - &terminal
+      type: write
       write:
         content: |
-          term len 0
-          term width 512
-    # generate base crypto key
+          terminal length 0
+          terminal width 512
     - type: prompts
       prompts:
         timeout: 5m
         initialInput: crypto key generate rsa
         prompts:
-          - prompt:
+          - name: replace keys
+            prompt:
               contains: "really want to replace them"
-            response: yes
+            response: "yes"
             once: true
-          - prompt:
+          - name: modulus
+            prompt:
               contains: "many bits in the modulus"
             response: ""
             once: true
             completes: true
-    # base config
+    - &configure
+      type: write
+      write:
+        content: configure
+    # prompts are matched where they are, since log messages can follow them on the same line
+    - &configPrompt
+      type: readUntil
+      readUntil:
+        timeout: 1m
+        until:
+          containsPattern: 'RP/0/RP0/CPU0:[\w.-]+\(config[^)]*\)#'
     - type: write
       write:
         content: |
-          configure exclusive
           vrf clab-mgmt
           description Containerlab management VRF (DO NOT DELETE)
           address-family ipv4 unicast
@@ -114,111 +134,199 @@ packaging:
           address-family ipv4 unicast
           0.0.0.0/0 10.0.0.2
           root
-          interface MgmtEth 0/RP0/CPU0/0
+          interface MgmtEth0/RP0/CPU0/0
           description Containerlab management interface
           vrf clab-mgmt
           ipv4 address 10.0.0.15 255.255.255.0
           no shutdown
-          exit
+          root
           ssh server v2
           ssh server vrf clab-mgmt
-          ssh server netconf
+          ssh server netconf vrf clab-mgmt
+          netconf-yang agent ssh
           grpc port 57400
+          grpc vrf clab-mgmt
           grpc no-tls
           xml agent tty
+          line console
+          exec-timeout 0 0
           root
-    # commit
-    - type: write
+    - &commit
+      type: write
       write:
         content: commit
-    - type: readUntil
+    - &committed
+      type: readUntil
       readUntil:
-        timeout: 1m
+        timeout: 2m
         until:
-          contains: "#"
-    - type: write
+          containsPattern: 'RP/0/RP0/CPU0:[\w.-]+\(config[^)]*\)#'
+          notContains: "Failed to commit"
+    - &end
+      type: write
       write:
         content: end
-    - type: readUntil
+    - &execPrompt
+      type: readUntil
       readUntil:
         timeout: 1m
         until:
-          contains: "RP/0/RP0/CPU0:ios#"
+          containsPattern: 'RP/0/RP0/CPU0:[\w.-]+#'
     # small delay to ensure everything saved nicely
     - type: wait
       wait:
         duration: 10s
-  sparsify: false
 run:
   process:
+    # the saved configuration loads after the login prompt shows up, and configuring before it
+    # completed asks for confirmation; so log in, then wait for the load to complete
     - type: prompts
       prompts:
-        timeout: 20m
+        timeout: 30m
         prompts:
-          - prompt:
-              contains: "localhost login:"
-            response: admin
-            hidden: true
-            once: true
-          - prompt:
+          - name: get started
+            prompt:
+              contains: "Press RETURN to get started"
+            response: ""
+          - name: username
+            prompt:
+              containsPattern: '(?m)^Username: ?$'
+            response: boxen
+          - name: password
+            prompt:
               contains: "Password:"
-            response: admin
+            response: Boxen123!
             hidden: true
-            once: true
-          - prompt:
-              contains: "localhost>"
+          - name: configuration loaded
+            prompt:
+              contains: "SYSTEM CONFIGURATION COMPLETED"
             response: ""
             once: true
             completes: true
+    - *login
+    - *terminal
+    # the data interfaces appear some time after the route processor runs, and commits touching
+    # them fail until then
+    - &interfacesReady
+      type: prompts
+      prompts:
+        timeout: 15m
+        initialInput: show ipv4 interface brief | include GigabitEthernet0/0/0/15
+        prompts:
+          - name: interfaces ready
+            prompt:
+              containsPattern: 'GigabitEthernet0/0/0/15[ \t]+\S+[ \t]+(?:Up|Down|Shutdown)'
+            response: ""
+            once: true
+            completes: true
+          - name: interfaces not ready
+            prompt:
+              containsPattern: 'RP/0/RP0/CPU0:[\w.-]+#'
+            response: show ipv4 interface brief | include GigabitEthernet0/0/0/15
+    - *configure
+    - *configPrompt
+    # node identity and management addresses from containerlab
+    - type: write
+      write:
+        content: |
+          hostname {{ .hostname }}
+          username {{ .username }}
+          group root-lr
+          group cisco-support
+          secret 0 {{ .password }}
+          root
+          interface MgmtEth0/RP0/CPU0/0
+          no ipv4 address
+          no ipv6 address
+          {{ if .mgmtDHCP }}
+          ipv4 address dhcp
+          {{ else }}
+          {{ if .mgmtIPv4 }}
+          ipv4 address {{ .mgmtIPv4 }}
+          {{ end }}
+          {{ if .mgmtIPv6 }}
+          ipv6 address {{ .mgmtIPv6 }}
+          {{ end }}
+          {{ end }}
+          root
+          {{ if not .mgmtDHCP }}
+          no router static vrf clab-mgmt
+          router static
+          vrf clab-mgmt
+          {{ if .mgmtIPv4Gateway }}
+          address-family ipv4 unicast
+          0.0.0.0/0 {{ .mgmtIPv4Gateway }}
+          exit
+          {{ end }}
+          {{ if .mgmtIPv6Gateway }}
+          address-family ipv6 unicast
+          ::/0 {{ .mgmtIPv6Gateway }}
+          exit
+          {{ end }}
+          root
+          {{ end }}
+    - *commit
+    - *committed
+    - *end
+    - *execPrompt
   configProcess:
-    # acquire privileged exec and disable pagination
-    - type: write
-      write:
-        content: enable
-    - type: prompts
-      prompts:
-        timeout: 1m
-        prompts:
-          - prompt:
-              contains: "Password:"
-            response: admin
-            hidden: true
-            once: true
-          - prompt:
-              contains: "localhost#"
-            response: ""
-            once: true
-            completes: true
+    # IOS XR syntax without a final "end", as saved by the save process. IOS XR shuts down the
+    # data interfaces without configuration at each boot, and a saved configuration only lists
+    # "shutdown"; so the data interfaces are enabled first, in the same commit
+    - *configure
+    - *configPrompt
     - type: write
       write:
         content: |
-          term len 0
-          term width 32767
-    # config mode so we can set username/password/hostname
-    - type: write
-      write:
-        content: |
-          configure terminal
-    - type: write
-      write:
-        content: username {{ .username }} secret 0 {{ .password }} role network-admin
-    - type: write
-      write:
-        content: hostname {{ .hostname }}
-    # load any user provided startup config
+          interface GigabitEthernet0/0/0/0
+          no shutdown
+          interface GigabitEthernet0/0/0/1
+          no shutdown
+          interface GigabitEthernet0/0/0/2
+          no shutdown
+          interface GigabitEthernet0/0/0/3
+          no shutdown
+          interface GigabitEthernet0/0/0/4
+          no shutdown
+          interface GigabitEthernet0/0/0/5
+          no shutdown
+          interface GigabitEthernet0/0/0/6
+          no shutdown
+          interface GigabitEthernet0/0/0/7
+          no shutdown
+          interface GigabitEthernet0/0/0/8
+          no shutdown
+          interface GigabitEthernet0/0/0/9
+          no shutdown
+          interface GigabitEthernet0/0/0/10
+          no shutdown
+          interface GigabitEthernet0/0/0/11
+          no shutdown
+          interface GigabitEthernet0/0/0/12
+          no shutdown
+          interface GigabitEthernet0/0/0/13
+          no shutdown
+          interface GigabitEthernet0/0/0/14
+          no shutdown
+          interface GigabitEthernet0/0/0/15
+          no shutdown
+          root
     - type: write
       write:
         contentFromStartupConfig: true
-    # ensure we are out of config mode
-    - type: write
-      write:
-        content: |
-          end
-    - type: write
-      write:
-        content: copy running-config startup-config
-    - type: readUntil
-      readUntil:
-        timeout: 3m
-        until:
-          contains: "Copy completed successfully"
+    - *commit
+    - *committed
+    - *end
+    - *execPrompt
+  saveProcess:
+    - *login
+    - *terminal
+    # the running configuration between its header and the final "end"
+    - type: capture
+      capture:
+        timeout: 2m
+        command: show running-config
+        start:
+          contains: "Building configuration..."
+        end:
+          containsPattern: '(?m)^end\s*$'

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	boxenassets "github.com/carlmontanari/boxen/assets"
 	boxenconstants "github.com/carlmontanari/boxen/constants"
 	"go.yaml.in/yaml/v4"
 )
@@ -57,7 +58,11 @@ func TestQemuDiskInterface(t *testing.T) {
 					t.Fatal(err)
 				}
 				idx := slices.Index(args, "-drive")
-				expected := "if=" + test.expected + ",file=disk.qcow2,format=qcow2"
+				disk := boxenconstants.RunDiskFilename
+				if packaging {
+					disk = boxenconstants.DiskFilename
+				}
+				expected := "if=" + test.expected + ",file=" + disk + ",format=qcow2"
 				if idx < 0 || idx+1 >= len(args) || args[idx+1] != expected {
 					t.Fatalf("packaging=%v: expected -drive %q, got %v", packaging, expected, args)
 				}
@@ -225,12 +230,15 @@ func TestQemuArgsOverridesAndExtras(t *testing.T) {
 		t.Fatalf("building run qemu args failed: %v", err)
 	}
 
-	// the override replaces the default disk section entirely
-	if !slices.Contains(runArgs, "if=none,file=disk.qcow2,format=qcow2,id=drive0") {
+	// the override replaces the default disk section entirely, and at runtime its disk reference
+	// points at the overlay
+	if !slices.Contains(runArgs, "if=none,file=disk.overlay.qcow2,format=qcow2,id=drive0") {
 		t.Fatalf("expected disk override content in run args, got %v", runArgs)
 	}
 
-	if slices.Contains(runArgs, "if=virtio,file=disk.qcow2,format=qcow2") {
+	if slices.ContainsFunc(runArgs, func(arg string) bool {
+		return strings.HasPrefix(arg, "if=virtio,")
+	}) {
 		t.Fatalf("generated disk args should be replaced by the override, got %v", runArgs)
 	}
 
@@ -252,5 +260,177 @@ func TestQemuArgsOverridesAndExtras(t *testing.T) {
 	// the onPackage-only extra is present in packaging mode
 	if !slices.Contains(packageArgs, "-cdrom") || !slices.Contains(packageArgs, "config.iso") {
 		t.Fatalf("expected onPackage extra in packaging args, got %v", packageArgs)
+	}
+
+	// packaging writes the packaged disk itself
+	if !slices.Contains(packageArgs, "if=none,file=disk.qcow2,format=qcow2,id=drive0") {
+		t.Fatalf("expected packaged disk in packaging args, got %v", packageArgs)
+	}
+}
+
+func TestUseRunDisk(t *testing.T) {
+	args := useRunDisk([]string{
+		"-drive", "if=none,file=disk.qcow2,format=qcow2",
+		"-hda", "disk.qcow2",
+		"-drive", "file=disk.qcow2.bak,format=qcow2",
+		"-cdrom", "config.iso",
+	})
+
+	want := []string{
+		"-drive", "if=none,file=disk.overlay.qcow2,format=qcow2",
+		"-hda", "disk.overlay.qcow2",
+		"-drive", "file=disk.qcow2.bak,format=qcow2",
+		"-cdrom", "config.iso",
+	}
+
+	if !slices.Equal(args, want) {
+		t.Fatalf("got %v, want %v", args, want)
+	}
+}
+
+func TestQemuInstanceUUID(t *testing.T) {
+	p := testQemuProfile(false)
+	p.InstanceUUID = "123e4567-e89b-12d3-a456-426614174000"
+
+	runArgs, err := QemuArgsFromProfile(p, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if runArgs[3] != p.InstanceUUID {
+		t.Fatalf("expected run uuid %q, got %v", p.InstanceUUID, runArgs[:4])
+	}
+
+	packageArgs, err := QemuArgsFromProfile(p, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if packageArgs[3] == p.InstanceUUID || packageArgs[3] == "" {
+		t.Fatalf("expected a random packaging uuid, got %v", packageArgs[:4])
+	}
+}
+
+func TestQemuNicTypeEnv(t *testing.T) {
+	t.Setenv(boxenconstants.EnvClabMgmtPassthrough, "")
+	t.Setenv(boxenconstants.EnvClabQemuNicType, "vmxnet3")
+
+	p := testQemuProfile(false)
+	p.VirtualMachine.NicCount = 1
+	p.VirtualMachine.NicPerBus = 26
+
+	if got := qemuMgmtNIC(p, false)[1]; !strings.HasPrefix(got, "vmxnet3,") {
+		t.Fatalf("management nic should use QEMU_NIC_TYPE, got %q", got)
+	}
+
+	if got := qemuDataNICs(p)[1]; !strings.HasPrefix(got, "vmxnet3,") {
+		t.Fatalf("data nic should use QEMU_NIC_TYPE, got %q", got)
+	}
+}
+
+func TestQemuAdditionalArgsWhitespace(t *testing.T) {
+	t.Setenv(boxenconstants.EnvClabQemuAdditionalArgs, "  -machine  pc\t-no-reboot ")
+
+	args, err := QemuArgsFromProfile(testQemuProfile(false), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !slices.Equal(args[len(args)-3:], []string{"-machine", "pc", "-no-reboot"}) {
+		t.Fatalf("expected whitespace separated additional args, got %v", args[len(args)-3:])
+	}
+
+	if slices.Contains(args, "") {
+		t.Fatalf("additional args produced an empty argument: %v", args)
+	}
+}
+
+func TestQemuMgmtNICLegacyDefaultNatPorts(t *testing.T) {
+	t.Setenv(boxenconstants.EnvClabMgmtPassthrough, "")
+
+	p := testQemuProfile(false)
+	p.VirtualMachine.NatPorts = nil
+
+	args := qemuMgmtNIC(p, false)
+
+	for _, want := range []string{
+		"hostfwd=tcp:0.0.0.0:22-10.0.0.15:22",
+		"hostfwd=udp:0.0.0.0:161-10.0.0.15:161",
+		"hostfwd=tcp:0.0.0.0:830-10.0.0.15:830",
+		"hostfwd=tcp:0.0.0.0:57400-10.0.0.15:57400",
+	} {
+		if !strings.Contains(args[3], want) {
+			t.Fatalf("legacy management netdev missing default %q, got %q", want, args[3])
+		}
+	}
+}
+
+func TestEmbeddedProfilesTapNames(t *testing.T) {
+	t.Setenv(boxenconstants.EnvClabMgmtPassthrough, "")
+
+	entries, err := boxenassets.Assets.ReadDir("profiles")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, entry := range entries {
+		b, err := boxenassets.Assets.ReadFile("profiles/" + entry.Name())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		p, err := Load(b)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for _, packaging := range []bool{true, false} {
+			args, err := QemuArgsFromProfile(p, packaging)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// qemu names unnamed taps tapN itself, colliding with the data nic taps
+			seen := map[string]bool{}
+
+			for _, arg := range args {
+				if !strings.HasPrefix(arg, "tap,") {
+					continue
+				}
+
+				name := ""
+
+				for opt := range strings.SplitSeq(arg, ",") {
+					if after, ok := strings.CutPrefix(opt, "ifname="); ok {
+						name = after
+					}
+				}
+
+				if name == "" || seen[name] {
+					t.Fatalf(
+						"%s packaging=%v: tap netdev %q needs a unique ifname",
+						entry.Name(),
+						packaging,
+						arg,
+					)
+				}
+
+				seen[name] = true
+			}
+		}
+	}
+}
+
+func TestQemuDataNICMACs(t *testing.T) {
+	p := testQemuProfile(false)
+	p.VirtualMachine.NicCount = 2
+	p.VirtualMachine.NicPerBus = 26
+	p.DataNICMACs = []string{"02:00:00:00:00:01", "02:00:00:00:00:02"}
+
+	args := qemuDataNICs(p)
+
+	if !strings.Contains(args[1], "mac=02:00:00:00:00:01") ||
+		!strings.Contains(args[5], "mac=02:00:00:00:00:02") {
+		t.Fatalf("data nics do not use the resolved MACs: %v", args)
 	}
 }

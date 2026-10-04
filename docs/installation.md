@@ -108,7 +108,7 @@ Choose an [included profile](platforms.md). Keep firmware, boot media, or initia
 
 ```text
 images/
-├── nxosv.9.2.4.qcow2
+├── nexus9300v64.10.6.3.F.qcow2
 └── OVMF.fd
 ```
 

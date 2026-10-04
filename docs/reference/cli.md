@@ -1,6 +1,6 @@
 # CLI commands
 
-Boxen exposes `build`, `package`, `run`, and `health`. Use each command's `--help` output for the binary installed on your host. This reference describes the current checkout.
+Boxen exposes `build`, `package`, `run`, `health`, `save`, and `reset`. Use each command's `--help` output for the binary installed on your host. This reference describes the current checkout.
 
 ## `boxen build`
 
@@ -53,6 +53,8 @@ Runtime entrypoint of a packaged image:
 | `--hostname` | Empty | Exposed as `.hostname` to write templates |
 | `--connection-mode` | Empty | Containerlab compatibility input, exposed as `.connectionMode` |
 | `--trace` | `false` | Accepted for Containerlab compatibility; ignored |
+| `--vcpu`, `--ram` | Empty | Passed by Containerlab 0.78 and earlier for some kinds; used as `QEMU_SMP` and `QEMU_MEMORY` when those are unset |
+| `--variant` | Profile default | [Hardware variant](../profiles/structure.md#hardware-variants) to run as: a variant name or `key=value` settings; Containerlab passes the node type for Nokia SR OS |
 | `--logLevel` | `debug` | Logging level |
 
 This command expects `/boxen/profile.yaml`, the prepared disk, and the container runtime tools. It does not accept a disk or profile flag. Passing credentials exposes them to templates; the selected profile must actually use them to configure an account. See [running a lab](../guides/running.md).
@@ -63,7 +65,33 @@ This command expects `/boxen/profile.yaml`, the prepared disk, and the container
 docker exec clab-<lab>-<node> /boxen/boxen health
 ```
 
-Exits 0 when the first whitespace-separated field of `/health` is `0`. A missing file, empty file, or any other status returns a nonzero exit code. Boxen writes `1 booting` during startup and `0 running` after successful runtime and startup-config processing.
+Exits 0 when the first whitespace-separated field of `/health` is `0`. A missing file, empty file, or any other status returns a nonzero exit code. Boxen writes `1 booting` during startup, `0 running` after successful runtime and startup-config processing, and `1 vm exited` when the VM stops on its own.
+
+## `boxen save`
+
+Run inside a running node container to save the guest's running configuration as the node's startup configuration:
+
+```sh
+docker exec clab-<lab>-<node> /boxen/boxen save
+```
+
+| Flag | Default | Purpose |
+| --- | --- | --- |
+| `--username` | `USERNAME` environment variable | Exposed as `.username` to save process templates |
+| `--password` | `PASSWORD` environment variable | Exposed as `.password` to save process templates |
+| `--hostname` | Container hostname | Exposed as `.hostname` to save process templates |
+| `--timeout` | `5m` | Maximum duration of the save |
+| `--logLevel` | `info` | Logging level |
+
+The command runs the profile's `run.saveProcess` over the serial console and writes the recorded configuration to the node's startup config file: the existing file from `run.startupConfigFiles`, otherwise the first listed path. Containerlab VM kinds bind that directory from the lab directory, so the saved file is applied by `run.configProcess` the next time the node is created. The command fails when the profile defines no save process, while the node is still provisioning, or when the console cannot be opened within a minute, for example because another session holds it.
+
+## `boxen reset`
+
+```sh
+docker exec clab-<lab>-<node> /boxen/boxen reset
+```
+
+Hard resets the VM through the QEMU monitor, like pressing its reset button. The guest reboots from its disk, so unsaved guest configuration is lost, and provisioning does not run again.
 
 ## Global help and version
 
