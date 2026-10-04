@@ -145,6 +145,11 @@ func (a *Agent) runPrepare(ctx context.Context) error {
 		a.runPreCommands,
 		a.runPrepareDisk,
 		func(context.Context) error { return a.runResolveInstanceUUID() },
+		func(context.Context) error {
+			a.p.ResolveDataNICMACs()
+
+			return nil
+		},
 	} {
 		err := prepare(ctx)
 		if err != nil {

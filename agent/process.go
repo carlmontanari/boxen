@@ -53,6 +53,11 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 	for idx, p := range step.Prompts.Prompts {
 		cbName := promptCallbackName(idx, p.Name)
 
+		response, err := a.f.RenderTemplate(p.Response)
+		if err != nil {
+			return fmt.Errorf("rendering response of %s: %w", cbName, err)
+		}
+
 		a.l.Debug(
 			"building prompts callback",
 			"callback name",
@@ -60,7 +65,7 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 			"prompt",
 			p.Prompt,
 			"response",
-			p.Response,
+			response,
 			"completes",
 			p.Completes,
 		)
@@ -116,18 +121,18 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 					"notContains",
 					p.Prompt.NotContains,
 					"response",
-					p.Response,
+					response,
 					"hidden",
 					p.Hidden,
 					"reading until response",
-					p.Response,
+					response,
 					"searchBuf",
 					searchBuf,
 				)
 
 				defer a.l.Info("callback completed", "callback name", cbName)
 
-				err = c.Write(p.Response)
+				err := c.Write(response)
 				if err != nil {
 					return err
 				}
@@ -136,7 +141,7 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 					return c.WriteReturn()
 				}
 
-				err = a.waitForEcho(ctx, p.Response)
+				err = a.waitForEcho(ctx, response)
 				if err != nil {
 					return err
 				}

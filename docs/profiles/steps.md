@@ -45,7 +45,7 @@ Use Go duration strings such as `5s`, `2m`, and `20m`. Duration fields are requi
 | `prompt.contains` | Literal substring to match. |
 | `prompt.containsPattern` | Regex to match console output. |
 | `prompt.notContains` | Reject a match when this substring is present. |
-| `response` | Text sent to the console, followed by a return character. It is not Go-templated. |
+| `response` | Text sent to the console, followed by a return character. It is rendered as a [Go template](templates.md). |
 | `hidden` | Do not wait for the response to echo before sending return. |
 | `once` | Trigger this callback at most once in the step. |
 | `completes` | End the prompts step after the matching callback. |
@@ -102,7 +102,7 @@ Choose one content source. The implementation prioritizes nonempty `content`, th
 
 The selected content is rendered as a [Go template](templates.md), split on newlines, and written line by line. By default Boxen waits for each line's echo before sending return. The comparison ignores whitespace and the backspace and bell bytes of line editors, since CLIs wrap long lines and do not always echo indentation; an echo that does not arrive within two minutes fails the step. Set `hidden: true` for a password or another input that does not echo. A `write` step does not verify the OS accepted a command; follow it with a `readUntil` check when the result matters.
 
-Use `content: "\n"` to send a blank line. An empty `content: ""` by itself is not a supported write source. For runtime credentials use a templated `write` step after waiting for the relevant password prompt, rather than putting templates in `prompts.response`.
+Use `content: "\n"` to send a blank line. An empty `content: ""` by itself is not a supported write source.
 
 ## `wait`: allow background work to finish
 

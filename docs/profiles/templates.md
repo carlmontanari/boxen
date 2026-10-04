@@ -13,6 +13,7 @@ Boxen renders Go templates in `write.content` and in content loaded by `write.co
 | `.password` | Node-specific password | Runtime flag; empty during packaging |
 | `.hostname` | `leaf1` | Runtime flag; empty during packaging |
 | `.connectionMode` | Value passed by Containerlab | Runtime flag; empty during packaging |
+| `.dataNICMACs` | `[aa:c1:ab:94:6d:16 52:54:00:3f:1a:02]` | MAC of each data NIC in NIC order: the container interface MAC when it exists at boot, otherwise a generated one; empty during packaging |
 
 Although `.disk` contains the source basename during packaging, conversion has already produced the working `disk.qcow2` before console steps run. Do not assume the source filename still exists inside the builder.
 
@@ -32,6 +33,7 @@ This example writes a command to the guest console. It only works when the guest
 | `.mgmtIPv4` | `172.20.20.10/24` | IPv4 address in CIDR notation |
 | `.mgmtIPv4Address` | `172.20.20.10` | IPv4 address without prefix |
 | `.mgmtIPv4PrefixLen` | `24` | Prefix length as a string |
+| `.mgmtIPv4Netmask` | `255.255.255.0` | Dotted decimal netmask |
 | `.mgmtIPv4Network` | `172.20.20.0/24` | Masked IPv4 network |
 | `.mgmtIPv4Gateway` | `172.20.20.1` | Default gateway on the management interface |
 | `.mgmtIPv6` | `2001:db8:20::10/64` | Global IPv6 address in CIDR notation |
@@ -67,9 +69,21 @@ The exact commands depend on the OS. Use the [management guide](../guides/manage
 
 ## Where rendering happens
 
-Templates expand in the text that a `write` step sends. They do not expand in `prompts.response`, `readUntil` matchers, shell hooks, the `contentFromFile` pathname, or QEMU argument overrides. Static prompt responses should log into the prepared baseline; use runtime `write` steps for node-specific credentials.
+Templates expand in the text that a `write` step sends and in `prompts.response`. They do not expand in `readUntil` or prompt matchers, shell hooks, the `contentFromFile` pathname, or QEMU argument overrides. Text without `{{` is sent unchanged.
 
 Go template syntax is not shell syntax. Use `{{ if ... }}` and `{{ end }}` to guard optional values; avoid accessing a missing management key before the DHCP branch.
+
+## Interface values
+
+`add` adds two integers and `ciscoMAC` formats a MAC address in the dotted Cisco notation. Together with `.dataNICMACs` they configure per-interface values, such as the MAC of each routed port:
+
+```yaml
+content: |
+  {{ range $idx, $mac := .dataNICMACs }}
+  interface Ethernet1/{{ add $idx 1 }}
+  mac-address {{ ciscoMAC $mac }}
+  {{ end }}
+```
 
 ## Shell arguments and file transfer
 
