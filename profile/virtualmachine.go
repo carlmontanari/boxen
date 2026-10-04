@@ -33,6 +33,9 @@ type VirtualMachine struct {
 	NatPorts              []NatPort `yaml:"natPorts"`
 	ManagementPassthrough bool      `yaml:"managementPassthrough"`
 
+	// Configure defines configure(vm), returning settings to apply before QEMU starts.
+	Configure string `yaml:"configure"`
+
 	// Overrides allows for completely overriding any of the individual qemu settings that would
 	// otherwise be generated from this struct, the options are:
 	// - cpu

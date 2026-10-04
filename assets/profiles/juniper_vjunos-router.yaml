@@ -35,6 +35,7 @@ prePackagingCommands:
       "sed -i 's/grep -ci vmx)/grep -Eci \"vmx|svm\")/' /home/pfe/junos/start-junos.sh &&
        grep -qF 'grep -Eci \"vmx|svm\"' /home/pfe/junos/start-junos.sh"
 packaging:
+  sparsify: true
   process:
     # The outer Linux VM briefly exposes its own login prompt before Junos.
     - &junosBoot

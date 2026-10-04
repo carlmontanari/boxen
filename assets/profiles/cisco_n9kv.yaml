@@ -41,6 +41,7 @@ virtualMachine:
         - content: -boot
         - content: c
 packaging:
+  sparsify: true
   process:
     # handle initial poap/provisioning dialog
     - type: prompts

@@ -1,6 +1,7 @@
 package profile
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -307,5 +308,28 @@ func TestQemuInstanceUUID(t *testing.T) {
 
 	if packageArgs[3] == p.InstanceUUID || packageArgs[3] == "" {
 		t.Fatalf("expected a random packaging uuid, got %v", packageArgs[:4])
+	}
+}
+
+func TestQemuBridgeBoundaries(t *testing.T) {
+	for _, count := range []uint16{25, 26, 27, 52, 70} {
+		p := testQemuProfile(false)
+		p.VirtualMachine.NicCount = count
+		p.VirtualMachine.NicPerBus = 26
+		args, err := QemuArgsFromProfile(p, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for index := 1; index <= int(count); index++ {
+			bridge := fmt.Sprintf("pci-bridge,chassis_nr=%d,id=pci.%d",
+				index/26+1, index/26+1)
+			if !slices.Contains(args, bridge) {
+				t.Fatalf("NIC %d of %d references a missing bridge: %s", index, count, bridge)
+			}
+			if !slices.Contains(args,
+				fmt.Sprintf("tap,id=p%03d,ifname=tap%d,script=no,downscript=no", index, index)) {
+				t.Fatalf("missing tap%d", index)
+			}
+		}
 	}
 }

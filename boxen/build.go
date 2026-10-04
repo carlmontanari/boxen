@@ -181,6 +181,17 @@ func (b *Boxen) prepareBuild(diskImage, profile string) error {
 		return err
 	}
 
+	for _, filename := range b.p.ExtraFiles {
+		f, err := openFile(b.disk, filename)
+		if err != nil {
+			b.l.Error("failed resolving profile extra file", "file", filename, "error", err.Error())
+
+			return fmt.Errorf("%w: profile %q extra file %q: %w",
+				boxenerrors.ErrBoxen, b.p.Name, filename, err)
+		}
+		_ = f.Close()
+	}
+
 	// We'll emit a warning log if we cant compile the pattern.
 	_ = b.resolveVersion()
 
@@ -219,7 +230,7 @@ func (b *Boxen) openVMConsole(ctx context.Context, containerID string) error {
 			ContainerID: containerID,
 			Command: []string{
 				"telnet",
-				"localhost",
+				boxenconstants.ConsoleHost,
 				fmt.Sprint(boxenconstants.ConsolePort),
 			},
 			Interactive: true,
@@ -240,8 +251,9 @@ func (b *Boxen) openVMConsole(ctx context.Context, containerID string) error {
 
 func buildOpenConsoleCommand(containerID string) string {
 	return fmt.Sprintf(
-		"docker exec -i -t %s telnet localhost %d",
+		"docker exec -i -t %s telnet %s %d",
 		containerID,
+		boxenconstants.ConsoleHost,
 		boxenconstants.ConsolePort,
 	)
 }

@@ -16,8 +16,6 @@ import (
 	boxenerrors "github.com/carlmontanari/boxen/errors"
 	boxenutil "github.com/carlmontanari/boxen/util"
 	"github.com/google/uuid"
-	"go.starlark.net/starlark"
-	"go.starlark.net/syntax"
 )
 
 const (
@@ -43,6 +41,10 @@ func QemuArgsFromProfile(
 	p *Profile,
 	isPackaging bool,
 ) ([]string, error) {
+	if err := p.VirtualMachine.ApplyConfiguration(isPackaging); err != nil {
+		return nil, err
+	}
+
 	instanceUUID := p.InstanceUUID
 	if isPackaging || instanceUUID == "" {
 		instanceUUID = uuid.NewString()
@@ -107,7 +109,7 @@ func QemuArgsFromProfile(
 			continue
 		}
 
-		args, err := invokeStarlarkF(fBody, args)
+		args, err := invokeStarlarkF(fBody, args, isPackaging)
 		if err != nil {
 			return nil, err
 		}
@@ -304,7 +306,8 @@ func qemuPCI(p *Profile) []string {
 	nicCount := float64(p.VirtualMachine.NicCount)
 	nicPerBus := float64(p.VirtualMachine.NicPerBus)
 
-	busRequired := int(math.Ceil(nicCount / nicPerBus))
+	// NIC indices start at one; an exact bus multiple is on the next bridge.
+	busRequired := int(math.Floor(nicCount/nicPerBus)) + 1
 
 	for busID := 1; busID < busRequired+1; busID++ {
 		pciCmd = append(
@@ -464,72 +467,25 @@ func getIntfMac(ctx context.Context, intf string) string {
 	return ""
 }
 
-func invokeStarlarkF(fBody string, cmd []string) ([]string, error) {
-	starlarkNicCmd := starlark.List{}
-	for _, elem := range cmd {
-		err := starlarkNicCmd.Append(starlark.String(elem))
-		if err != nil {
-			return nil, err
-		}
+func invokeStarlarkF(fBody string, cmd []string, isPackaging bool) ([]string, error) {
+	if cmd == nil {
+		cmd = []string{}
 	}
-
-	thread := &starlark.Thread{Name: "mutator"}
-
-	globals, err := starlark.ExecFileOptions(
-		syntax.LegacyFileOptions(),
-		thread,
-		"",
-		fBody,
-		nil,
-	)
+	result, err := callStarlark(fBody, "qemu.mutator", "mutate", isPackaging, cmd)
 	if err != nil {
 		return nil, err
 	}
-
-	f, ok := globals["mutate"]
+	items, ok := result.([]any)
 	if !ok {
-		return nil, err
+		return nil, fmt.Errorf("%w: mutate(items) must return a list", boxenerrors.ErrBoxen)
 	}
-
-	result, err := starlark.Call(
-		thread,
-		f,
-		starlark.Tuple{&starlarkNicCmd},
-		nil,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	outList, ok := result.(*starlark.List)
-	if !ok {
-		return nil, fmt.Errorf(
-			"%w: starlark program did not return list type",
-			boxenerrors.ErrBoxen,
-		)
-	}
-
-	out := make([]string, outList.Len())
-
-	resultIter := outList.Iterate()
-	defer resultIter.Done()
-
-	var v starlark.Value
-
-	var count int
-
-	for resultIter.Next(&v) {
-		s, ok := starlark.AsString(v)
+	out := make([]string, len(items))
+	for i, value := range items {
+		s, ok := value.(string)
 		if !ok {
-			return nil, fmt.Errorf(
-				"%w: failed re-casting starlark value to string",
-				boxenerrors.ErrBoxen,
-			)
+			return nil, fmt.Errorf("%w: mutate(items) must return strings", boxenerrors.ErrBoxen)
 		}
-
-		out[count] = s
-
-		count++
+		out[i] = s
 	}
 
 	return out, nil

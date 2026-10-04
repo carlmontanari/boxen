@@ -29,12 +29,7 @@ func (b *Boxen) resolveProfile(
 
 	_, err := os.Stat(maybeProfileFilename)
 	if !errors.Is(err, os.ErrNotExist) {
-		contents, err := os.ReadFile(maybeProfileFilename) //nolint: gosec
-		if err != nil {
-			return nil, err
-		}
-
-		p, err := boxenprofile.Load(contents)
+		p, err := loadProfileFile(maybeProfileFilename)
 		if err != nil {
 			return nil, err
 		}
@@ -56,11 +51,12 @@ func (b *Boxen) resolveProfile(
 	}
 
 	for _, assetFile := range assetFiles {
-		if assetFile.IsDir() {
+		extension := filepath.Ext(assetFile.Name())
+		if assetFile.IsDir() || (extension != ".yaml" && extension != ".yml") {
 			continue
 		}
 
-		maybeAssetProfileName := strings.TrimSuffix(assetFile.Name(), ".yaml")
+		maybeAssetProfileName := strings.TrimSuffix(assetFile.Name(), extension)
 
 		b.l.Debug(
 			"checking asset profile",
@@ -81,6 +77,9 @@ func (b *Boxen) resolveProfile(
 		if maybeAssetProfileName == profileNameOrFile {
 			return p, nil
 		}
+		if profileNameOrFile != "" {
+			continue
+		}
 
 		for _, diskPattern := range p.DiskPatterns {
 			diskRe, err := regexp.Compile(diskPattern)
@@ -96,12 +95,38 @@ func (b *Boxen) resolveProfile(
 		}
 	}
 
+	if profileNameOrFile != "" {
+		return nil, fmt.Errorf("%w: unknown profile %q", boxenerrors.ErrBoxen, profileNameOrFile)
+	}
+
 	return nil, fmt.Errorf(
-		"%w: unable to resolve profile from given profile name %q or disk %q",
+		"%w: unable to resolve profile from disk %q",
 		boxenerrors.ErrBoxen,
-		profileNameOrFile,
 		b.disk,
 	)
+}
+
+func loadProfileFile(filename string) (*boxenprofile.Profile, error) {
+	contents, err := os.ReadFile(filename) //nolint: gosec
+	if err != nil {
+		return nil, err
+	}
+
+	p, err := boxenprofile.Load(contents)
+	if err != nil {
+		return nil, err
+	}
+	profileDirectory, err := filepath.Abs(filepath.Dir(filename))
+	if err != nil {
+		return nil, err
+	}
+	for i, filename := range p.ExtraFiles {
+		if !filepath.IsAbs(filename) {
+			p.ExtraFiles[i] = filepath.Join(profileDirectory, filename)
+		}
+	}
+
+	return p, nil
 }
 
 func (b *Boxen) resolveVersion() error {

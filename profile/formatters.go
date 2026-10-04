@@ -147,6 +147,10 @@ func (f *Formatters) RenderTemplate(content string) (string, error) {
 	t, err := template.New("content").Funcs(template.FuncMap{
 		"shellQuote": shellQuote,
 		"fileBase64": fileBase64,
+		"readFile":   readFile,
+		"starlark": func(path, function string, args ...any) (any, error) {
+			return callStarlark(nil, path, function, f.isPackaging, args...)
+		},
 	}).Option("missingkey=error").Parse(content)
 	if err != nil {
 		return "", err
@@ -211,6 +215,7 @@ func (f *Formatters) TemplateData() (map[string]any, error) {
 		"password":       f.password,
 		"hostname":       f.hostname,
 		"connectionMode": f.connectionMode,
+		"isPackaging":    f.isPackaging,
 	}
 
 	management, err := f.getManagementFormatters()

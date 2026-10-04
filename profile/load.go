@@ -212,9 +212,12 @@ func (c *Contains) validate(goPattern bool) error {
 	}
 
 	if goPattern && c.ContainsPattern != "" {
-		if _, err := regexp.Compile(c.ContainsPattern); err != nil {
+		p, err := regexp.Compile(c.ContainsPattern)
+		if err != nil {
 			return err
 		}
+
+		c.pattern = p
 	}
 
 	return nil

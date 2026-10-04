@@ -27,7 +27,7 @@ virtualMachine:
 prePackagingCommands: []
 packaging:
   stdErrIgnore: []
-  shrinkify: false
+  sparsify: false
   process:
     - type: readUntil
       readUntil:
@@ -59,10 +59,17 @@ run:
 | `diskPatterns` | Go regular expressions matched against the disk basename during embedded lookup. Use `(?i)` explicitly for case-insensitive matches. |
 | `versionPattern` | Extracts the version from the disk basename; the first capture group wins when present. |
 | `resolvedVersion` | Saved version exposed to runtime templates. Usually filled by the host during packaging. |
-| `extraFiles` | Additional host files to transfer. They are stored in the builder under their basenames. |
+| `extraFiles` | Additional files to transfer, from embedded assets or the host. They are stored in the builder under their basenames. |
 | `virtualMachine` | Generated QEMU arguments, phase-specific additions, and overrides. |
 
 `resolvedDisk` is internal and is not a YAML setting. Disk and companion-file lookup is described in [packaging](../guides/packaging.md).
+
+For a profile supplied by file path, relative `extraFiles` paths are resolved beside
+that profile. These host files override embedded companions with matching names.
+Packaging transfers their basenames into `/boxen`. Embedded profiles use included
+companions when available; Cumulus VX includes its Starlark module and shell template.
+Other companion files must be supplied by the user. Runtime files can also be
+bind-mounted into the node container.
 
 ## Console settings
 
@@ -85,7 +92,7 @@ Shell hooks operate in the container, while console steps operate in the guest. 
 
 ## Packaging options
 
-`packaging.shrinkify` enables disk sparsification after the VM stops. `packaging.stdErrIgnore` is a list of substrings that permit known QEMU startup messages on stderr. This ignore list is also consulted during runtime startup. Keep entries specific; an ignored message should be understood first.
+`packaging.sparsify` enables disk sparsification after the VM stops. `packaging.stdErrIgnore` is a list of substrings that permit known QEMU startup messages on stderr. This ignore list is also consulted during runtime startup. Keep entries specific; an ignored message should be understood first.
 
 ## YAML reuse
 
