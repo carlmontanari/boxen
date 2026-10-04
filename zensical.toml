@@ -34,6 +34,7 @@ nav = [
     { "Cisco CSR 1000v" = "cisco/csr1000v/README.md" },
     { "Cisco Nexus 9000v" = "cisco/n9kv/README.md" },
     { "Juniper vJunos-router" = "juniper/vjunos-router/README.md" },
+    { "Nokia SR OS" = "nokia/sros/README.md" },
   ] },
   { "Reference" = [
     { "CLI commands" = "reference/cli.md" },

@@ -384,6 +384,13 @@ func TestEmbeddedProfilesTapNames(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		// IXR chassis add an SFM nic
+		if p.Variants != nil {
+			if err := p.ApplyVariant("ixr-ec"); err != nil {
+				t.Fatal(err)
+			}
+		}
+
 		for _, packaging := range []bool{true, false} {
 			f := NewFormatters("", "", "node1", "", p, packaging)
 			f.management = defaultManagementFormatters()
