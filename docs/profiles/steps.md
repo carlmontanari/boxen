@@ -52,6 +52,8 @@ Use Go duration strings such as `5s`, `2m`, and `20m`. Duration fields are requi
 
 Give a successful terminal prompt `completes: true`; otherwise the step can continue until its timeout. Use `once` for first-boot dialogs and password changes so the same buffered prompt cannot repeatedly trigger a response.
 
+Non-hidden responses wait for their echo before the return character is sent, under the same rules as `write` steps; an echo that does not arrive within two minutes fails the step.
+
 `hidden` handles non-echoing terminal input. It does not redact the content from all logs: the current agent logs prompt definitions and response values. Treat collected automation logs accordingly.
 
 ## `readUntil`: confirm an outcome

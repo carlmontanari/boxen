@@ -75,7 +75,7 @@ For a container shell or guest serial console:
 
 ```sh
 docker exec -it clab-boxen-leaf1 bash
-docker exec -it clab-boxen-leaf1 telnet localhost 5001
+docker exec -it clab-boxen-leaf1 telnet 127.0.0.1 5001
 ```
 
 Leave telnet with `Ctrl+]`, then `q`.
