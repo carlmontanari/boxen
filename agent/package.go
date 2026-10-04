@@ -161,8 +161,8 @@ func (a *Agent) startPackage(ctx context.Context, errs chan error) {
 		return
 	}
 
-	if a.p.Packaging.Shrinkify {
-		err = a.packageShrinkify(ctx)
+	if a.p.Packaging.Sparsify {
+		err = a.packageSparsify(ctx)
 		if err != nil {
 			errs <- err
 
@@ -406,7 +406,7 @@ func (a *Agent) packageProcess(ctx context.Context) error {
 	return a.runSteps(ctx, "package process", a.p.Packaging.Process)
 }
 
-func (a *Agent) packageShrinkify(ctx context.Context) error {
+func (a *Agent) packageSparsify(ctx context.Context) error {
 	err := os.Rename("disk.qcow2", "fat.qcow2")
 	if err != nil {
 		return err

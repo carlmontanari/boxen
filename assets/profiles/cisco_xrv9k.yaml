@@ -35,6 +35,7 @@ virtualMachine:
           return items
   extras: []
 packaging:
+  sparsify: true
   process:
     # handle initial config dialog bits
     - type: prompts
