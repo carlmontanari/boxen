@@ -11,6 +11,7 @@ The current checkout includes the profiles below. They describe hardware and boo
 | Community SONiC | `community_sonic` | 4096 | 16 | None listed |
 | NVIDIA Cumulus VX | `nvidia_cumulusvx` | 4096 | 16 | None listed |
 | Juniper vJunos-router | `juniper_vjunos-router` | 5120 | 96 | None listed |
+| Nokia SR OS (vSIM) | `nokia_sros` | 5120 (`sr-1`) | 12 (`sr-1`) | None listed; a license at runtime |
 
 All profiles in this checkout set `managementPassthrough: true`. Packaging still uses legacy QEMU user networking. Use a custom YAML path to adapt hardware or boot procedures for a different OS release.
 
@@ -21,6 +22,7 @@ All profiles in this checkout set `managementPassthrough: true`. Packaging still
 - [Cisco Nexus 9000v](cisco/n9kv/README.md): UEFI firmware, AHCI disk setup, the console account, and routed port MACs.
 - Community SONiC: Console provisioning starts with the packaged `admin/admin` credentials. Static management requires a gateway for each configured address family. Startup configs are ConfigDB JSON, read from `/config/config_db.json`, where the Containerlab SONiC kinds place them, or from `/config/startup-config.cfg`; `boxen save` saves the running ConfigDB. Restarting a provisioned container is unsupported; remove it and create a fresh node from the image.
 - [Juniper vJunos-router](juniper/vjunos-router/README.md): Nested virtualization, console bootstrap, hierarchical startup configuration, and a longer readiness allowance.
+- [Nokia SR OS](nokia/sros/README.md): Hardware variants from the node type or components, the license and boot options delivered at boot, MD-CLI configuration, and saving.
 
 ## Cisco XRv 9000
 
