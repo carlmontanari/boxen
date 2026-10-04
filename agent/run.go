@@ -226,32 +226,7 @@ func (a *Agent) runClabNICProvisionDelay(ctx context.Context) error {
 }
 
 func (a *Agent) runProcesses(ctx context.Context) error {
-	for idx := range a.p.Run.Process {
-		step := &a.p.Run.Process[idx]
-
-		a.l.Info("starting run process", "step", idx, "type", step.Type)
-
-		var err error
-
-		switch step.Type {
-		case boxenprofile.StepTypePrompts:
-			err = a.processStepPrompts(ctx, step)
-		case boxenprofile.StepTypeReadUntil:
-			err = a.processStepReadUntil(ctx, step)
-		case boxenprofile.StepTypeWrite:
-			err = a.processStepWrite(ctx, step)
-		case boxenprofile.StepTypeWait:
-			err = a.processStepWait(ctx, step)
-		default:
-			panic("unimplemented step type")
-		}
-
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return a.runSteps(ctx, "run process", a.p.Run.Process)
 }
 
 func (a *Agent) runStartupConfig(ctx context.Context) error {
@@ -264,30 +239,5 @@ func (a *Agent) runStartupConfig(ctx context.Context) error {
 		return nil
 	}
 
-	for idx := range a.p.Run.ConfigProcess {
-		step := &a.p.Run.ConfigProcess[idx]
-
-		a.l.Info("starting run configProcess", "step", idx, "type", step.Type)
-
-		var err error
-
-		switch step.Type {
-		case boxenprofile.StepTypePrompts:
-			err = a.processStepPrompts(ctx, step)
-		case boxenprofile.StepTypeReadUntil:
-			err = a.processStepReadUntil(ctx, step)
-		case boxenprofile.StepTypeWrite:
-			err = a.processStepWrite(ctx, step)
-		case boxenprofile.StepTypeWait:
-			err = a.processStepWait(ctx, step)
-		default:
-			panic("unimplemented step type")
-		}
-
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return a.runSteps(ctx, "run configProcess", a.p.Run.ConfigProcess)
 }
