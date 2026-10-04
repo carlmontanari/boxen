@@ -2,6 +2,7 @@ package profile
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"maps"
 
@@ -42,6 +43,13 @@ func (v *VirtualMachine) ApplyConfiguration(isPackaging bool) error {
 	decoder.KnownFields(true)
 	if err := decoder.Decode(&updated); err != nil {
 		return err
+	}
+	if errs := updated.validate(); len(errs) > 0 {
+		return fmt.Errorf(
+			"%w: configure produced invalid virtualMachine settings: %w",
+			boxenerrors.ErrBoxen,
+			errors.Join(errs...),
+		)
 	}
 	*v = updated
 

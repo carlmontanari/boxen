@@ -64,6 +64,7 @@ def settings(vm):
 		}
 	}
 	p := testQemuProfile(false)
+	p.VirtualMachine.SerialPortCount = 1
 	p.VirtualMachine.CPUCores = 2
 	p.VirtualMachine.NicCount = 1
 	p.VirtualMachine.NicPerBus = 26
@@ -129,6 +130,40 @@ func TestInvalidStarlarkVMSettings(t *testing.T) {
 		if err != nil || !bytes.Equal(before, after) {
 			t.Fatalf("invalid configuration changed VM state: %s error=%v", source, err)
 		}
+	}
+}
+
+func TestConfigureValidatesDerivedSettings(t *testing.T) {
+	for _, source := range []string{
+		`def configure(vm): return {"memory": 0}`,
+		`def configure(vm): return {"serialPortCount": 0}`,
+		`def configure(vm): return {"nicType": ""}`,
+		`def configure(vm): return {"nicPerBus": 0}`,
+	} {
+		v := &VirtualMachine{
+			Memory: 4096, SerialPortCount: 1, NicType: "virtio-net-pci",
+			NicCount: 16, NicPerBus: 8, Configure: source,
+		}
+		before, err := yaml.Marshal(v)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := v.ApplyConfiguration(false); err == nil ||
+			!strings.Contains(err.Error(), "invalid virtualMachine settings") {
+			t.Fatalf("expected derived settings to fail validation: %s error=%v", source, err)
+		}
+		after, err := yaml.Marshal(v)
+		if err != nil || !bytes.Equal(before, after) {
+			t.Fatalf("invalid configuration changed VM state: %s error=%v", source, err)
+		}
+	}
+	v := &VirtualMachine{
+		Memory: 4096, SerialPortCount: 1, NicType: "virtio-net-pci",
+		NicCount: 16, NicPerBus: 8,
+		Configure: `def configure(vm): return {"cpuCores": 4}`,
+	}
+	if err := v.ApplyConfiguration(false); err != nil || v.CPUCores != 4 {
+		t.Fatalf("valid derived settings must apply: error=%v cores=%d", err, v.CPUCores)
 	}
 }
 
