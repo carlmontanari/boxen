@@ -3,7 +3,6 @@ package profile
 import (
 	"bytes"
 	"regexp"
-	"strings"
 )
 
 // Contains holds some fields that help us determine if we should match on some output.
@@ -15,32 +14,9 @@ type Contains struct {
 
 // Check if this Contains lives in b.
 func (c *Contains) Check(b []byte) (bool, error) {
-	s := string(b)
+	loc, err := c.Find(b)
 
-	if c.Contains != "" && strings.Contains(s, c.Contains) {
-		if c.NotContains != "" && strings.Contains(s, c.NotContains) {
-			return false, nil
-		}
-
-		return true, nil
-	}
-
-	if c.ContainsPattern != "" {
-		p, err := regexp.Compile(c.ContainsPattern)
-		if err != nil {
-			return false, err
-		}
-
-		if p.MatchString(s) {
-			if c.NotContains != "" && strings.Contains(s, c.NotContains) {
-				return false, nil
-			}
-
-			return true, nil
-		}
-	}
-
-	return false, nil
+	return loc != nil, err
 }
 
 // Find returns the start and end offsets of the first match of this Contains in b, or nil when
