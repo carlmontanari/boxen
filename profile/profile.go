@@ -20,6 +20,11 @@ type Profile struct {
 	ExtraFiles     []string        `yaml:"extraFiles"`
 	VirtualMachine *VirtualMachine `yaml:"virtualMachine"`
 
+	// Variants are the hardware variants a node can run as; the variant a node runs as is
+	// resolved before the VM starts and exposed to templates.
+	Variants *Variants        `yaml:"variants"`
+	Variant  *ResolvedVariant `yaml:"-"`
+
 	ScrapliDefinitionNameOrFile string `yaml:"scrapliDefinitionNameOrFile"`
 	// ScrapliReturnChar if unset will be \r\n -- your platform may not enjoy that, so you can
 	// override it here.
@@ -35,4 +40,16 @@ type Profile struct {
 
 	PreRunCommands []string `yaml:"preRunCommands"`
 	Run            *Run     `yaml:"run"`
+
+	// DataNICMACs holds the MAC of each data nic, in nic order; it is resolved before the VM
+	// starts and exposed to templates as {{ .dataNICMACs }}.
+	DataNICMACs []string `yaml:"-"`
+
+	// InstanceUUID is set by the agent at runtime so the VM keeps its system UUID across restarts
+	// of the same container; packaging uses a random UUID.
+	InstanceUUID string `yaml:"-"`
+
+	// InstanceMAC is a MAC address unique to the container and stable across its restarts,
+	// exposed to templates as {{ .instanceMAC }}.
+	InstanceMAC string `yaml:"-"`
 }

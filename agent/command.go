@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"os/exec"
+	"strings"
 )
 
 func (a *Agent) invokeCommand(ctx context.Context, command string) error {
@@ -12,7 +13,12 @@ func (a *Agent) invokeCommand(ctx context.Context, command string) error {
 
 	b, err := cmd.CombinedOutput()
 	if err != nil {
-		a.l.Error("invoking command failed", "command", command, "error", err.Error())
+		a.l.Error(
+			"invoking command failed",
+			"command", command,
+			"error", err.Error(),
+			"output", strings.TrimSpace(string(b)),
+		)
 
 		return err
 	}

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	boxenconstants "github.com/carlmontanari/boxen/constants"
+	boxenutil "github.com/carlmontanari/boxen/util"
 )
 
 // VirtualMachine defines the qemu settings/profile for an endpoint, this will generally come from
@@ -67,18 +68,38 @@ type QemuConfigField struct {
 }
 
 // Apply appends this ConfigField's content to the list of qemu commands in `o`, gated by whether
-// the field applies to the current packaging/run phase.
-func (c QemuConfigField) Apply(isPackaging bool, o []string) []string {
-	if (isPackaging && c.OnPackage) || (!isPackaging && c.OnRun) {
-		for _, v := range c.Val {
-			o = append(o, v.Content)
-		}
+// the field applies to the current packaging/run phase. Each content is rendered as a Go template
+// with the given formatters, when not nil; content that renders empty is left out, so a template
+// can make an argument conditional.
+func (c QemuConfigField) Apply(isPackaging bool, o []string, f *Formatters) ([]string, error) {
+	if (isPackaging && !c.OnPackage) || (!isPackaging && !c.OnRun) {
+		return o, nil
 	}
 
-	return o
+	for _, v := range c.Val {
+		content := v.Content
+
+		if f != nil {
+			var err error
+
+			content, err = f.RenderTemplate(content)
+			if err != nil {
+				return nil, err
+			}
+
+			if content == "" {
+				continue
+			}
+		}
+
+		o = append(o, content)
+	}
+
+	return o, nil
 }
 
-// QemuConfigVal represents an extra string to add to the qemu command.
+// QemuConfigVal represents an extra string to add to the qemu command. The content is rendered as
+// a Go template with the same values as write steps.
 type QemuConfigVal struct {
 	Content string `yaml:"content"`
 }
@@ -97,6 +118,52 @@ type NatPort struct {
 	Type         NatType `yaml:"type"`
 	LocalPort    uint32  `yaml:"localPort"`
 	ExternalPort uint32  `yaml:"externalPort"`
+}
+
+// Well-known ports forwarded by default in legacy management mode.
+const (
+	portSSH         = 22
+	portSNMP        = 161
+	portHTTP        = 80
+	portHTTPS       = 443
+	portNetconf     = 830
+	portGNMIArista  = 6030
+	portHTTPAlt     = 8080
+	portGNMI        = 9339
+	portGNMIJuniper = 32767
+	portGNMICisco   = 50051
+	portGNMINokia   = 57400
+)
+
+// defaultNatPorts are forwarded in legacy management mode when the profile lists none; they match
+// the vrnetlab defaults.
+var defaultNatPorts = []NatPort{
+	{Type: NatTypeTCP, LocalPort: portSSH},
+	{Type: NatTypeUDP, LocalPort: portSNMP},
+	{Type: NatTypeTCP, LocalPort: portHTTP},
+	{Type: NatTypeTCP, LocalPort: portHTTPS},
+	{Type: NatTypeTCP, LocalPort: portNetconf},
+	{Type: NatTypeTCP, LocalPort: portGNMIArista},
+	{Type: NatTypeTCP, LocalPort: portHTTPAlt},
+	{Type: NatTypeTCP, LocalPort: portGNMI},
+	{Type: NatTypeTCP, LocalPort: portGNMIJuniper},
+	{Type: NatTypeTCP, LocalPort: portGNMICisco},
+	{Type: NatTypeTCP, LocalPort: portGNMINokia},
+}
+
+// GetNatPorts returns the ports forwarded to the VM in legacy management mode: the profile's
+// natPorts, or the defaults when the profile lists none.
+func (v *VirtualMachine) GetNatPorts() []NatPort {
+	if len(v.NatPorts) > 0 {
+		return v.NatPorts
+	}
+
+	return defaultNatPorts
+}
+
+// GetNicType returns the QEMU NIC model, QEMU_NIC_TYPE overrides the profile's nicType.
+func (v *VirtualMachine) GetNicType() string {
+	return boxenutil.GetEnvStrOrDefault(boxenconstants.EnvClabQemuNicType, v.NicType)
 }
 
 // IsManagementPassthroughEnabled resolves the transparent management mode.

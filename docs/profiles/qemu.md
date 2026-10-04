@@ -1,6 +1,6 @@
 # QEMU configuration
 
-`virtualMachine` controls the QEMU arguments generated for packaging and runtime. The current agent invokes `qemu-system-x86_64` and uses `disk.qcow2` in `/boxen`.
+`virtualMachine` controls the QEMU arguments generated for packaging and runtime. The current agent invokes `qemu-system-x86_64`. Packaging writes `disk.qcow2` in `/boxen`; at runtime the VM writes to the overlay `disk.overlay.qcow2`, backed by `disk.qcow2`, and every `disk.qcow2` drive reference, including those in overrides, mutators, and extras, is pointed at the overlay.
 
 ## Hardware fields
 
@@ -18,13 +18,15 @@
 | `nicCount` | Number of data NICs, in addition to management |
 | `nicPerBus` | Data NIC bus sizing; must be nonzero |
 | `managementPassthrough` | Default runtime management mode |
-| `natPorts` | Legacy management service forwards |
+| `natPorts` | Legacy management service forwards; defaults to the common management ports when empty |
 
 Set `diskInterface: virtio` for a VirtIO disk, as in the vJunos-router profile. The disk defaults to IDE when the field is omitted or empty. Custom controller arrangements, such as AHCI, can still override the `disk` section. QEMU's monitor listens on TCP 4001. The automation console uses the first serial listener on TCP 5001, so normal profiles need at least one serial port.
 
 The generator enables `-accel kvm` whenever `/dev/kvm` exists. Without it, QEMU uses its normal software path, which can be very slow or incompatible with a profile requesting `cpuEmulation: host`. Set a suitable CPU model and acceleration override for a platform that supports software emulation; nested virtualization guests require KVM.
 
-The YAML field `emulation` exists in the Go type but does not select the QEMU executable. Some older profiles contain `emulate`; that spelling is not a CPU setting. Use `cpuEmulation`, an override, or `QEMU_CPU` for the CPU model.
+The YAML field `emulation` exists in the Go type but does not select the QEMU executable. Use `cpuEmulation`, an override, or `QEMU_CPU` for the CPU model. `boxen build` rejects unknown keys, such as the historical `emulate`.
+
+At runtime the VM UUID comes from the `UUID` environment variable, or is generated once per container and kept across its restarts, so the guest's system UUID and serial number stay stable. Packaging uses a random UUID.
 
 The generated serial backends tee guest output into `package.boot.log` during packaging and
 `boot.log` during runtime, under `/boxen`. Each additional serial port gets its own numeric suffix
@@ -95,8 +97,32 @@ virtualMachine:
 
 This attaches preparation media only during packaging. It must already exist in the builder, either as an extra file or as output from `prePackagingCommands`.
 
+## Template values in arguments
+
+The content of overrides and extras is rendered with the [template values](templates.md) of write steps, so arguments can carry the node's management addresses, its hardware variant, or its instance MAC. Content that renders empty is left out, which makes an argument conditional. The Nokia SR OS profile passes its boot options through SMBIOS this way and adds a NIC only for some chassis:
+
+```yaml
+virtualMachine:
+  extras:
+    - onRun: true
+      val:
+        - content: -smbios
+        - content: >-
+            type=1,product=TIMOS:license-file=cf1:/license.txt
+            {{- with .mgmtIPv4 }} address={{ . }}@active{{ end }}
+            system-base-mac={{ .instanceMAC }} {{ .variant }}
+    - onPackage: true
+      onRun: true
+      val:
+        - content: '{{ if regexMatch "chassis=ixr-r6" .variant }}-nic{{ end }}'
+        - content: >-
+            {{ if regexMatch "chassis=ixr-r6" .variant }}tap,ifname=sfm,model=virtio-net-pci,script=no{{ end }}
+```
+
+QEMU separates options with commas, so a value that contains a comma must double it. A tap needs an `ifname` that differs from the `tapN` data NIC taps.
+
 ## Environment overrides
 
-`QEMU_MEMORY`, `QEMU_CPU`, and `QEMU_SMP` override values in their normal generators. `QEMU_SMP` requires the profile's `cpuCores` to be nonzero. A full `cpu` or `memory` profile override bypasses the corresponding generator and therefore its environment overrides.
+`QEMU_MEMORY`, `QEMU_CPU`, `QEMU_SMP`, and `QEMU_NIC_TYPE` override values in their normal generators. `QEMU_SMP` requires the profile's `cpuCores` to be nonzero. A full `cpu` or `memory` profile override bypasses the corresponding generator and therefore its environment overrides.
 
-`QEMU_ADDITIONAL_ARGS` is split on literal spaces, not parsed as a shell command. Use YAML `extras` when an argument itself needs spaces or precise quoting. See the [environment reference](../reference/environment.md) for runtime settings.
+`QEMU_ADDITIONAL_ARGS` is split on whitespace, not parsed as a shell command. Use YAML `extras` when an argument itself needs spaces or precise quoting. See the [environment reference](../reference/environment.md) for runtime settings.

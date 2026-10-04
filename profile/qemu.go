@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -35,22 +36,26 @@ const (
 
 	device = "-device"
 
-	monitorPort       = 4_001
-	serialPortBaseIdx = 5_001
-
 	accelerationKVM = "kvm"
 )
 
-// QemuArgsFromProfile builds the qemu launch args from the given profile/disk.
+// QemuArgsFromProfile builds the qemu launch args from the given profile/disk. The content of
+// overrides and extras is rendered as Go templates with the given formatters, when not nil.
 func QemuArgsFromProfile(
 	p *Profile,
 	isPackaging bool,
+	f *Formatters,
 ) ([]string, error) {
+	instanceUUID := p.InstanceUUID
+	if isPackaging || instanceUUID == "" {
+		instanceUUID = uuid.NewString()
+	}
+
 	out := []string{
 		"-name",
 		p.Name,
 		"-uuid",
-		uuid.NewString(),
+		instanceUUID,
 	}
 
 	fs := map[string]func(p *Profile) []string{
@@ -85,7 +90,12 @@ func QemuArgsFromProfile(
 		kOverrides, ok := p.VirtualMachine.Overrides[k]
 		if ok {
 			for _, o := range kOverrides {
-				out = o.Apply(isPackaging, out)
+				var err error
+
+				out, err = o.Apply(isPackaging, out, f)
+				if err != nil {
+					return nil, fmt.Errorf("rendering %s override: %w", k, err)
+				}
 			}
 
 			continue
@@ -114,16 +124,47 @@ func QemuArgsFromProfile(
 	}
 
 	for _, e := range p.VirtualMachine.Extras {
-		out = e.Apply(isPackaging, out)
+		var err error
+
+		out, err = e.Apply(isPackaging, out, f)
+		if err != nil {
+			return nil, fmt.Errorf("rendering extras: %w", err)
+		}
 	}
 
-	qemuAdditionalArgs := os.Getenv(boxenconstants.EnvClabQemuAdditionalArgs)
-
-	if qemuAdditionalArgs != "" {
-		out = append(out, strings.Split(qemuAdditionalArgs, " ")...)
+	if !isPackaging {
+		out = useRunDisk(out)
 	}
+
+	out = append(out, strings.Fields(os.Getenv(boxenconstants.EnvClabQemuAdditionalArgs))...)
 
 	return out, nil
+}
+
+// useRunDisk points the VM at the per-container overlay instead of the packaged disk. It rewrites
+// every reference to the packaged disk, including ones from profile overrides, mutators, and
+// extras, so the packaged disk is only ever opened read-only as the overlay's backing file.
+func useRunDisk(args []string) []string {
+	const fileOpt = "file="
+
+	for idx, arg := range args {
+		if arg == boxenconstants.DiskFilename {
+			args[idx] = boxenconstants.RunDiskFilename
+
+			continue
+		}
+
+		opts := strings.Split(arg, ",")
+
+		for optIdx, opt := range opts {
+			if opt == fileOpt+boxenconstants.DiskFilename {
+				opts[optIdx] = fileOpt + boxenconstants.RunDiskFilename
+				args[idx] = strings.Join(opts, ",")
+			}
+		}
+	}
+
+	return args
 }
 
 func qemuCPU(p *Profile) []string {
@@ -215,7 +256,8 @@ func qemuMachine(p *Profile) []string {
 func qemuDisk(p *Profile) []string {
 	return []string{
 		"-drive",
-		"if=" + cmp.Or(p.VirtualMachine.DiskInterface, "ide") + ",file=disk.qcow2,format=qcow2",
+		"if=" + cmp.Or(p.VirtualMachine.DiskInterface, "ide") +
+			",file=" + boxenconstants.DiskFilename + ",format=qcow2",
 	}
 }
 
@@ -239,7 +281,7 @@ func qemuSerial(p *Profile, isPackaging bool) []string {
 				"socket,id=serial%d,host=0.0.0.0,port=%d,server=on,wait=off,telnet=on,"+
 					"logfile=%s,logappend=off",
 				idx,
-				serialPortBaseIdx+int(idx),
+				boxenconstants.ConsolePort+int(idx),
 				logFilename,
 			),
 			"-serial",
@@ -253,7 +295,7 @@ func qemuSerial(p *Profile, isPackaging bool) []string {
 func qemuMonitor(_ *Profile) []string {
 	return []string{
 		"-monitor",
-		fmt.Sprintf("tcp:0.0.0.0:%d,server,nowait", monitorPort),
+		fmt.Sprintf("tcp:0.0.0.0:%d,server,nowait", boxenconstants.MonitorPort),
 	}
 }
 
@@ -299,7 +341,7 @@ func qemuMgmtNIC(p *Profile, isPackaging bool) []string {
 		}
 	}
 
-	deviceArgs := fmt.Sprintf("%s,netdev=mgmt", p.VirtualMachine.NicType)
+	deviceArgs := fmt.Sprintf("%s,netdev=mgmt", p.VirtualMachine.GetNicType())
 	if mac != "" {
 		deviceArgs = fmt.Sprintf("%s,mac=%s", deviceArgs, mac)
 	}
@@ -320,14 +362,15 @@ func qemuMgmtNIC(p *Profile, isPackaging bool) []string {
 	mgmtIntf := "user,id=mgmt,net=10.0.0.0/24,host=10.0.0.2," +
 		"dns=10.0.0.3,dhcpstart=10.0.0.15,tftp=/tftpboot"
 
-	nats := make([]string, len(p.VirtualMachine.NatPorts))
+	natPorts := p.VirtualMachine.GetNatPorts()
+	nats := make([]string, len(natPorts))
 
-	for idx := range p.VirtualMachine.NatPorts {
+	for idx := range natPorts {
 		nats[idx] = fmt.Sprintf(
 			"hostfwd=%s:0.0.0.0:%d-10.0.0.15:%d",
-			p.VirtualMachine.NatPorts[idx].Type,
-			p.VirtualMachine.NatPorts[idx].LocalPort,
-			p.VirtualMachine.NatPorts[idx].LocalPort,
+			natPorts[idx].Type,
+			natPorts[idx].LocalPort,
+			natPorts[idx].LocalPort,
 		)
 	}
 
@@ -357,6 +400,23 @@ func qemuDataNICs(p *Profile) []string {
 	return nicCmd
 }
 
+// ResolveDataNICMACs sets the MAC of each data nic: the MAC of the matching container interface
+// when it exists, so the guest uses the MAC containerlab assigned, otherwise a generated one.
+func (p *Profile) ResolveDataNICMACs() {
+	p.DataNICMACs = make([]string, p.VirtualMachine.NicCount)
+
+	for idx := range p.DataNICMACs {
+		nicID := idx + 1
+
+		mac := getIntfMac(context.Background(), boxenutil.ClabIntfName(nicID))
+		if mac == "" {
+			mac = generateMac(nicID)
+		}
+
+		p.DataNICMACs[idx] = mac
+	}
+}
+
 func buildDataNic(
 	p *Profile,
 	nicID,
@@ -364,13 +424,11 @@ func buildDataNic(
 	busAddr int,
 	paddedNicID string,
 ) []string {
-	intfName := boxenutil.ClabIntfName(nicID)
-
-	// try to get the mac from the container interface so things match in bridge mode
-	mac := getIntfMac(context.Background(), intfName)
-	if mac == "" {
-		mac = generateMac(nicID)
+	if len(p.DataNICMACs) != int(p.VirtualMachine.NicCount) {
+		p.ResolveDataNICMACs()
 	}
+
+	mac := p.DataNICMACs[nicID-1]
 
 	// the tap is always created (script=no); the boxen tc service brings it up and
 	// stitches it to the container interface when that interface appears
@@ -378,7 +436,7 @@ func buildDataNic(
 		device,
 		fmt.Sprintf(
 			"%s,netdev=p%s,bus=pci.%d,addr=0x%x,mac=%s",
-			p.VirtualMachine.NicType,
+			p.VirtualMachine.GetNicType(),
 			paddedNicID,
 			busID,
 			busAddr,
@@ -391,6 +449,15 @@ func buildDataNic(
 			nicID,
 		),
 	}
+}
+
+// InstanceMAC returns a locally administered unicast MAC address derived from the given instance
+// id. Its last octet is zero, so a guest can derive further addresses from it, for example as the
+// base of its chassis MAC pool.
+func InstanceMAC(instanceID string) string {
+	sum := sha256.Sum256([]byte(instanceID))
+
+	return fmt.Sprintf("02:%02x:%02x:%02x:%02x:00", sum[0], sum[1], sum[2], sum[3])
 }
 
 func generateMac(lastOctet int) string {

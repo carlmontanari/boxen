@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	boxenagent "github.com/carlmontanari/boxen/agent"
 	boxen "github.com/carlmontanari/boxen/boxen"
@@ -14,7 +15,10 @@ import (
 	urfavecli "github.com/urfave/cli/v3"
 )
 
-const logLevelUsage = "log level, one of: debug, info, warn, error"
+const (
+	logLevelUsage = "log level, one of: debug, info, warn, error"
+	saveTimeout   = 5 * time.Minute
+)
 
 func main() {
 	ctx, cancel := boxenutil.SignalHandledContext(fmt.Printf) //nolint: forbidigo
@@ -28,6 +32,8 @@ func main() {
 			packageCommand(),
 			runCommand(),
 			healthCommand(),
+			saveCommand(),
+			resetCommand(),
 		},
 	}
 
@@ -194,11 +200,34 @@ func runCommand() *urfavecli.Command {
 				Name:  boxenconstants.FlagContainerlabTrace,
 				Usage: "trace flag is ignored, but exists for containerlab compatibility",
 			},
+			&urfavecli.StringFlag{
+				Name: boxenconstants.FlagContainerlabVCPU,
+				Usage: "vm cpu count passed by containerlab 0.78 and earlier for some kinds; " +
+					"used as QEMU_SMP when that is unset",
+			},
+			&urfavecli.StringFlag{
+				Name: boxenconstants.FlagContainerlabRAM,
+				Usage: "vm memory in MiB passed by containerlab 0.78 and earlier for some kinds; " +
+					"used as QEMU_MEMORY when that is unset",
+			},
+			&urfavecli.StringFlag{
+				Name: boxenconstants.FlagContainerlabVariant,
+				Usage: "the hardware variant to run as: a variant of the profile, or key=value " +
+					"settings; containerlab passes the node type for some kinds",
+			},
 		},
 		Action: func(ctx context.Context, cmd *urfavecli.Command) error {
 			a := boxenagent.NewAgent(
 				boxenlogging.LevelFromString(cmd.String(boxenconstants.FlagLogLevel)),
 			)
+
+			err := applyLegacyResourceFlags(
+				cmd.String(boxenconstants.FlagContainerlabVCPU),
+				cmd.String(boxenconstants.FlagContainerlabRAM),
+			)
+			if err != nil {
+				return err
+			}
 
 			return a.Run(
 				ctx,
@@ -206,9 +235,30 @@ func runCommand() *urfavecli.Command {
 				cmd.String(boxenconstants.FlagContainerlabPassword),
 				cmd.String(boxenconstants.FlagContainerlabHostname),
 				cmd.String(boxenconstants.FlagContainerlabConnectionMode),
+				cmd.String(boxenconstants.FlagContainerlabVariant),
 			)
 		},
 	}
+}
+
+// applyLegacyResourceFlags maps the --vcpu and --ram run flags, which older containerlab releases
+// pass instead of setting QEMU_SMP and QEMU_MEMORY, onto those variables when they are unset.
+func applyLegacyResourceFlags(vcpu, ram string) error {
+	for env, value := range map[string]string{
+		boxenconstants.EnvClabQemuSMP:    vcpu,
+		boxenconstants.EnvClabQemuMemory: ram,
+	} {
+		if value == "" || os.Getenv(env) != "" {
+			continue
+		}
+
+		err := os.Setenv(env, value)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func healthCommand() *urfavecli.Command {
@@ -217,6 +267,87 @@ func healthCommand() *urfavecli.Command {
 		Usage: "container healthcheck; exits 0 when the node reports running",
 		Action: func(_ context.Context, _ *urfavecli.Command) error {
 			return boxenagent.Health()
+		},
+	}
+}
+
+func saveCommand() *urfavecli.Command {
+	return &urfavecli.Command{
+		Name: "save",
+		Usage: "save the running configuration of a running node to its startup config file; " +
+			"run inside the node container, e.g. with docker exec",
+		Flags: []urfavecli.Flag{
+			&urfavecli.StringFlag{
+				Name:     boxenconstants.FlagLogLevel,
+				Usage:    logLevelUsage,
+				Required: false,
+				Value:    "info",
+				Sources:  urfavecli.EnvVars(boxenconstants.EnvLoggingLevel),
+			},
+			&urfavecli.StringFlag{
+				Name:    boxenconstants.FlagContainerlabUsername,
+				Usage:   "the node username, available to save process templates",
+				Sources: urfavecli.EnvVars(boxenconstants.EnvClabUsername),
+			},
+			&urfavecli.StringFlag{
+				Name:    boxenconstants.FlagContainerlabPassword,
+				Usage:   "the node password, available to save process templates",
+				Sources: urfavecli.EnvVars(boxenconstants.EnvClabPassword),
+			},
+			&urfavecli.StringFlag{
+				Name: boxenconstants.FlagContainerlabHostname,
+				Usage: "the node hostname, available to save process templates; defaults to the " +
+					"container hostname",
+			},
+			&urfavecli.DurationFlag{
+				Name:  boxenconstants.FlagTimeout,
+				Usage: "the maximum duration of the save",
+				Value: saveTimeout,
+			},
+		},
+		Action: func(ctx context.Context, cmd *urfavecli.Command) error {
+			a := boxenagent.NewAgent(
+				boxenlogging.LevelFromString(cmd.String(boxenconstants.FlagLogLevel)),
+			)
+
+			hostname := cmd.String(boxenconstants.FlagContainerlabHostname)
+			if hostname == "" {
+				hostname, _ = os.Hostname()
+			}
+
+			ctx, cancel := context.WithTimeout(ctx, cmd.Duration(boxenconstants.FlagTimeout))
+			defer cancel()
+
+			_, err := a.Save(
+				ctx,
+				cmd.String(boxenconstants.FlagContainerlabUsername),
+				cmd.String(boxenconstants.FlagContainerlabPassword),
+				hostname,
+			)
+
+			return err
+		},
+	}
+}
+
+func resetCommand() *urfavecli.Command {
+	return &urfavecli.Command{
+		Name: "reset",
+		Usage: "hard reset the vm of a running node, the guest reboots from its disk; " +
+			"run inside the node container, e.g. with docker exec",
+		Action: func(ctx context.Context, _ *urfavecli.Command) error {
+			l := boxenlogging.NewLogger(boxenlogging.LevelFromString("info"))
+
+			err := boxenagent.Reset(ctx)
+			if err != nil {
+				l.Error("boxen reset failed", "error", err.Error())
+
+				return err
+			}
+
+			l.Info("vm reset")
+
+			return nil
 		},
 	}
 }

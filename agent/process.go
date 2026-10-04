@@ -7,10 +7,8 @@ import (
 	"strings"
 	"time"
 
-	boxenconstants "github.com/carlmontanari/boxen/constants"
 	boxenerrors "github.com/carlmontanari/boxen/errors"
 	boxenprofile "github.com/carlmontanari/boxen/profile"
-	boxenutilringbuffer "github.com/carlmontanari/boxen/util/ringbuffer"
 	scrapligocli "github.com/scrapli/scrapligo/v2/cli"
 )
 
@@ -37,6 +35,10 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 		return err
 	}
 
+	// the prompts engine reads the session itself and cannot see output read before it, so
+	// that output is stale once this step runs
+	a.pendingConsole = nil
+
 	a.l.Info(
 		"handling prompts",
 		"count",
@@ -47,101 +49,11 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 
 	cbs := make([]*scrapligocli.ReadCallback, len(step.Prompts.Prompts))
 
-	for idx, p := range step.Prompts.Prompts {
-		cbName := promptCallbackName(idx, p.Name)
-
-		a.l.Debug(
-			"building prompts callback",
-			"callback name",
-			cbName,
-			"prompt",
-			p.Prompt,
-			"response",
-			p.Response,
-			"completes",
-			p.Completes,
-		)
-
-		var opts []scrapligocli.Option
-
-		if p.Prompt.Contains != "" {
-			opts = append(
-				opts,
-				scrapligocli.WithContains(p.Prompt.Contains),
-			)
+	for idx := range step.Prompts.Prompts {
+		cbs[idx], err = a.promptCallback(idx, &step.Prompts.Prompts[idx])
+		if err != nil {
+			return err
 		}
-
-		if p.Prompt.ContainsPattern != "" {
-			opts = append(
-				opts,
-				scrapligocli.WithContainsPattern(p.Prompt.ContainsPattern),
-			)
-		}
-
-		if p.Prompt.NotContains != "" {
-			opts = append(
-				opts,
-				scrapligocli.WithNotContains(p.Prompt.NotContains),
-			)
-		}
-
-		if p.Once {
-			opts = append(
-				opts,
-				scrapligocli.WithOnce(),
-			)
-		}
-
-		if p.Completes {
-			opts = append(
-				opts,
-				scrapligocli.WithCompletes(),
-			)
-		}
-
-		cbs[idx] = scrapligocli.NewReadCallback(
-			cbName,
-			func(ctx context.Context, c *scrapligocli.Cli, searchBuf, _ string) error {
-				a.l.Info("callback triggered", "callback name", cbName)
-
-				a.l.Debug(
-					"writing response",
-					"contains",
-					p.Prompt.Contains,
-					"containsPattern",
-					p.Prompt.ContainsPattern,
-					"notContains",
-					p.Prompt.NotContains,
-					"response",
-					p.Response,
-					"hidden",
-					p.Hidden,
-					"reading until response",
-					p.Response,
-					"searchBuf",
-					searchBuf,
-				)
-
-				defer a.l.Info("callback completed", "callback name", cbName)
-
-				err = c.Write(p.Response)
-				if err != nil {
-					return err
-				}
-
-				if p.Hidden {
-					return c.WriteReturn()
-				}
-
-				err = a.readUntil(ctx, p.Response)
-				if err != nil {
-					return err
-				}
-
-				return c.WriteReturn()
-			},
-			opts...,
-		)
 	}
 
 	taskCtx, cancel := context.WithTimeout(ctx, t)
@@ -149,15 +61,145 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 
 	_, err = a.conn.ReadWithCallbacks(taskCtx, step.Prompts.InitialInput, cbs...)
 	if err != nil {
+		if step.Prompts.ContinueOnTimeout && ctx.Err() == nil && taskCtx.Err() != nil {
+			a.l.Warn(
+				"prompts not completed within the timeout, continuing",
+				"timeout", step.Prompts.Timeout,
+			)
+
+			return nil
+		}
+
 		return err
 	}
 
 	return nil
 }
 
-func (a *Agent) processStepReadUntil(ctx context.Context, step *boxenprofile.Step) error {
-	b := boxenutilringbuffer.NewRingBuffer(readUntilRingBufSize)
+// promptCallback builds the read callback that answers a prompt of a prompts step.
+func (a *Agent) promptCallback(
+	idx int,
+	p *boxenprofile.Prompt,
+) (*scrapligocli.ReadCallback, error) {
+	cbName := promptCallbackName(idx, p.Name)
 
+	response, err := a.f.RenderTemplate(p.Response)
+	if err != nil {
+		return nil, fmt.Errorf("rendering response of %s: %w", cbName, err)
+	}
+
+	var delay time.Duration
+
+	if p.Delay != "" {
+		delay, err = time.ParseDuration(p.Delay)
+		if err != nil {
+			return nil, fmt.Errorf("parsing delay of %s: %w", cbName, err)
+		}
+	}
+
+	a.l.Debug(
+		"building prompts callback",
+		"callback name",
+		cbName,
+		"prompt",
+		p.Prompt,
+		"response",
+		response,
+		"completes",
+		p.Completes,
+	)
+
+	var opts []scrapligocli.Option
+
+	if p.Prompt.Contains != "" {
+		opts = append(
+			opts,
+			scrapligocli.WithContains(p.Prompt.Contains),
+		)
+	}
+
+	if p.Prompt.ContainsPattern != "" {
+		opts = append(
+			opts,
+			scrapligocli.WithContainsPattern(p.Prompt.ContainsPattern),
+		)
+	}
+
+	if p.Prompt.NotContains != "" {
+		opts = append(
+			opts,
+			scrapligocli.WithNotContains(p.Prompt.NotContains),
+		)
+	}
+
+	if p.Once {
+		opts = append(
+			opts,
+			scrapligocli.WithOnce(),
+		)
+	}
+
+	if p.Completes {
+		opts = append(
+			opts,
+			scrapligocli.WithCompletes(),
+		)
+	}
+
+	return scrapligocli.NewReadCallback(
+		cbName,
+		func(ctx context.Context, c *scrapligocli.Cli, searchBuf, _ string) error {
+			a.l.Info("callback triggered", "callback name", cbName)
+
+			a.l.Debug(
+				"writing response",
+				"contains",
+				p.Prompt.Contains,
+				"containsPattern",
+				p.Prompt.ContainsPattern,
+				"notContains",
+				p.Prompt.NotContains,
+				"response",
+				response,
+				"hidden",
+				p.Hidden,
+				"reading until response",
+				response,
+				"searchBuf",
+				searchBuf,
+			)
+
+			defer a.l.Info("callback completed", "callback name", cbName)
+
+			if delay > 0 {
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-time.After(delay):
+				}
+			}
+
+			err := c.Write(response)
+			if err != nil {
+				return err
+			}
+
+			if p.Hidden {
+				return c.WriteReturn()
+			}
+
+			err = a.waitForEcho(ctx, response)
+			if err != nil {
+				return err
+			}
+
+			return c.WriteReturn()
+		},
+		opts...,
+	), nil
+}
+
+func (a *Agent) processStepReadUntil(ctx context.Context, step *boxenprofile.Step) error {
 	t, err := time.ParseDuration(step.ReadUntil.Timeout)
 	if err != nil {
 		a.l.Error(
@@ -173,67 +215,52 @@ func (a *Agent) processStepReadUntil(ctx context.Context, step *boxenprofile.Ste
 
 	a.l.Info("reading until", "until", step.ReadUntil.Until, "timeout", step.ReadUntil.Timeout)
 
-	start := time.Now()
-	end := start.Add(t)
-	doneOrErr := make(chan error)
+	taskCtx, cancel := context.WithTimeout(ctx, t)
+	defer cancel()
 
-	go func() {
-		for {
-			time.Sleep(time.Second)
+	ticker := time.NewTicker(readUntilPollInterval)
+	defer ticker.Stop()
 
-			// ensure this goroutine exits. we cant have this continue reading from the
-			// session buf screwing up other reads (esp since this is going around the
-			// operation loop in libscrapli ffi bits)
-			if time.Now().After(end) {
-				return
-			}
+	var window []byte
 
-			r, err := a.conn.Read()
-			if err != nil {
-				doneOrErr <- err
-
-				return
-			}
-
-			_, err = b.Write(r)
-			if err != nil {
-				doneOrErr <- err
-
-				return
-			}
-
-			content := b.GetOrderedContent()
-
-			if len(r) > 0 {
-				a.l.Debug("console output", "content", string(r))
-			}
-
-			check, err := step.ReadUntil.Until.Check(content)
-			if err != nil {
-				doneOrErr <- err
-
-				return
-			}
-
-			if check {
-				doneOrErr <- err
-
-				return
-			}
-		}
-	}()
-
-	select {
-	case err = <-doneOrErr:
+	for {
+		r, err := a.readConsole()
 		if err != nil {
 			return err
 		}
 
-		return nil
-	case <-time.After(t):
-		return fmt.Errorf("%w: read until timeout expired", boxenerrors.ErrBoxen)
-	case <-ctx.Done():
-		return ctx.Err()
+		if len(r) > 0 {
+			a.l.Debug("console output", "content", string(r))
+		}
+
+		// check all new output, plus the tail of earlier output for matches spanning reads
+		window = append(window, r...)
+
+		loc, err := step.ReadUntil.Until.Find(window)
+		if err != nil {
+			return err
+		}
+
+		if loc != nil {
+			// output past the match belongs to the following steps
+			a.unreadConsole(window[loc[1]:])
+
+			return nil
+		}
+
+		if len(window) > readUntilWindowSize {
+			window = append([]byte(nil), window[len(window)-readUntilWindowSize:]...)
+		}
+
+		select {
+		case <-taskCtx.Done():
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+
+			return fmt.Errorf("%w: read until timeout expired", boxenerrors.ErrBoxen)
+		case <-ticker.C:
+		}
 	}
 }
 
@@ -254,14 +281,18 @@ func (a *Agent) processStepWrite(
 
 		c = string(b)
 	case step.Write.ContentFromStartupConfig:
-		b, err := os.ReadFile(boxenconstants.StartupConfigFilePath)
+		if a.startupConfigFile == "" {
+			return fmt.Errorf("%w: no startup config file present", boxenerrors.ErrBoxen)
+		}
+
+		b, err := os.ReadFile(a.startupConfigFile)
 		if err != nil {
 			return err
 		}
 
 		c = string(b)
 	default:
-		panic("unimplemented write type")
+		return fmt.Errorf("%w: write step has no content", boxenerrors.ErrBoxen)
 	}
 
 	a.l.Info("writing to console", "content", c)
@@ -293,7 +324,7 @@ func (a *Agent) processStepWrite(
 			return err
 		}
 
-		err = a.readUntil(ctx, s)
+		err = a.waitForEcho(ctx, s)
 		if err != nil {
 			return err
 		}
