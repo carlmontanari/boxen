@@ -187,6 +187,14 @@ func TestCiscoSaveCapture(t *testing.T) {
 				"Current configuration : 1234 bytes\r\n!\r\nhostname csr1\r\n!\r\nend\r\n\r\ncsr1#",
 			want: "!\nhostname csr1\n!\nend\n\n",
 		},
+		{
+			profile: "cisco_n9kv",
+			raw: "show running-config\r\n\r\n!Command: show running-config\r\n" +
+				"!Time: Sat Oct  3 12:00:00 2026\r\n\r\nversion 10.6(3) Bios:version\r\n" +
+				"hostname n9k1\r\n\r\nn9k1# ",
+			want: "!Time: Sat Oct  3 12:00:00 2026\n\n" +
+				"version 10.6(3) Bios:version\nhostname n9k1\n\n",
+		},
 	} {
 		t.Run(test.profile, func(t *testing.T) {
 			capture := saveCaptureStep(t, loadEmbeddedProfile(t, test.profile))

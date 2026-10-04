@@ -96,6 +96,26 @@ func TestCiscoRunConfig(t *testing.T) {
 			want:    []string{"ip address dhcp"},
 			notWant: []string{"ip route vrf"},
 		},
+		{
+			profile: "cisco_n9kv",
+			mode:    "dual-stack",
+			mgmt:    defaultManagementFormatters(),
+			want: []string{
+				"hostname node1",
+				"username labuser password 0 lab-pass role network-admin",
+				"ip address 10.0.0.15/24",
+				"ipv6 address 2001:db8::2/64",
+				"ip route 0.0.0.0/0 10.0.0.2",
+				"ipv6 route ::/0 2001:db8::1",
+			},
+		},
+		{
+			profile: "cisco_n9kv",
+			mode:    "dhcp",
+			mgmt:    dhcpManagementFormatters(),
+			want:    []string{"ip address dhcp"},
+			notWant: []string{"vrf context management"},
+		},
 	} {
 		t.Run(test.profile+"/"+test.mode, func(t *testing.T) {
 			config := renderRunConfig(t, loadEmbeddedProfile(t, test.profile), test.mgmt)
@@ -118,7 +138,7 @@ func TestCiscoRunConfig(t *testing.T) {
 // TestCiscoConsoleLogin checks that the console automation does not depend on the containerlab
 // credentials, which the run process changes.
 func TestCiscoConsoleLogin(t *testing.T) {
-	for _, name := range []string{"cisco_csr1000v"} {
+	for _, name := range []string{"cisco_csr1000v", "cisco_n9kv"} {
 		p := loadEmbeddedProfile(t, name)
 
 		for _, steps := range [][]Step{p.Run.Process, p.Run.SaveProcess} {
@@ -133,6 +153,36 @@ func TestCiscoConsoleLogin(t *testing.T) {
 					}
 				}
 			}
+		}
+	}
+}
+
+func TestN9kvInterfaceMACs(t *testing.T) {
+	p := loadEmbeddedProfile(t, "cisco_n9kv")
+	p.DataNICMACs = []string{"aa:c1:ab:94:6d:16", "52:54:00:00:00:02"}
+
+	f := NewFormatters("labuser", "lab-pass", "node1", "", p, false)
+	f.management = defaultManagementFormatters()
+
+	var rendered string
+
+	for _, step := range p.Run.Process {
+		if strings.Contains(step.Write.Content, "dataNICMACs") {
+			content, err := f.RenderTemplate(step.Write.Content)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			rendered = content
+		}
+	}
+
+	for _, want := range []string{
+		"interface Ethernet1/1\nmac-address aac1.ab94.6d16",
+		"interface Ethernet1/2\nmac-address 5254.0000.0002",
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Errorf("missing %q in:\n%s", want, rendered)
 		}
 	}
 }

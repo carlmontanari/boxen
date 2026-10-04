@@ -1,8 +1,10 @@
 ---
+# Packaging creates the "boxen" console account used by the runtime and save processes, so that
+# containerlab can set any credentials, including a new admin password.
 name: cisco_n9kv
 diskPatterns:
-  - "(?i)nxosv.*.qcow2"
-versionPattern: "(?i)\\d+\\.\\d+\\.\\d+"
+  - "(?i)(?:nexus9\\d+v|n9kv|nxosv).*\\.qcow2$"
+versionPattern: "(?i)(\\d+\\.\\d+\\.\\d+(?:\\.[a-z0-9]+)?)\\.qcow2$"
 scrapliDefinitionNameOrFile: cisco_nxos
 scrapliReturnChar: "\r"
 extraFiles:
@@ -13,10 +15,9 @@ virtualMachine:
   cpuCores: 4
   serialPortCount: 1
   nicType: e1000
-  nicCount: 8
+  nicCount: 32
   nicPerBus: 26
   managementPassthrough: true
-  mutators: {}
   overrides:
     disk:
       - onPackage: true
@@ -42,153 +43,224 @@ virtualMachine:
         - content: c
 packaging:
   process:
-    # handle initial poap/provisioning dialog
+    # first boot dialogs
     - type: prompts
       prompts:
         timeout: 20m
         prompts:
-          - prompt:
-              contains: "(yes/skip/no)[no]:"
-            response: yes
+          # "(yes/skip/no)[no]:" in 9.x, "(yes/no)[no]:" in 10.x
+          - name: abort poap
+            prompt:
+              contains: "Abort Power On Auto Provisioning"
+            response: "yes"
             once: true
-          - prompt:
-              contains: "Do you want to enforce secure password standard (yes/no) [y]:"
+          - name: secure password standard
+            prompt:
+              contains: "enforce secure password standard"
             response: "no"
             once: true
-          - prompt:
+          - name: admin password
+            prompt:
               contains: 'Enter the password for "admin"'
-            response: "admin"
-            once: true
+            response: admin
             hidden: true
-          - prompt:
+            once: true
+          - name: confirm admin password
+            prompt:
               contains: 'Confirm the password for "admin"'
-            response: "admin"
-            once: true
+            response: admin
             hidden: true
-          - prompt:
-              contains: "Would you like to enter the basic configuration dialog (yes/no):"
+            once: true
+          - name: basic configuration dialog
+            prompt:
+              contains: "enter the basic configuration dialog (yes/no):"
             response: "no"
             once: true
-          - prompt:
-              contains: "login:"
-            response: "admin"
+          - name: login
+            prompt:
+              containsPattern: '(?m)login: ?$'
+            response: admin
             once: true
-          - prompt:
+          - name: password
+            prompt:
               contains: "Password:"
-            response: "admin"
-            once: true
+            response: admin
             hidden: true
-          - prompt:
-              contains: "switch#"
+            once: true
+          - name: exec prompt
+            prompt:
+              containsPattern: '(?m)^switch# ?$'
             response: ""
             once: true
             completes: true
-    # disable pagination
-    - type: write
+    - &terminal
+      type: write
       write:
         content: |
-          term len 0
-          term width 511
-    # base config, then save
+          terminal length 0
+          terminal width 511
+          terminal dont-ask
     - type: write
       write:
         content: |
           configure terminal
           no password strength-check
           username admin password 0 admin role network-admin
-          interface mgmt0
-          ip address 10.0.0.15/24
-          no shutdown
-          exit
+          username boxen password 0 Boxen123! role network-admin
+          ssh key rsa 2048 force
+          feature ssh
           feature scp-server
           feature nxapi
           feature netconf
           feature grpc
+          interface mgmt0
+          ip address 10.0.0.15/24
+          no shutdown
+          exit
           vrf context management
           ip route 0.0.0.0/0 10.0.0.2
           exit
-          boot nxos bootflash:///nxos.{{ .version }}.bin
+          line console
+          exec-timeout 0
           end
+    # point the boot variable at the running image, whatever the version naming scheme; without
+    # it, the saved configuration makes the next boot stop at the loader
     - type: write
       write:
-        content: copy running-config startup-config
-    - type: readUntil
-      readUntil:
-        timeout: 3m
-        until:
-          contains: "100%"
+        hidden: true
+        content: python3
     - type: readUntil
       readUntil:
         timeout: 1m
         until:
-          contains: "switch#"
+          contains: ">>>"
+    - type: write
+      write:
+        hidden: true
+        content: |
+          import json, cli
+          image = json.loads(cli.clid('show version'))['nxos_file_name']
+          cli.cli('configure terminal ; boot nxos ' + image)
+          print('BOXEN_' + 'BOOT ' + image)
+          quit()
+    - type: readUntil
+      readUntil:
+        timeout: 5m
+        until:
+          contains: "BOXEN_BOOT bootflash:"
+    - &saveConfig
+      type: prompts
+      prompts:
+        timeout: 10m
+        initialInput: copy running-config startup-config
+        prompts:
+          # the configuration can not be saved while the switch finishes booting
+          - name: retry save
+            prompt:
+              contains: "system not ready"
+            response: copy running-config startup-config
+          - name: saved
+            prompt:
+              contains: "Copy complete"
+            response: ""
+            once: true
+            completes: true
     # small delay to ensure everything saved nicely
     - type: wait
       wait:
         duration: 10s
 run:
   process:
-    - type: prompts
+    - &login
+      type: prompts
       prompts:
         timeout: 20m
+        initialInput: "\r"
         prompts:
-          - prompt:
-              contains: "login:"
-            response: "admin"
-            once: true
-          - prompt:
+          # log messages can follow the login prompt on the same line
+          - name: login
+            prompt:
+              containsPattern: '(?m)^(?!Last )\S+ login:'
+            response: boxen
+          - name: password
+            prompt:
               contains: "Password:"
-            response: "admin"
-            once: true
+            response: Boxen123!
             hidden: true
-          - prompt:
-              contains: "switch#"
+          - name: exec prompt
+            prompt:
+              containsPattern: '(?m)^[\w.-]+# ?$'
             response: ""
             once: true
             completes: true
-  configProcess:
-    # disable pagination
-    - type: write
-      write:
-        content: |
-          term len 0
-          term width 511
-    # config mode so we can set username/password/hostname
+    - *terminal
+    # node identity and management addresses from containerlab
     - type: write
       write:
         content: |
           configure terminal
+          hostname {{ .hostname }}
+          username {{ .username }} password 0 {{ .password }} role network-admin
+          interface mgmt0
+          {{ if .mgmtDHCP }}
+          ip address dhcp
+          {{ else }}
+          {{ if .mgmtIPv4 }}
+          ip address {{ .mgmtIPv4 }}
+          {{ end }}
+          {{ if .mgmtIPv6 }}
+          ipv6 address {{ .mgmtIPv6 }}
+          {{ end }}
+          {{ end }}
+          exit
+          {{ if not .mgmtDHCP }}
+          vrf context management
+          no ip route 0.0.0.0/0 10.0.0.2
+          {{ if .mgmtIPv4Gateway }}
+          ip route 0.0.0.0/0 {{ .mgmtIPv4Gateway }}
+          {{ end }}
+          {{ if .mgmtIPv6Gateway }}
+          ipv6 route ::/0 {{ .mgmtIPv6Gateway }}
+          {{ end }}
+          exit
+          {{ end }}
+          end
+    # the guest nics only accept frames for their own MAC, while routed ports use the system MAC,
+    # which every node packaged from the same disk shares; so routed ports get their nic's MAC.
+    # NX-OS ignores the MAC on switchports and sets the system MAC on "no switchport", so this
+    # also runs after the startup configuration
+    - &interfaceMACs
+      type: write
+      write:
+        content: |
+          configure terminal
+          {{ range $idx, $mac := .dataNICMACs }}
+          interface Ethernet1/{{ add $idx 1 }}
+          mac-address {{ ciscoMAC $mac }}
+          {{ end }}
+          end
+    - *saveConfig
+  configProcess:
     - type: write
       write:
-        content: username {{ .username }} password 0 {{ .password }} role network-admin
-    - type: write
-      write:
-        content: hostname {{ .hostname }}
-    # load any user provided startup config
+        content: configure terminal
     - type: write
       write:
         contentFromStartupConfig: true
-    # get outa config mode
     - type: write
       write:
-        content: |
-          end
-    # n9kv can let us do the copy run start but then poop out on us with a message
-    # "configuraiton update aborted" -- so we'll ship it, then watch for that or completion;
-    # we also cant wait till we see "switch#" or something because the user may have configured
-    # a different hostname... so gotta check for pattern, not a static "switch#" or whatever
-    - type: prompts
-      prompts:
-        timeout: 5m
-        initialInput: copy running-config startup-config
-        prompts:
-          - prompt:
-              containsPattern: "(?im)^.*[>#$]\\s?+$"
-            response: copy running-config startup-config
-            once: false
-          - prompt:
-              containsPattern: "(?im)^.*[>#$]\\s?+$"
-              notContains: "system not ready"
-            response: ""
-            once: true
-            completes: true
+        content: end
+    - *interfaceMACs
+    - *saveConfig
+  saveProcess:
+    - *login
+    - *terminal
+    # the running configuration without the header that precedes it
+    - type: capture
+      capture:
+        timeout: 2m
+        command: show running-config
+        start:
+          contains: "!Command: show running-config"
+        end:
+          containsPattern: '(?m)^[\w.-]+# ?$'

@@ -76,7 +76,7 @@ Go template syntax is not shell syntax. Use `{{ if ... }}` and `{{ end }}` to gu
 
 ## Interface values
 
-`add` adds two integers and `ciscoMAC` formats a MAC address in the dotted Cisco notation. Together with `.dataNICMACs` they configure per-interface values, such as the MAC of each routed port:
+`add` adds two integers and `ciscoMAC` formats a MAC address in the dotted Cisco notation. Together with `.dataNICMACs` they configure per-interface values; the Nexus 9000v profile sets the MAC of its routed ports this way:
 
 ```yaml
 content: |
