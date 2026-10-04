@@ -3,9 +3,11 @@ package agent
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"time"
 
 	boxenconstants "github.com/carlmontanari/boxen/constants"
+	boxenerrors "github.com/carlmontanari/boxen/errors"
 	boxenutil "github.com/carlmontanari/boxen/util"
 	scrapligocli "github.com/scrapli/scrapligo/v2/cli"
 	scrapligologging "github.com/scrapli/scrapligo/v2/logging"
@@ -13,7 +15,12 @@ import (
 )
 
 const (
-	consoleHost           = "localhost"
+	echoTimeout      = 2 * time.Minute
+	echoPollInterval = 20 * time.Millisecond
+)
+
+const (
+	consoleHost           = "127.0.0.1"
 	consoleOpenAttempts   = 5
 	consoleOpenRetryDelay = 3 * time.Second
 )
@@ -31,10 +38,17 @@ func (a *Agent) openConsoleConn(ctx context.Context, logFilename string) error {
 
 	go func() {
 		for attempt := 1; attempt <= consoleOpenAttempts; attempt++ {
+			relay, err := startConsoleRelay(ctx, consoleAddress)
+			if err != nil {
+				errs <- err
+
+				return
+			}
+
 			conn, err := scrapligocli.NewCli(
 				consoleHost,
 				scrapligooptions.WithDefinitionFileOrName(".scrapligo_definition.yaml"),
-				scrapligooptions.WithPort(5_001), //nolint: mnd
+				scrapligooptions.WithPort(relay.port),
 				scrapligooptions.WithLogger(a.l.l),
 				scrapligooptions.WithLoggerLevel(
 					scrapligologging.LogLevel(
@@ -50,6 +64,7 @@ func (a *Agent) openConsoleConn(ctx context.Context, logFilename string) error {
 				scrapligooptions.WithSessionRecorderPath(logFilename),
 			)
 			if err != nil {
+				relay.Close()
 				a.l.Error("failed creating console connection", "error", err.Error())
 				errs <- err
 
@@ -59,10 +74,15 @@ func (a *Agent) openConsoleConn(ctx context.Context, logFilename string) error {
 			_, err = conn.Open(ctx)
 			if err == nil {
 				a.conn = conn
+				a.readConsoleChunk = func() ([]byte, error) { return conn.Read() }
+				a.consoleRelay = relay
 				success <- struct{}{}
 
 				return
 			}
+
+			// a failed open can leave its connection behind, holding the single console session
+			relay.Close()
 
 			if attempt == consoleOpenAttempts {
 				errs <- err
@@ -110,6 +130,11 @@ func (a *Agent) openConsoleConn(ctx context.Context, logFilename string) error {
 		a.l.Error("failed opening console connection", "error", err.Error())
 
 		return err
+	case <-ctx.Done():
+		// opening a telnet session can block until the guest prints something
+		a.l.Error("failed opening console connection", "error", ctx.Err().Error())
+
+		return ctx.Err()
 	}
 }
 
@@ -117,45 +142,150 @@ func (a *Agent) closeConsoleConn(ctx context.Context) error {
 	a.l.Info("closing console connection...")
 
 	_, err := a.conn.Close(ctx)
-	if err != nil {
-		return err
+
+	// always free the console session for other clients
+	if a.consoleRelay != nil {
+		a.consoleRelay.Close()
+		a.consoleRelay = nil
 	}
 
-	return nil
+	return err
 }
 
-func (a *Agent) readUntil(ctx context.Context, s string) error {
+// maxDrainReads bounds a single drain of the console session, so that a guest flooding the console
+// cannot keep a reader from checking its conditions.
+const maxDrainReads = 1024
+
+const (
+	readAttempts   = 5
+	readRetryDelay = 200 * time.Millisecond
+)
+
+// drainReads calls read until it returns no data, at most maxDrainReads times, and returns
+// everything read: a single console read returns at most one small chunk. A failed read is retried
+// a few times, since reading right after the session opened can fail transiently.
+func drainReads(read func() ([]byte, error)) ([]byte, error) {
+	var out []byte
+
+	for range maxDrainReads {
+		b, err := readWithRetry(read)
+		if err != nil {
+			return out, err
+		}
+
+		if len(b) == 0 {
+			break
+		}
+
+		out = append(out, b...)
+	}
+
+	return out, nil
+}
+
+func readWithRetry(read func() ([]byte, error)) ([]byte, error) {
+	var err error
+
+	for attempt := range readAttempts {
+		if attempt > 0 {
+			time.Sleep(readRetryDelay)
+		}
+
+		var b []byte
+
+		b, err = read()
+		if err == nil {
+			return b, nil
+		}
+	}
+
+	return nil, err
+}
+
+// readConsole returns output put back by a previous step followed by everything the console
+// session has buffered so far, without blocking.
+func (a *Agent) readConsole() ([]byte, error) {
+	pending := a.pendingConsole
+	a.pendingConsole = nil
+
+	b, err := drainReads(a.readConsoleChunk)
+
+	return append(pending, b...), err
+}
+
+// unreadConsole puts output read past a step's match back, so the following steps see it.
+func (a *Agent) unreadConsole(b []byte) {
+	if len(b) == 0 {
+		return
+	}
+
+	a.pendingConsole = append(append([]byte(nil), b...), a.pendingConsole...)
+}
+
+// waitForEcho waits until the console echoed written text, so that following input is not sent
+// before the guest processed it. Whitespace is ignored, since CLIs do not always echo it verbatim
+// and wrap long lines, and an echo that never arrives fails the step instead of blocking it.
+func (a *Agent) waitForEcho(ctx context.Context, s string) error {
+	want, _ := withoutWhitespace([]byte(s))
+	if len(want) == 0 {
+		return nil
+	}
+
+	echoCtx, cancel := context.WithTimeout(ctx, echoTimeout)
+	defer cancel()
+
 	var buf bytes.Buffer
 
 	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-
 		// this read cant block because its only reading off the internally buffered
 		// bits that the session has already read
-		b, err := a.conn.Read()
+		b, err := a.readConsole()
 		if err != nil {
 			return err
 		}
-
-		_, err = buf.Write(b)
-		if err != nil {
-			return err
-		}
-
-		contents := bytes.ReplaceAll(buf.Bytes(), []byte{0}, nil)
 
 		if len(b) > 0 {
 			a.l.Debug("console output", "content", string(b))
 		}
 
-		if bytes.Contains(contents, []byte(s)) {
+		buf.Write(b)
+
+		contents, offsets := withoutWhitespace(buf.Bytes())
+
+		if idx := bytes.Index(contents, want); idx >= 0 {
+			a.unreadConsole(buf.Bytes()[offsets[idx+len(want)-1]+1:])
+
 			return nil
 		}
 
-		time.Sleep(time.Second)
+		select {
+		case <-echoCtx.Done():
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+
+			return fmt.Errorf("%w: console did not echo %q", boxenerrors.ErrBoxen, s)
+		case <-time.After(echoPollInterval):
+		}
 	}
+}
+
+// withoutWhitespace returns b without whitespace, and without the NUL, bell, and backspace bytes
+// that line editors emit, for example when wrapping a line, and the offset in b of each returned
+// byte.
+func withoutWhitespace(b []byte) (out []byte, offsets []int) {
+	out = make([]byte, 0, len(b))
+	offsets = make([]int, 0, len(b))
+
+	for idx, c := range b {
+		switch c {
+		case ' ', '\t', '\r', '\n', 0, '\a', '\b':
+			continue
+		}
+
+		out = append(out, c)
+		offsets = append(offsets, idx)
+	}
+
+	return out, offsets
 }

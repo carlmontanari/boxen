@@ -17,4 +17,10 @@ const (
 	DefaultBoxenListenPort = 10329
 
 	DockerLinuxX86Platform = "linux/amd64"
+
+	// ConsolePort is the telnet port of the first guest serial console; additional serial
+	// ports follow sequentially.
+	ConsolePort = 5001
+	// MonitorPort is the QEMU human monitor port, reachable from inside the container.
+	MonitorPort = 4001
 )

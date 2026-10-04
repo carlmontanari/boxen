@@ -67,7 +67,7 @@ Give a successful terminal prompt `completes: true`; otherwise the step can cont
 
 `until` supports `contains`, `containsPattern`, and `notContains`. A literal match or regex match is sufficient unless excluded by `notContains`. Use a specific success marker, especially after a command that saves configuration or changes CLI mode.
 
-The reader searches a bounded buffer of recent output, so short prompt patterns are more reliable than expressions depending on a complete boot transcript. Regex syntax is Go's regular-expression syntax; lookarounds and backreferences are not available.
+The reader checks all new output plus a bounded tail of earlier output, so short prompt patterns are more reliable than expressions depending on a complete boot transcript. Output read past the match stays available to the following steps, so consecutive `readUntil` steps can wait for output that arrives together, such as a save confirmation and the next prompt. A `prompts` step reads the console on its own and starts from fresh output. Regex syntax is Go's regular-expression syntax; lookarounds and backreferences are not available.
 
 ## `write`: send commands or configuration
 
@@ -100,7 +100,7 @@ Read the runtime startup config:
 
 Choose one content source. The implementation prioritizes nonempty `content`, then `contentFromFile`, then `contentFromStartupConfig`. File paths are container paths; companion files normally reside in `/boxen`. Startup-config content is available at runtime, not during packaging.
 
-The selected content is rendered as a [Go template](templates.md), split on newlines, and written line by line. By default Boxen waits for each line's echo before sending return. Set `hidden: true` for a password or another input that does not echo. A `write` step does not verify the OS accepted a command; follow it with a `readUntil` check when the result matters.
+The selected content is rendered as a [Go template](templates.md), split on newlines, and written line by line. By default Boxen waits for each line's echo before sending return. The comparison ignores whitespace and the backspace and bell bytes of line editors, since CLIs wrap long lines and do not always echo indentation; an echo that does not arrive within two minutes fails the step. Set `hidden: true` for a password or another input that does not echo. A `write` step does not verify the OS accepted a command; follow it with a `readUntil` check when the result matters.
 
 Use `content: "\n"` to send a blank line. An empty `content: ""` by itself is not a supported write source. For runtime credentials use a templated `write` step after waiting for the relevant password prompt, rather than putting templates in `prompts.response`.
 

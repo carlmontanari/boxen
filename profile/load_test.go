@@ -1,6 +1,7 @@
 package profile
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -135,6 +136,32 @@ func TestValidateReportsProblems(t *testing.T) {
 			err = p.Validate()
 			if err == nil || !strings.Contains(err.Error(), test.want) {
 				t.Fatalf("expected error containing %q, got %v", test.want, err)
+			}
+		})
+	}
+}
+
+func TestContainsFind(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		contains Contains
+		input    string
+		want     []int
+	}{
+		{"literal", Contains{Contains: "END"}, "a\nEND\n", []int{2, 5}},
+		{"pattern", Contains{ContainsPattern: `(?m)^r1#$`}, "x\nr1#", []int{2, 5}},
+		{"no match", Contains{Contains: "END"}, "abc", nil},
+		{"rejected", Contains{Contains: "END", NotContains: "error"}, "error END", nil},
+		{"literal preferred", Contains{Contains: "b", ContainsPattern: "a"}, "ab", []int{1, 2}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := test.contains.Find([]byte(test.input))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if !slices.Equal(got, test.want) {
+				t.Fatalf("got %v, want %v", got, test.want)
 			}
 		})
 	}
