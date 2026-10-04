@@ -109,7 +109,7 @@ A healthy flag confirms successful provisioning, not continuing guest service av
 
 ## SSH or management addresses do not work
 
-In transparent mode, compare the container's management addresses and routes with the commands rendered into the guest. Guard optional IPv6 fields and handle DHCP explicitly. In legacy mode, confirm the profile supplies `natPorts` for the service; toggling off transparent management does not automatically add them.
+In transparent mode, compare the container's management addresses and routes with the commands rendered into the guest. Guard optional IPv6 fields and handle DHCP explicitly. In legacy mode, confirm the service's port is forwarded: the profile's `natPorts`, or the default management ports when it defines none.
 
 Remember to put `CLAB_MGMT_PASSTHROUGH` inside the node's environment. See [management networking](management.md).
 
@@ -124,3 +124,7 @@ docker exec clab-<lab>-<node> tc filter show dev tap1 ingress
 ```
 
 Verify the guest interface is enabled and configured too. The TC service can attach interfaces that appear later, but it cannot correct an incorrect platform port mapping.
+
+## Save fails
+
+`boxen save` needs a profile with `run.saveProcess`, a node that finished provisioning, and the serial console. If it reports that the console could not be opened, close manual console sessions, such as a `telnet localhost 5001` started with `docker exec`, and retry: QEMU serves one console client at a time. Inspect `/boxen/save.console.log` in the node for the save session transcript.
