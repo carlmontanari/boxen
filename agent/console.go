@@ -38,17 +38,10 @@ func (a *Agent) openConsoleConn(ctx context.Context, logFilename string) error {
 
 	go func() {
 		for attempt := 1; attempt <= consoleOpenAttempts; attempt++ {
-			relay, err := startConsoleRelay(ctx, consoleAddress)
-			if err != nil {
-				errs <- err
-
-				return
-			}
-
 			conn, err := scrapligocli.NewCli(
 				consoleHost,
 				scrapligooptions.WithDefinitionFileOrName(".scrapligo_definition.yaml"),
-				scrapligooptions.WithPort(relay.port),
+				scrapligooptions.WithPort(boxenconstants.ConsolePort),
 				scrapligooptions.WithLogger(a.l.l),
 				scrapligooptions.WithLoggerLevel(
 					scrapligologging.LogLevel(
@@ -64,7 +57,6 @@ func (a *Agent) openConsoleConn(ctx context.Context, logFilename string) error {
 				scrapligooptions.WithSessionRecorderPath(logFilename),
 			)
 			if err != nil {
-				relay.Close()
 				a.l.Error("failed creating console connection", "error", err.Error())
 				errs <- err
 
@@ -75,14 +67,10 @@ func (a *Agent) openConsoleConn(ctx context.Context, logFilename string) error {
 			if err == nil {
 				a.conn = conn
 				a.readConsoleChunk = func() ([]byte, error) { return conn.Read() }
-				a.consoleRelay = relay
 				success <- struct{}{}
 
 				return
 			}
-
-			// a failed open can leave its connection behind, holding the single console session
-			relay.Close()
 
 			if attempt == consoleOpenAttempts {
 				errs <- err
@@ -142,12 +130,6 @@ func (a *Agent) closeConsoleConn(ctx context.Context) error {
 	a.l.Info("closing console connection...")
 
 	_, err := a.conn.Close(ctx)
-
-	// always free the console session for other clients
-	if a.consoleRelay != nil {
-		a.consoleRelay.Close()
-		a.consoleRelay = nil
-	}
 
 	return err
 }
