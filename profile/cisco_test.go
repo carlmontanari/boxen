@@ -116,6 +116,26 @@ func TestCiscoRunConfig(t *testing.T) {
 			want:    []string{"ip address dhcp"},
 			notWant: []string{"vrf context management"},
 		},
+		{
+			profile: "cisco_xrv9k",
+			mode:    "ipv4",
+			mgmt:    ipv4,
+			want: []string{
+				"hostname node1",
+				"username labuser",
+				"secret 0 lab-pass",
+				"ipv4 address 192.0.2.2/24",
+				"0.0.0.0/0 192.0.2.1",
+			},
+			notWant: []string{"::/0", "ipv6 address 2001"},
+		},
+		{
+			profile: "cisco_xrv9k",
+			mode:    "dhcp",
+			mgmt:    dhcpManagementFormatters(),
+			want:    []string{"ipv4 address dhcp"},
+			notWant: []string{"router static"},
+		},
 	} {
 		t.Run(test.profile+"/"+test.mode, func(t *testing.T) {
 			config := renderRunConfig(t, loadEmbeddedProfile(t, test.profile), test.mgmt)
@@ -138,7 +158,7 @@ func TestCiscoRunConfig(t *testing.T) {
 // TestCiscoConsoleLogin checks that the console automation does not depend on the containerlab
 // credentials, which the run process changes.
 func TestCiscoConsoleLogin(t *testing.T) {
-	for _, name := range []string{"cisco_csr1000v", "cisco_n9kv"} {
+	for _, name := range []string{"cisco_csr1000v", "cisco_n9kv", "cisco_xrv9k"} {
 		p := loadEmbeddedProfile(t, name)
 
 		for _, steps := range [][]Step{p.Run.Process, p.Run.SaveProcess} {
@@ -184,5 +204,56 @@ func TestN9kvInterfaceMACs(t *testing.T) {
 		if !strings.Contains(rendered, want) {
 			t.Errorf("missing %q in:\n%s", want, rendered)
 		}
+	}
+}
+
+func TestXRv9kPromptPatterns(t *testing.T) {
+	p := loadEmbeddedProfile(t, "cisco_xrv9k")
+
+	var exec, config *Contains
+
+	for idx := range p.Run.Process {
+		step := &p.Run.Process[idx]
+		if step.Type != StepTypeReadUntil {
+			continue
+		}
+
+		if strings.Contains(step.ReadUntil.Until.ContainsPattern, "config") {
+			config = &step.ReadUntil.Until
+		} else {
+			exec = &step.ReadUntil.Until
+		}
+	}
+
+	if exec == nil || config == nil {
+		t.Fatal("run process lacks the exec or config prompt check")
+	}
+
+	const syslog = "RP/0/RP0/CPU0:Oct  3 16:25:46.756 UTC: pyztp2[141]: " +
+		"%INFRA-ZTP-4-EXITED : ZTP exited \r\n"
+
+	for _, test := range []struct {
+		name     string
+		contains *Contains
+		output   string
+		want     bool
+	}{
+		{"exec prompt followed by a log message", exec, "\r\nRP/0/RP0/CPU0:xr1#" + syslog, true},
+		{"exec prompt", exec, "\r\nRP/0/RP0/CPU0:ios#", true},
+		{"exec check ignores log messages", exec, syslog, false},
+		{
+			"config prompt followed by a log message",
+			config,
+			"RP/0/RP0/CPU0:xr1(config)#" + syslog,
+			true,
+		},
+		{"config check ignores the exec prompt", config, "RP/0/RP0/CPU0:xr1#", false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := test.contains.Check([]byte(test.output))
+			if err != nil || got != test.want {
+				t.Fatalf("got %v, %v, want %v", got, err, test.want)
+			}
+		})
 	}
 }

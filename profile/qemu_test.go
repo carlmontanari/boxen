@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	boxenassets "github.com/carlmontanari/boxen/assets"
 	boxenconstants "github.com/carlmontanari/boxen/constants"
 	"go.yaml.in/yaml/v4"
 )
@@ -360,6 +361,62 @@ func TestQemuMgmtNICLegacyDefaultNatPorts(t *testing.T) {
 	} {
 		if !strings.Contains(args[3], want) {
 			t.Fatalf("legacy management netdev missing default %q, got %q", want, args[3])
+		}
+	}
+}
+
+func TestEmbeddedProfilesTapNames(t *testing.T) {
+	t.Setenv(boxenconstants.EnvClabMgmtPassthrough, "")
+
+	entries, err := boxenassets.Assets.ReadDir("profiles")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, entry := range entries {
+		b, err := boxenassets.Assets.ReadFile("profiles/" + entry.Name())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		p, err := Load(b)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for _, packaging := range []bool{true, false} {
+			args, err := QemuArgsFromProfile(p, packaging)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// qemu names unnamed taps tapN itself, colliding with the data nic taps
+			seen := map[string]bool{}
+
+			for _, arg := range args {
+				if !strings.HasPrefix(arg, "tap,") {
+					continue
+				}
+
+				name := ""
+
+				for opt := range strings.SplitSeq(arg, ",") {
+					if after, ok := strings.CutPrefix(opt, "ifname="); ok {
+						name = after
+					}
+				}
+
+				if name == "" || seen[name] {
+					t.Fatalf(
+						"%s packaging=%v: tap netdev %q needs a unique ifname",
+						entry.Name(),
+						packaging,
+						arg,
+					)
+				}
+
+				seen[name] = true
+			}
 		}
 	}
 }

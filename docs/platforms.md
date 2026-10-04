@@ -24,7 +24,9 @@ All profiles in this checkout set `managementPassthrough: true`. Packaging still
 
 ## Cisco XRv 9000
 
-The `cisco_xrv9k` profile handles the root-system user dialog, enables baseline management services, and creates the extra internal control and device NICs alongside the management NIC. Its CPU model is `qemu64,+ssse3,+sse4.1,+sse4.2`; use `QEMU_CPU` or a tested override where needed. Consult Containerlab's [XRv 9000 kind](https://containerlab.dev/manual/kinds/vr-xrv9k/) for its interface names and runtime inputs.
+The `cisco_xrv9k` profile packages an IOS XR disk named `xrv9k-*.qcow2`. Packaging creates the root-system user `boxen`, secret `Boxen123!`, which the runtime and save processes log in with, so that Containerlab can set any credentials. The baseline puts MgmtEth0/RP0/CPU0/0 into the `clab-mgmt` VRF and serves SSH, NETCONF, and gRPC on port 57400 without TLS in that VRF. The profile adds the internal control and device NICs after the management NIC and uses the `qemu64,+ssse3,+sse4.1,+sse4.2` CPU model with four cores; Containerlab's `QEMU_SMP` and `QEMU_MEMORY` apply.
+
+At each start the profile waits until XR loaded its saved configuration and the data interfaces exist, since commits touching them fail before the line card runs, then sets the hostname, creates the Containerlab user in the `root-lr` and `cisco-support` groups, and configures the management addresses and `clab-mgmt` default routes from the container, or DHCP with `CLAB_MGMT_DHCP=true`. Startup configurations use IOS XR syntax without a final `end`; they are committed and a failed commit fails the startup. IOS XR shuts down data interfaces without configuration at each boot, and a running configuration only lists `shutdown`, so the profile enables the data interfaces in the same commit, before the startup configuration. `boxen save` records the running configuration in that form. Data ports are GigabitEthernet0/0/0/0 and up, mapped to `eth1` and up; see Containerlab's [XRv 9000 kind](https://containerlab.dev/manual/kinds/vr-xrv9k/).
 
 ## NVIDIA Cumulus VX
 

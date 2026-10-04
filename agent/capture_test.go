@@ -195,6 +195,15 @@ func TestCiscoSaveCapture(t *testing.T) {
 			want: "!Time: Sat Oct  3 12:00:00 2026\n\n" +
 				"version 10.6(3) Bios:version\nhostname n9k1\n\n",
 		},
+		{
+			profile: "cisco_xrv9k",
+			raw: "show running-config\r\nBuilding configuration...\r\n" +
+				"!! IOS XR Configuration 24.3.1\r\n" +
+				"hostname xr1\r\nrouter static\r\n vrf clab-mgmt\r\n !\r\n!\r\nend\r\n\r\n" +
+				"RP/0/RP0/CPU0:xr1#",
+			want: "!! IOS XR Configuration 24.3.1\nhostname xr1\n" +
+				"router static\n vrf clab-mgmt\n !\n!\n",
+		},
 	} {
 		t.Run(test.profile, func(t *testing.T) {
 			capture := saveCaptureStep(t, loadEmbeddedProfile(t, test.profile))
