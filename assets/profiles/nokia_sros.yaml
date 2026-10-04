@@ -1,0 +1,359 @@
+---
+# Nokia SR OS virtual machine (vSIM), integrated chassis.
+# SR OS reads its boot options from the SMBIOS product string ("TIMOS:..."): the management
+# addresses and routes, the license location, the base MAC, and the chassis and cards of the
+# variant. containerlab places the license and the startup config in /tftpboot; QEMU exposes that
+# directory to the VM as a read-only FAT disk, which SR OS mounts as cf1:.
+# Without a license SR OS refuses configuration changes, so the node is configured at run time.
+name: nokia_sros
+diskPatterns:
+  - '(?i)sros-vm.*\.qcow2$'
+versionPattern: '\d+\.\d+\.R\d+(?:-\d+)?'
+scrapliDefinitionNameOrFile: nokia_sros
+scrapliReturnChar: "\r"
+virtualMachine:
+  cpuEmulation: host
+  # custom variants that do not set cpu, ram, or max_nics get these
+  cpuCores: 2
+  memory: 4096
+  serialPortCount: 1
+  diskInterface: virtio
+  nicType: virtio-net-pci
+  nicCount: 40
+  nicPerBus: 26
+  managementPassthrough: true
+  extras:
+    - onPackage: true
+      val:
+        - content: -smbios
+        - content: type=1,product=TIMOS:{{ .variant }}
+    - onRun: true
+      val:
+        - content: -drive
+        - content: if=virtio,index=1,format=raw,readonly=on,file=fat:/tftpboot
+        - content: -smbios
+        - content: >-
+            type=1,product=TIMOS:license-file=cf1:/license.txt primary-config=cf3:/config.cfg
+            {{- if not .mgmtDHCP }}
+            {{- with .mgmtIPv4 }} address={{ . }}@active{{ end }}
+            {{- with .mgmtIPv6 }} address={{ . }}@active{{ end }}
+            {{- with .mgmtIPv4Gateway }} static-route=0.0.0.0/0@{{ . }}{{ end }}
+            {{- with .mgmtIPv6Gateway }} static-route=::/0@{{ . }}{{ end }}
+            {{- end }}
+            {{- if not (regexMatch "(^| )system-base-mac=" .variant) }}
+            system-base-mac={{ .instanceMAC }}
+            {{- end }} {{ .variant }}
+    # IXR-R6, IXR-e2, IXR-e2c, and IXR-ec chassis expect a nic for the SFM after the management nic
+    - onPackage: true
+      onRun: true
+      val:
+        - content: >-
+            {{ if regexMatch "(?i)(^| )chassis=ixr-(r6|e2|e2c|ec)( |$)" .variant }}-nic{{ end }}
+        - content: >-
+            {{ if regexMatch "(?i)(^| )chassis=ixr-(r6|e2|e2c|ec)( |$)" .variant -}}
+            tap,ifname=sfm,model=virtio-net-pci,script=no,downscript=no
+            {{- end }}
+variants:
+  # containerlab passes the node type, sr-1 when unset, or the settings built from its components
+  default: sr-1
+  definitions:
+    sr-1:
+      settings: cpu=2 ram=5 max_nics=12 slot=A chassis=sr-1 card=cpm-1 mda/1=me12-100gb-qsfp28
+      values:
+        config: |
+          configure card 1 card-type iom-1
+          configure card 1 mda 1 mda-type me12-100gb-qsfp28
+    sr-1s:
+      settings: cpu=2 ram=6 max_nics=36 slot=A chassis=sr-1s card=cpm-1s mda/1=s36-100gb-qsfp28
+      values:
+        config: |
+          configure chassis router chassis-number 1 power-shelf 1 power-shelf-type ps-a4-shelf-dc
+          configure chassis router chassis-number 1 power-shelf 1 power-module 1 power-module-type ps-a-dc-6000
+          configure chassis router chassis-number 1 power-shelf 1 power-module 2 power-module-type ps-a-dc-6000
+          configure chassis router chassis-number 1 power-shelf 1 power-module 3 power-module-type ps-a-dc-6000
+          configure chassis router chassis-number 1 power-shelf 1 power-module 4 power-module-type ps-a-dc-6000
+          configure card 1 card-type xcm-1s
+          configure card 1 mda 1 mda-type s36-100gb-qsfp28
+    sr-1s-macsec:
+      settings: >-
+        cpu=2 ram=6 max_nics=20 slot=A chassis=sr-1s card=xcm-1s xiom/x1=iom-s-3.0t
+        mda/x1/1=ms16-100gb-sfpdd+4-100gb-qsfp28
+      values:
+        config: |
+          configure chassis router chassis-number 1 power-shelf 1 power-shelf-type ps-a4-shelf-dc
+          configure chassis router chassis-number 1 power-shelf 1 power-module 1 power-module-type ps-a-dc-6000
+          configure chassis router chassis-number 1 power-shelf 1 power-module 2 power-module-type ps-a-dc-6000
+          configure chassis router chassis-number 1 power-shelf 1 power-module 3 power-module-type ps-a-dc-6000
+          configure chassis router chassis-number 1 power-shelf 1 power-module 4 power-module-type ps-a-dc-6000
+          configure card 1 card-type xcm-1s
+          configure card 1 xiom x1 xiom-type iom-s-3.0t level cr1600g+
+          configure card 1 xiom x1 mda 1 mda-type ms16-100gb-sfpdd+4-100gb-qsfp28
+    ixr-r6:
+      settings: >-
+        cpu=4 ram=6 max_nics=7 slot=A chassis=ixr-r6 card=cpiom-ixr-r6
+        mda/1=m6-10g-sfp++1-100g-qsfp28
+      values:
+        config: |
+          configure card 1 card-type iom-ixr-r6
+          configure card 1 mda 1 mda-type m6-10g-sfp++1-100g-qsfp28
+    ixr-ec:
+      settings: >-
+        cpu=2 ram=4 max_nics=30 slot=A chassis=ixr-ec card=cpm-ixr-ec
+        mda/1=m4-1g-tx+20-1g-sfp+6-10g-sfp+
+      values:
+        config: |
+          configure card 1 card-type imm4-1g-tx+20-1g-sfp+6-10g-sfp+
+          configure card 1 mda 1 mda-type m4-1g-tx+20-1g-sfp+6-10g-sfp+
+    ixr-e2:
+      settings: >-
+        cpu=2 ram=4 max_nics=30 slot=A chassis=ixr-e2 card=cpm-ixr-e2
+        mda/1=m2-qsfpdd+2-qsfp28+24-sfp28
+      values:
+        config: |
+          configure card 1 card-type imm2-qsfpdd+2-qsfp28+24-sfp28
+          configure card 1 mda 1 mda-type m2-qsfpdd+2-qsfp28+24-sfp28
+    ixr-e2c:
+      settings: >-
+        cpu=2 ram=4 max_nics=30 slot=A chassis=ixr-e2c card=cpm-ixr-e2c
+        mda/1=m12-sfp28+2-qsfp28
+      values:
+        config: |
+          configure card 1 card-type imm12-sfp28+2-qsfp28
+          configure card 1 mda 1 mda-type m12-sfp28+2-qsfp28
+    vsr-i:
+      settings: >-
+        cpu=2 ram=8 max_nics=20 chassis=VSR-I slot=A card=iom-v mda/1=m20-v mda/2=isa-tunnel-v
+      values:
+        config: |
+          configure card 1 card-type iom-v
+          configure card 1 mda 1 mda-type m20-v
+          configure card 1 mda 2 mda-type isa-tunnel-v
+preRunCommands:
+  # the license disk is made from /tftpboot, which containerlab bind mounts
+  - mkdir -p /tftpboot
+  # without a license SR OS refuses configuration changes
+  - >-
+    test -s /tftpboot/license.txt ||
+    { echo "SR OS needs a license: set the node license in the topology" >&2; exit 1; }
+packaging:
+  process:
+    - type: readUntil
+      readUntil:
+        timeout: 10m
+        until:
+          containsPattern: '(?m)^Login: ?$'
+
+run:
+  startupConfigFiles:
+    - /tftpboot/config.txt
+  # the license is bound to the system UUID it was issued for
+  uuidFrom:
+    file: /tftpboot/license.txt
+    pattern: '(?m)^([0-9A-Fa-f]{8}(?:-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12})\s'
+  process:
+    # The console account exists once a start has saved the configuration; before that only the
+    # factory account does. A failed login returns to the login prompt. Like the factory admin, the
+    # console account is not restricted to a home directory, so it can load cf1:.
+    - &login
+      type: prompts
+      prompts:
+        timeout: 15m
+        prompts:
+          - name: console account
+            prompt:
+              containsPattern: '(?m)^Login: ?$'
+            response: boxen
+            once: true
+          - name: console account password
+            prompt:
+              contains: "Password:"
+            response: Console123!
+            hidden: true
+            once: true
+          - name: factory account
+            prompt:
+              containsPattern: '(?m)^Login: ?$'
+            response: admin
+            once: true
+          - name: factory account password
+            prompt:
+              contains: "Password:"
+            response: admin
+            hidden: true
+            once: true
+          - name: logged in
+            prompt:
+              containsPattern: '[AB]:\S+@\S+# '
+            response: environment more false
+            once: true
+            completes: true
+    - &prompt
+      type: readUntil
+      readUntil:
+        timeout: 1m
+        until:
+          containsPattern: '(?m)^\[/\]'
+    - &editConfig
+      type: write
+      write:
+        content: edit-config private
+    - &configRoot
+      type: readUntil
+      readUntil:
+        timeout: 1m
+        until:
+          containsPattern: '(?m)^\*?\(pr\)\[/\]'
+    - type: write
+      write:
+        content: |
+          configure system security user-params local-user user "boxen" password "Console123!"
+          configure system security user-params local-user user "boxen" access console true
+          configure system security user-params local-user user "boxen" restricted-to-home false
+          configure system security user-params local-user user "boxen" console member ["administrative"]
+          {{- with .hostname }}
+          configure system name "{{ . }}"
+          {{- end }}
+          {{- if and .username (ne .username "admin") }}
+          configure system security user-params local-user user "{{ .username }}" password "{{ .password }}"
+          configure system security user-params local-user user "{{ .username }}" access console true netconf true grpc true
+          configure system security user-params local-user user "{{ .username }}" console member ["administrative"]
+          configure system security user-params local-user user "{{ .username }}" restricted-to-home false
+          {{- else if and .password (ne .password "admin") }}
+          configure system security user-params local-user user "admin" password "{{ .password }}"
+          {{- end }}
+          configure system security user-params local-user user "admin" access console true ftp true netconf true grpc true
+          configure system security aaa local-profiles profile "administrative" netconf base-op-authorization lock true kill-session true
+          configure system login-control ssh inbound-max-sessions 30
+          {{- if regexMatch "^(19|2[0-3])\\." .version }}
+          configure system management-interface netconf admin-state enable
+          {{- else }}
+          configure system management-interface netconf listen admin-state enable
+          {{- end }}
+          configure system management-interface netconf auto-config-save true
+          configure system management-interface configuration-save configuration-backups 5 incremental-saves false
+          configure system management-interface snmp packet-size 9216
+          configure system management-interface snmp streaming admin-state enable
+          configure system security snmp community "public" access-permissions r version v2c
+          configure system grpc admin-state enable allow-unsecure-connection
+          configure system grpc gnmi auto-config-save true
+          {{- if not (regexMatch "(?i)(^| )chassis=ixr-" .variant) }}
+          configure system grpc rib-api admin-state enable
+          {{- end }}
+          {{ .variantValues.config }}
+    - &commit
+      type: write
+      write:
+        content: commit
+    # the candidate marker (*) is gone once the commit succeeded
+    - type: readUntil
+      readUntil:
+        timeout: 2m
+        until:
+          containsPattern: '(?m)^\(pr\)\[/\]'
+    - &quitConfig
+      type: write
+      write:
+        content: quit-config
+    - *prompt
+    - &save
+      type: write
+      write:
+        content: admin save
+    # chassis with a second CPM slot warn that it is offline instead of reporting completion
+    - &saved
+      type: readUntil
+      readUntil:
+        timeout: 2m
+        until:
+          contains: Saving configuration OK
+    # Data ports exist once their MDA booted. An MDA shows "provisioned (not equipped)" until its
+    # card detected it, and then "booting"; so does one the chassis does not have, which only
+    # delays the start by this bounded wait.
+    - &mdasReady
+      type: prompts
+      prompts:
+        timeout: 2m
+        continueOnTimeout: true
+        initialInput: show mda
+        prompts:
+          # both match the summary up to the following prompt, not the prompt before the command
+          - name: mdas booting
+            prompt:
+              containsPattern: >-
+                MDA Summary[\s\S]*\sup\s+(?:booting|provisioned)\s[\s\S]*[AB]:\S+@\S+#
+            response: show mda
+            delay: 1s
+          - name: mdas ready
+            prompt:
+              containsPattern: 'MDA Summary[\s\S]*[AB]:\S+@\S+# '
+            response: ""
+            hidden: true
+            once: true
+            completes: true
+  configProcess:
+    - *editConfig
+    - *configRoot
+    - type: write
+      write:
+        content: configure
+    - type: readUntil
+      readUntil:
+        timeout: 1m
+        until:
+          containsPattern: '(?m)^\*?\(pr\)\[/configure\]'
+    # cf1: is the FAT disk made from /tftpboot when the VM started
+    - type: write
+      write:
+        content: load merge cf1:/config.txt
+    - type: readUntil
+      readUntil:
+        timeout: 2m
+        until:
+          containsPattern: 'Loaded \d+ lines'
+    - *commit
+    - type: readUntil
+      readUntil:
+        timeout: 5m
+        until:
+          containsPattern: '(?m)^\(pr\)\[/configure\]'
+    - type: write
+      write:
+        content: exit all
+    - *configRoot
+    - *quitConfig
+    - *prompt
+    - *save
+    - *saved
+    - *mdasReady
+  saveProcess:
+    # The console is normally still logged in from provisioning. The return resurfaces the prompt.
+    - type: prompts
+      prompts:
+        timeout: 2m
+        initialInput: "\r"
+        prompts:
+          - name: console account
+            prompt:
+              containsPattern: '(?m)^Login: ?$'
+            response: boxen
+            once: true
+          - name: console account password
+            prompt:
+              contains: "Password:"
+            response: Console123!
+            hidden: true
+            once: true
+          - name: logged in
+            prompt:
+              containsPattern: '[AB]:\S+@\S+# '
+            response: environment more false
+            once: true
+            completes: true
+    - *prompt
+    # the saved configuration format, which configProcess loads
+    - type: capture
+      capture:
+        timeout: 2m
+        command: admin show configuration
+        end:
+          containsPattern: '(?m)^# Finished'

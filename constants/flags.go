@@ -18,6 +18,8 @@ const (
 
 	FlagProfileNameOrPath      = "profile"
 	FlagProfileNameOrPathShort = "prof"
+
+	FlagTimeout = "timeout"
 )
 
 const (
@@ -26,4 +28,7 @@ const (
 	FlagContainerlabHostname       = "hostname"
 	FlagContainerlabConnectionMode = "connection-mode"
 	FlagContainerlabTrace          = "trace"
+	FlagContainerlabVCPU           = "vcpu"
+	FlagContainerlabRAM            = "ram"
+	FlagContainerlabVariant        = "variant"
 )

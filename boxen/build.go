@@ -13,8 +13,6 @@ import (
 	boxenutil "github.com/carlmontanari/boxen/util"
 )
 
-const serialConsolePort = 5_001
-
 // Build runs the build process -- this is the build process from the users perspective -- i.e. on
 // their laptop.
 func (b *Boxen) Build(
@@ -136,7 +134,7 @@ func (b *Boxen) Build(
 
 	fmt.Fprintf(&imageID, "boxen-%s:%s", b.p.Name, imageTag)
 
-	natPorts := b.p.VirtualMachine.NatPorts
+	natPorts := b.p.VirtualMachine.GetNatPorts()
 	if b.p.VirtualMachine.ManagementPassthrough {
 		natPorts = nil
 	}
@@ -222,7 +220,7 @@ func (b *Boxen) openVMConsole(ctx context.Context, containerID string) error {
 			Command: []string{
 				"telnet",
 				"localhost",
-				fmt.Sprint(serialConsolePort),
+				fmt.Sprint(boxenconstants.ConsolePort),
 			},
 			Interactive: true,
 			TTY:         true,
@@ -244,7 +242,7 @@ func buildOpenConsoleCommand(containerID string) string {
 	return fmt.Sprintf(
 		"docker exec -i -t %s telnet localhost %d",
 		containerID,
-		serialConsolePort,
+		boxenconstants.ConsolePort,
 	)
 }
 

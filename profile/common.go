@@ -1,6 +1,7 @@
 package profile
 
 import (
+	"bytes"
 	"regexp"
 	"strings"
 )
@@ -42,6 +43,33 @@ func (c *Contains) Check(b []byte) (bool, error) {
 	return false, nil
 }
 
+// Find returns the start and end offsets of the first match of this Contains in b, or nil when
+// there is no match. A literal match is preferred over a pattern match, as in Check, and a
+// NotContains hit anywhere in b rejects the match.
+func (c *Contains) Find(b []byte) ([]int, error) {
+	if c.NotContains != "" && bytes.Contains(b, []byte(c.NotContains)) {
+		return nil, nil
+	}
+
+	if c.Contains != "" {
+		idx := bytes.Index(b, []byte(c.Contains))
+		if idx >= 0 {
+			return []int{idx, idx + len(c.Contains)}, nil
+		}
+	}
+
+	if c.ContainsPattern != "" {
+		p, err := regexp.Compile(c.ContainsPattern)
+		if err != nil {
+			return nil, err
+		}
+
+		return p.FindIndex(b), nil
+	}
+
+	return nil, nil
+}
+
 // StepType is a packaging/run step type enum-ish thing.
 type StepType string
 
@@ -51,6 +79,7 @@ const (
 	StepTypeReadUntil StepType = "readUntil"
 	StepTypeWrite     StepType = "write"
 	StepTypeWait      StepType = "wait"
+	StepTypeCapture   StepType = "capture"
 )
 
 // Step represents a step during a package/run process.
@@ -60,6 +89,7 @@ type Step struct {
 	ReadUntil StepReadUntil `yaml:"readUntil"`
 	Write     StepWrite     `yaml:"write"`
 	Wait      StepWait      `yaml:"wait"`
+	Capture   StepCapture   `yaml:"capture"`
 }
 
 // StepPrompts is a step that lets us handle some prompt(s) from a device.
@@ -69,6 +99,9 @@ type StepPrompts struct {
 	// optional, otherwise we'll just start reading looking for things in the prompts slice
 	InitialInput string   `yaml:"initialInput"`
 	Prompts      []Prompt `yaml:"prompts"`
+	// ContinueOnTimeout ends the step without failing the process when no prompt completed it
+	// within the timeout, for waits that are worth a bounded delay but not a failed node.
+	ContinueOnTimeout bool `yaml:"continueOnTimeout"`
 }
 
 // Prompt defines how we match on a prompt and what we respond to it.
@@ -82,6 +115,9 @@ type Prompt struct {
 	Hidden    bool `yaml:"hidden"`
 	Once      bool `yaml:"once"`
 	Completes bool `yaml:"completes"`
+	// Delay, something ParseDuration accepts, waits before writing the response, so a prompt
+	// that repeats a command polls it at that interval.
+	Delay string `yaml:"delay"`
 }
 
 // StepReadUntil defines how we read until some output on the terminal.
@@ -116,4 +152,27 @@ type StepWrite struct {
 type StepWait struct {
 	// something ParseDuration will accept, i.e. 5s, 1m, etc.
 	Duration string `yaml:"duration"`
+}
+
+// CaptureDecodeBase64 decodes captured output as (line wrapped) base64.
+const CaptureDecodeBase64 = "base64"
+
+// StepCapture sends a command and records its output. It is used by `run.saveProcess`: `boxen save`
+// writes the output recorded by the save process to the node's startup config file.
+type StepCapture struct {
+	// something ParseDuration will accept, i.e. 5s, 1m, etc.
+	Timeout string `yaml:"timeout"`
+	// Command is rendered as a Go template, like write content, and sent as a single line.
+	Command string `yaml:"command"`
+	// if marked hidden we dont wait for the command to echo before sending return; the echo then
+	// is part of the output, so set Start to skip past it
+	Hidden bool `yaml:"hidden"`
+	// Start optionally marks the beginning of the output: recording begins on the line after the
+	// first match. Without it, recording begins right after the command.
+	Start Contains `yaml:"start"`
+	// End marks the end of the output: recording stops right before the first match, typically
+	// the next prompt or a marker the command prints after its output.
+	End Contains `yaml:"end"`
+	// Decode optionally decodes the recorded output, "base64" is supported.
+	Decode string `yaml:"decode"`
 }

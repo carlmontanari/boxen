@@ -54,7 +54,8 @@ make rebuild-profile-image \
   TARGET_IMAGE=ghcr.io/clab-labs/nvidia_cumulusvx:5.16.1-rebuilt
 ```
 
-The target requires all three variables. It first runs `build-image`, which compiles Boxen
+The target requires all three variables. The rebuilt image also gets the runtime's healthcheck and the
+`org.opencontainers.image.vendor=Boxen` label, which Containerlab uses to apply link changes live. It first runs `build-image`, which compiles Boxen
 and packages its binary, `libscrapli`, and the Scrapli definition from this checkout. It then
 overlays those runtime files and the selected profile onto the local `SOURCE_IMAGE`. The separate
 `build` target creates `dist/boxen` and is not needed for this workflow. The rebuild preserves
@@ -118,7 +119,8 @@ datapath during image build.
 ## Write
 
 Write content uses Go template variables. Templates work in the following fields:
-`write.content`, `write.contentFromFile`, and `write.contentFromStartupConfig`.
+`write.content`, `write.contentFromFile`, `write.contentFromStartupConfig`, `prompts.response`,
+and `capture.command`.
 
 ```yaml
 run:
@@ -140,10 +142,13 @@ The following values are available:
 | `{{ .username }}`          | `admin`                     | Containerlab-provided username during run.         |
 | `{{ .password }}`          | `admin`                     | Containerlab-provided password during run.         |
 | `{{ .hostname }}`          | `leaf1`                     | Containerlab node hostname during run.             |
+| `{{ .startupConfigFile }}` | `/config/startup-config.cfg` | Startup config file during run, empty if none. |
+| `{{ .dataNICMACs }}` | `[aa:c1:ab:94:6d:16 ...]` | Data NIC MACs in NIC order during run. |
 | `{{ .mgmtDHCP }}`          | `false`                     | Whether management config should use DHCP.         |
 | `{{ .mgmtIPv4 }}`          | `172.20.20.10/24`           | IPv4 management address in CIDR notation.          |
 | `{{ .mgmtIPv4Address }}`   | `172.20.20.10`              | IPv4 management address without prefix length.     |
 | `{{ .mgmtIPv4PrefixLen }}` | `24`                        | IPv4 management prefix length.                     |
+| `{{ .mgmtIPv4Netmask }}`   | `255.255.255.0`             | IPv4 management netmask.                           |
 | `{{ .mgmtIPv4Network }}`   | `172.20.20.0/24`            | IPv4 management network in CIDR notation.          |
 | `{{ .mgmtIPv4Gateway }}`   | `172.20.20.1`               | IPv4 management default gateway.                   |
 | `{{ .mgmtIPv6 }}`          | `2001:db8:20::10/64`        | IPv6 management address in CIDR notation.          |
