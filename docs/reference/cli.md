@@ -53,6 +53,7 @@ Runtime entrypoint of a packaged image:
 | `--hostname` | Empty | Exposed as `.hostname` to write templates |
 | `--connection-mode` | Empty | Containerlab compatibility input, exposed as `.connectionMode` |
 | `--trace` | `false` | Accepted for Containerlab compatibility; ignored |
+| `--vcpu`, `--ram` | Empty | Passed by Containerlab 0.78 and earlier for some kinds; used as `QEMU_SMP` and `QEMU_MEMORY` when those are unset |
 | `--logLevel` | `debug` | Logging level |
 
 This command expects `/boxen/profile.yaml`, the prepared disk, and the container runtime tools. It does not accept a disk or profile flag. Passing credentials exposes them to templates; the selected profile must actually use them to configure an account. See [running a lab](../guides/running.md).

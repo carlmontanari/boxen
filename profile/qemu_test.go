@@ -309,3 +309,57 @@ func TestQemuInstanceUUID(t *testing.T) {
 		t.Fatalf("expected a random packaging uuid, got %v", packageArgs[:4])
 	}
 }
+
+func TestQemuNicTypeEnv(t *testing.T) {
+	t.Setenv(boxenconstants.EnvClabMgmtPassthrough, "")
+	t.Setenv(boxenconstants.EnvClabQemuNicType, "vmxnet3")
+
+	p := testQemuProfile(false)
+	p.VirtualMachine.NicCount = 1
+	p.VirtualMachine.NicPerBus = 26
+
+	if got := qemuMgmtNIC(p, false)[1]; !strings.HasPrefix(got, "vmxnet3,") {
+		t.Fatalf("management nic should use QEMU_NIC_TYPE, got %q", got)
+	}
+
+	if got := qemuDataNICs(p)[1]; !strings.HasPrefix(got, "vmxnet3,") {
+		t.Fatalf("data nic should use QEMU_NIC_TYPE, got %q", got)
+	}
+}
+
+func TestQemuAdditionalArgsWhitespace(t *testing.T) {
+	t.Setenv(boxenconstants.EnvClabQemuAdditionalArgs, "  -machine  pc\t-no-reboot ")
+
+	args, err := QemuArgsFromProfile(testQemuProfile(false), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !slices.Equal(args[len(args)-3:], []string{"-machine", "pc", "-no-reboot"}) {
+		t.Fatalf("expected whitespace separated additional args, got %v", args[len(args)-3:])
+	}
+
+	if slices.Contains(args, "") {
+		t.Fatalf("additional args produced an empty argument: %v", args)
+	}
+}
+
+func TestQemuMgmtNICLegacyDefaultNatPorts(t *testing.T) {
+	t.Setenv(boxenconstants.EnvClabMgmtPassthrough, "")
+
+	p := testQemuProfile(false)
+	p.VirtualMachine.NatPorts = nil
+
+	args := qemuMgmtNIC(p, false)
+
+	for _, want := range []string{
+		"hostfwd=tcp:0.0.0.0:22-10.0.0.15:22",
+		"hostfwd=udp:0.0.0.0:161-10.0.0.15:161",
+		"hostfwd=tcp:0.0.0.0:830-10.0.0.15:830",
+		"hostfwd=tcp:0.0.0.0:57400-10.0.0.15:57400",
+	} {
+		if !strings.Contains(args[3], want) {
+			t.Fatalf("legacy management netdev missing default %q, got %q", want, args[3])
+		}
+	}
+}

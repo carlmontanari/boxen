@@ -54,7 +54,8 @@ make rebuild-profile-image \
   TARGET_IMAGE=ghcr.io/clab-labs/nvidia_cumulusvx:5.16.1-rebuilt
 ```
 
-The target requires all three variables. It first runs `build-image`, which compiles Boxen
+The target requires all three variables. The rebuilt image also gets the runtime's healthcheck and the
+`org.opencontainers.image.vendor=Boxen` label, which Containerlab uses to apply link changes live. It first runs `build-image`, which compiles Boxen
 and packages its binary, `libscrapli`, and the Scrapli definition from this checkout. It then
 overlays those runtime files and the selected profile onto the local `SOURCE_IMAGE`. The separate
 `build` target creates `dist/boxen` and is not needed for this workflow. The rebuild preserves

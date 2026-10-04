@@ -14,6 +14,7 @@ const (
 	EnvClabQemuMemory         = "QEMU_MEMORY"
 	EnvClabQemuCPU            = "QEMU_CPU"
 	EnvClabQemuSMP            = "QEMU_SMP"
+	EnvClabQemuNicType        = "QEMU_NIC_TYPE"
 	EnvClabQemuAdditionalArgs = "QEMU_ADDITIONAL_ARGS"
 
 	// EnvClabUUID sets the VM system UUID, as in vrnetlab.

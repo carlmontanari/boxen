@@ -123,11 +123,7 @@ func QemuArgsFromProfile(
 		out = useRunDisk(out)
 	}
 
-	qemuAdditionalArgs := os.Getenv(boxenconstants.EnvClabQemuAdditionalArgs)
-
-	if qemuAdditionalArgs != "" {
-		out = append(out, strings.Split(qemuAdditionalArgs, " ")...)
-	}
+	out = append(out, strings.Fields(os.Getenv(boxenconstants.EnvClabQemuAdditionalArgs))...)
 
 	return out, nil
 }
@@ -332,7 +328,7 @@ func qemuMgmtNIC(p *Profile, isPackaging bool) []string {
 		}
 	}
 
-	deviceArgs := fmt.Sprintf("%s,netdev=mgmt", p.VirtualMachine.NicType)
+	deviceArgs := fmt.Sprintf("%s,netdev=mgmt", p.VirtualMachine.GetNicType())
 	if mac != "" {
 		deviceArgs = fmt.Sprintf("%s,mac=%s", deviceArgs, mac)
 	}
@@ -353,14 +349,15 @@ func qemuMgmtNIC(p *Profile, isPackaging bool) []string {
 	mgmtIntf := "user,id=mgmt,net=10.0.0.0/24,host=10.0.0.2," +
 		"dns=10.0.0.3,dhcpstart=10.0.0.15,tftp=/tftpboot"
 
-	nats := make([]string, len(p.VirtualMachine.NatPorts))
+	natPorts := p.VirtualMachine.GetNatPorts()
+	nats := make([]string, len(natPorts))
 
-	for idx := range p.VirtualMachine.NatPorts {
+	for idx := range natPorts {
 		nats[idx] = fmt.Sprintf(
 			"hostfwd=%s:0.0.0.0:%d-10.0.0.15:%d",
-			p.VirtualMachine.NatPorts[idx].Type,
-			p.VirtualMachine.NatPorts[idx].LocalPort,
-			p.VirtualMachine.NatPorts[idx].LocalPort,
+			natPorts[idx].Type,
+			natPorts[idx].LocalPort,
+			natPorts[idx].LocalPort,
 		)
 	}
 
@@ -411,7 +408,7 @@ func buildDataNic(
 		device,
 		fmt.Sprintf(
 			"%s,netdev=p%s,bus=pci.%d,addr=0x%x,mac=%s",
-			p.VirtualMachine.NicType,
+			p.VirtualMachine.GetNicType(),
 			paddedNicID,
 			busID,
 			busAddr,

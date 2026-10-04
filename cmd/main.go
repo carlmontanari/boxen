@@ -194,11 +194,29 @@ func runCommand() *urfavecli.Command {
 				Name:  boxenconstants.FlagContainerlabTrace,
 				Usage: "trace flag is ignored, but exists for containerlab compatibility",
 			},
+			&urfavecli.StringFlag{
+				Name: boxenconstants.FlagContainerlabVCPU,
+				Usage: "vm cpu count passed by containerlab 0.78 and earlier for some kinds; " +
+					"used as QEMU_SMP when that is unset",
+			},
+			&urfavecli.StringFlag{
+				Name: boxenconstants.FlagContainerlabRAM,
+				Usage: "vm memory in MiB passed by containerlab 0.78 and earlier for some kinds; " +
+					"used as QEMU_MEMORY when that is unset",
+			},
 		},
 		Action: func(ctx context.Context, cmd *urfavecli.Command) error {
 			a := boxenagent.NewAgent(
 				boxenlogging.LevelFromString(cmd.String(boxenconstants.FlagLogLevel)),
 			)
+
+			err := applyLegacyResourceFlags(
+				cmd.String(boxenconstants.FlagContainerlabVCPU),
+				cmd.String(boxenconstants.FlagContainerlabRAM),
+			)
+			if err != nil {
+				return err
+			}
 
 			return a.Run(
 				ctx,
@@ -209,6 +227,26 @@ func runCommand() *urfavecli.Command {
 			)
 		},
 	}
+}
+
+// applyLegacyResourceFlags maps the --vcpu and --ram run flags, which older containerlab releases
+// pass instead of setting QEMU_SMP and QEMU_MEMORY, onto those variables when they are unset.
+func applyLegacyResourceFlags(vcpu, ram string) error {
+	for env, value := range map[string]string{
+		boxenconstants.EnvClabQemuSMP:    vcpu,
+		boxenconstants.EnvClabQemuMemory: ram,
+	} {
+		if value == "" || os.Getenv(env) != "" {
+			continue
+		}
+
+		err := os.Setenv(env, value)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func healthCommand() *urfavecli.Command {
