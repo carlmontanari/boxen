@@ -150,6 +150,32 @@ func TestValidateReportsProblems(t *testing.T) {
 			want: "run.saveProcess[0]: capture.end",
 		},
 		{
+			name: "bad prompt delay",
+			mutate: func(p *Profile) {
+				p.Run.Process = []Step{{Type: StepTypePrompts, Prompts: StepPrompts{
+					Timeout: "1m",
+					Prompts: []Prompt{{Prompt: Contains{Contains: "#"}, Delay: "a while"}},
+				}}}
+			},
+			want: "run.process[0]: prompts.prompts[0].delay",
+		},
+		{
+			name: "variant settings",
+			mutate: func(p *Profile) {
+				p.Variants = &Variants{Definitions: map[string]VariantDefinition{
+					"big": {Settings: "ram=lots"},
+				}}
+			},
+			want: "variants.definitions.big: invalid variant: ram=lots",
+		},
+		{
+			name: "uuid source without capture group",
+			mutate: func(p *Profile) {
+				p.Run.UUIDFrom = &FileMatch{File: "license.txt", Pattern: "uuid"}
+			},
+			want: "run.uuidFrom.pattern is invalid",
+		},
+		{
 			name: "capture with unknown decode",
 			mutate: func(p *Profile) {
 				c := validCapture()

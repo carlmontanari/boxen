@@ -50,8 +50,36 @@ Use Go duration strings such as `5s`, `2m`, and `20m`. Duration fields are requi
 | `hidden` | Do not wait for the response to echo before sending return. |
 | `once` | Trigger this callback at most once in the step. |
 | `completes` | End the prompts step after the matching callback. |
+| `delay` | Wait this long, as a Go duration, before sending the response. A callback that sends the same command again polls it at that interval. |
 
 Give a successful terminal prompt `completes: true`; otherwise the step can continue until its timeout. Use `once` for first-boot dialogs and password changes so the same buffered prompt cannot repeatedly trigger a response.
+
+Callbacks are checked in order, and a callback that triggered resets the output they are checked against. Two `once` callbacks with the same prompt therefore answer consecutive prompts, which tries a second login when the first fails:
+
+```yaml
+prompts:
+  - prompt:
+      containsPattern: '(?m)^Login: ?$'
+    response: boxen
+    once: true
+  - prompt:
+      contains: "Password:"
+    response: Boxen123!
+    hidden: true
+    once: true
+  # the account above does not exist yet on the first start
+  - prompt:
+      containsPattern: '(?m)^Login: ?$'
+    response: admin
+    once: true
+  - prompt:
+      contains: "Password:"
+    response: admin
+    hidden: true
+    once: true
+```
+
+A step with `continueOnTimeout: true` logs a warning and lets the process continue when no callback completed it within the timeout. Use it for a bounded wait whose condition may never hold, for example until hardware the configuration provisions but the VM does not emulate comes up.
 
 `hidden` handles non-echoing terminal input. It does not redact the content from all logs: the current agent logs prompt definitions and response values. Treat collected automation logs accordingly.
 

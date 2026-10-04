@@ -68,18 +68,38 @@ type QemuConfigField struct {
 }
 
 // Apply appends this ConfigField's content to the list of qemu commands in `o`, gated by whether
-// the field applies to the current packaging/run phase.
-func (c QemuConfigField) Apply(isPackaging bool, o []string) []string {
-	if (isPackaging && c.OnPackage) || (!isPackaging && c.OnRun) {
-		for _, v := range c.Val {
-			o = append(o, v.Content)
-		}
+// the field applies to the current packaging/run phase. Each content is rendered as a Go template
+// with the given formatters, when not nil; content that renders empty is left out, so a template
+// can make an argument conditional.
+func (c QemuConfigField) Apply(isPackaging bool, o []string, f *Formatters) ([]string, error) {
+	if (isPackaging && !c.OnPackage) || (!isPackaging && !c.OnRun) {
+		return o, nil
 	}
 
-	return o
+	for _, v := range c.Val {
+		content := v.Content
+
+		if f != nil {
+			var err error
+
+			content, err = f.RenderTemplate(content)
+			if err != nil {
+				return nil, err
+			}
+
+			if content == "" {
+				continue
+			}
+		}
+
+		o = append(o, content)
+	}
+
+	return o, nil
 }
 
-// QemuConfigVal represents an extra string to add to the qemu command.
+// QemuConfigVal represents an extra string to add to the qemu command. The content is rendered as
+// a Go template with the same values as write steps.
 type QemuConfigVal struct {
 	Content string `yaml:"content"`
 }

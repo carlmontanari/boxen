@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"text/template"
@@ -159,6 +160,7 @@ func (f *Formatters) RenderTemplate(content string) (string, error) {
 		"fileBase64": fileBase64,
 		"add":        add,
 		"ciscoMAC":   ciscoMAC,
+		"regexMatch": regexp.MatchString,
 	}).Option("missingkey=error").Parse(content)
 	if err != nil {
 		return "", err
@@ -250,6 +252,20 @@ func (f *Formatters) TemplateData() (map[string]any, error) {
 
 		"startupConfigFile": f.startupConfigFile,
 		"dataNICMACs":       f.dataNICMACs(),
+		"instanceMAC":       "",
+		"variant":           "",
+		"variantName":       "",
+		"variantValues":     map[string]string{},
+	}
+
+	if f.p != nil {
+		data["instanceMAC"] = f.p.InstanceMAC
+		data["variantValues"] = f.p.variantTemplateValues()
+
+		if f.p.Variant != nil {
+			data["variant"] = f.p.Variant.Settings
+			data["variantName"] = f.p.Variant.Name
+		}
 	}
 
 	management, err := f.getManagementFormatters()

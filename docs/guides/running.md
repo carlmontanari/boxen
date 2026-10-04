@@ -44,11 +44,11 @@ the automation console. `/boxen/package.boot.log` retains the sequence from imag
 
 ## Runtime order
 
-1. Read `/boxen/profile.yaml`, construct the template values from the runtime flags, and look up the startup config file.
+1. Read `/boxen/profile.yaml`, resolve the hardware variant, construct the template values from the runtime flags, and look up the startup config file.
 2. Write `1 booting` to `/health`.
 3. Wait for interfaces when `CLAB_INTFS` specifies a count, for at most `BOXEN_INTF_WAIT_TIMEOUT`, then honor `BOOT_DELAY` in seconds.
 4. Execute `preRunCommands` in the container shell.
-5. Create the disk overlay and resolve the VM UUID, reusing both on a restart of the same container.
+5. Create the disk overlay and resolve the instance identity, VM UUID, and instance MAC, reusing them on a restart of the same container.
 6. Launch QEMU with the overlay and runtime hardware settings.
 7. Start the TC service that joins container interfaces to guest TAPs.
 8. Open the serial console and execute `run.process`.
@@ -111,7 +111,7 @@ These override generated QEMU fields where supported. `QEMU_SMP` is considered w
 
 ## Interface wiring
 
-By default, `eth0` is management and `eth1` through `ethN` are data ports. Boxen creates corresponding `tap0` for transparent management and `tap1` through `tapN` for data traffic. A background TC service redirects frames in both directions, notices interfaces that appear after startup, and reattaches recreated interfaces, which it recognizes by their new interface index even when Containerlab removes and adds a link between two of its checks. Containerlab therefore adds and removes links of a running Boxen node without recreating it; it recognizes Boxen images by their `org.opencontainers.image.vendor=Boxen` label. The guest always has `nicCount` data NICs, so a link to a port beyond that count is not wired.
+By default, `eth0` is management and `eth1` through `ethN` are data ports. Boxen creates corresponding `tap0` for transparent management and `tap1` through `tapN` for data traffic. A background TC service redirects frames in both directions, notices interfaces that appear after startup, and reattaches recreated interfaces, which it recognizes by their new interface index even when Containerlab removes and adds a link between two of its checks. Containerlab therefore adds and removes links of a running Boxen node without recreating it; it recognizes Boxen images by their `org.opencontainers.image.vendor=Boxen` label. The guest always has `nicCount` data NICs, or the number of the node's hardware variant, so a link to a port beyond that count is not wired.
 
 Containerlab kind aliases map the first NOS data port to `eth1`; the NOS's port numbering can start at zero. `CLAB_INTF_PREFIX` and `CLAB_MGMT_INTF` let an integration supply different container interface names.
 

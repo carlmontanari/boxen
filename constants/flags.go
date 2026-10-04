@@ -30,4 +30,5 @@ const (
 	FlagContainerlabTrace          = "trace"
 	FlagContainerlabVCPU           = "vcpu"
 	FlagContainerlabRAM            = "ram"
+	FlagContainerlabVariant        = "variant"
 )

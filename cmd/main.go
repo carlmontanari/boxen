@@ -210,6 +210,11 @@ func runCommand() *urfavecli.Command {
 				Usage: "vm memory in MiB passed by containerlab 0.78 and earlier for some kinds; " +
 					"used as QEMU_MEMORY when that is unset",
 			},
+			&urfavecli.StringFlag{
+				Name: boxenconstants.FlagContainerlabVariant,
+				Usage: "the hardware variant to run as: a variant of the profile, or key=value " +
+					"settings; containerlab passes the node type for some kinds",
+			},
 		},
 		Action: func(ctx context.Context, cmd *urfavecli.Command) error {
 			a := boxenagent.NewAgent(
@@ -230,6 +235,7 @@ func runCommand() *urfavecli.Command {
 				cmd.String(boxenconstants.FlagContainerlabPassword),
 				cmd.String(boxenconstants.FlagContainerlabHostname),
 				cmd.String(boxenconstants.FlagContainerlabConnectionMode),
+				cmd.String(boxenconstants.FlagContainerlabVariant),
 			)
 		},
 	}

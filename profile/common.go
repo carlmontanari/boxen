@@ -99,6 +99,9 @@ type StepPrompts struct {
 	// optional, otherwise we'll just start reading looking for things in the prompts slice
 	InitialInput string   `yaml:"initialInput"`
 	Prompts      []Prompt `yaml:"prompts"`
+	// ContinueOnTimeout ends the step without failing the process when no prompt completed it
+	// within the timeout, for waits that are worth a bounded delay but not a failed node.
+	ContinueOnTimeout bool `yaml:"continueOnTimeout"`
 }
 
 // Prompt defines how we match on a prompt and what we respond to it.
@@ -112,6 +115,9 @@ type Prompt struct {
 	Hidden    bool `yaml:"hidden"`
 	Once      bool `yaml:"once"`
 	Completes bool `yaml:"completes"`
+	// Delay, something ParseDuration accepts, waits before writing the response, so a prompt
+	// that repeats a command polls it at that interval.
+	Delay string `yaml:"delay"`
 }
 
 // StepReadUntil defines how we read until some output on the terminal.

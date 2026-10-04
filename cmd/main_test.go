@@ -24,3 +24,31 @@ func TestApplyLegacyResourceFlags(t *testing.T) {
 		t.Fatalf("expected QEMU_MEMORY to be kept, got %q", got)
 	}
 }
+
+// TestRunAcceptsContainerlabFlags checks that the run command defines the flags containerlab passes
+// to VM kinds: an undefined flag makes the node exit at once.
+func TestRunAcceptsContainerlabFlags(t *testing.T) {
+	names := map[string]bool{}
+
+	for _, flag := range runCommand().Flags {
+		for _, name := range flag.Names() {
+			names[name] = true
+		}
+	}
+
+	// e.g. the SR OS kind: --trace --connection-mode vrxcon --hostname sr1 --variant "sr-1"
+	for _, want := range []string{
+		boxenconstants.FlagContainerlabTrace,
+		boxenconstants.FlagContainerlabConnectionMode,
+		boxenconstants.FlagContainerlabHostname,
+		boxenconstants.FlagContainerlabUsername,
+		boxenconstants.FlagContainerlabPassword,
+		boxenconstants.FlagContainerlabVCPU,
+		boxenconstants.FlagContainerlabRAM,
+		boxenconstants.FlagContainerlabVariant,
+	} {
+		if !names[want] {
+			t.Errorf("run does not accept --%s", want)
+		}
+	}
+}

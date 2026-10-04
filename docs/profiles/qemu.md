@@ -97,6 +97,30 @@ virtualMachine:
 
 This attaches preparation media only during packaging. It must already exist in the builder, either as an extra file or as output from `prePackagingCommands`.
 
+## Template values in arguments
+
+The content of overrides and extras is rendered with the [template values](templates.md) of write steps, so arguments can carry the node's management addresses, its hardware variant, or its instance MAC. Content that renders empty is left out, which makes an argument conditional. The Nokia SR OS profile passes its boot options through SMBIOS this way and adds a NIC only for some chassis:
+
+```yaml
+virtualMachine:
+  extras:
+    - onRun: true
+      val:
+        - content: -smbios
+        - content: >-
+            type=1,product=TIMOS:license-file=cf1:/license.txt
+            {{- with .mgmtIPv4 }} address={{ . }}@active{{ end }}
+            system-base-mac={{ .instanceMAC }} {{ .variant }}
+    - onPackage: true
+      onRun: true
+      val:
+        - content: '{{ if regexMatch "chassis=ixr-r6" .variant }}-nic{{ end }}'
+        - content: >-
+            {{ if regexMatch "chassis=ixr-r6" .variant }}tap,ifname=sfm,model=virtio-net-pci,script=no{{ end }}
+```
+
+QEMU separates options with commas, so a value that contains a comma must double it. A tap needs an `ifname` that differs from the `tapN` data NIC taps.
+
 ## Environment overrides
 
 `QEMU_MEMORY`, `QEMU_CPU`, `QEMU_SMP`, and `QEMU_NIC_TYPE` override values in their normal generators. `QEMU_SMP` requires the profile's `cpuCores` to be nonzero. A full `cpu` or `memory` profile override bypasses the corresponding generator and therefore its environment overrides.

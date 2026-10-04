@@ -54,6 +54,7 @@ Runtime entrypoint of a packaged image:
 | `--connection-mode` | Empty | Containerlab compatibility input, exposed as `.connectionMode` |
 | `--trace` | `false` | Accepted for Containerlab compatibility; ignored |
 | `--vcpu`, `--ram` | Empty | Passed by Containerlab 0.78 and earlier for some kinds; used as `QEMU_SMP` and `QEMU_MEMORY` when those are unset |
+| `--variant` | Profile default | [Hardware variant](../profiles/structure.md#hardware-variants) to run as: a variant name or `key=value` settings; Containerlab passes the node type for Nokia SR OS |
 | `--logLevel` | `debug` | Logging level |
 
 This command expects `/boxen/profile.yaml`, the prepared disk, and the container runtime tools. It does not accept a disk or profile flag. Passing credentials exposes them to templates; the selected profile must actually use them to configure an account. See [running a lab](../guides/running.md).

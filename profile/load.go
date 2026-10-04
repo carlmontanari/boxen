@@ -66,6 +66,7 @@ func (p *Profile) Validate() error {
 	}
 
 	errs = append(errs, p.VirtualMachine.validate()...)
+	errs = append(errs, p.Variants.validate()...)
 
 	if p.Packaging == nil {
 		errs = append(errs, fmt.Errorf("packaging %w", errRequired))
@@ -79,6 +80,7 @@ func (p *Profile) Validate() error {
 		errs = append(errs, validateSteps("run.process", p.Run.Process, false)...)
 		errs = append(errs, validateSteps("run.configProcess", p.Run.ConfigProcess, false)...)
 		errs = append(errs, validateSteps("run.saveProcess", p.Run.SaveProcess, true)...)
+		errs = append(errs, p.Run.UUIDFrom.validate()...)
 	}
 
 	if len(errs) == 0 {
@@ -184,6 +186,16 @@ func (s *StepPrompts) validate() error {
 		err = s.Prompts[idx].Prompt.validate(false)
 		if err != nil {
 			return fmt.Errorf("prompts.prompts[%d].prompt: %w", idx, err)
+		}
+
+		if s.Prompts[idx].Delay != "" {
+			err = validateDuration(
+				fmt.Sprintf("prompts.prompts[%d].delay", idx),
+				s.Prompts[idx].Delay,
+			)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
