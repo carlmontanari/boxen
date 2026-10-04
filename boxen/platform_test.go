@@ -65,7 +65,16 @@ func TestProfileCompanionsResolveBesideProfile(t *testing.T) {
 	profilePath := filepath.Join(dir, "router.yaml")
 	companionPath := filepath.Join(dir, "settings.star")
 	if err := os.WriteFile(profilePath,
-		[]byte("name: example\nextraFiles:\n  - settings.star\n"), 0o600); err != nil {
+		[]byte(`name: example
+extraFiles:
+  - settings.star
+virtualMachine:
+  memory: 1024
+  serialPortCount: 1
+  nicType: virtio-net-pci
+packaging: {}
+run: {}
+`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(companionPath, []byte("user-provided file"), 0o600); err != nil {

@@ -56,6 +56,12 @@ func TestPrepareBuildCustomCompanions(t *testing.T) {
 extraFiles:
   - nvidia_cumulusvx_breakout.star
   - nvidia_cumulusvx_breakout.sh.tmpl
+virtualMachine:
+  memory: 1024
+  serialPortCount: 1
+  nicType: virtio-net-pci
+packaging: {}
+run: {}
 `), 0o600); err != nil {
 		t.Fatal(err)
 	}

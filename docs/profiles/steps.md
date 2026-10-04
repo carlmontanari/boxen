@@ -9,7 +9,7 @@
 | `write` | Send inline content or a file line by line | No per-step timeout field |
 | `wait` | Pause for a fixed duration | `wait.duration` |
 
-Use Go duration strings such as `5s`, `2m`, and `20m`. Explicitly set duration fields for steps that use them.
+Use Go duration strings such as `5s`, `2m`, and `20m`. Duration fields are required; `boxen build` validates them along with step types, match conditions, and `readUntil` patterns.
 
 ## `prompts`: handle interactive dialogs
 

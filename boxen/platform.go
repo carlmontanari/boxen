@@ -12,7 +12,6 @@ import (
 	boxenerrors "github.com/carlmontanari/boxen/errors"
 	boxenprofile "github.com/carlmontanari/boxen/profile"
 	boxenutil "github.com/carlmontanari/boxen/util"
-	"go.yaml.in/yaml/v4"
 )
 
 func (b *Boxen) resolveProfile(
@@ -52,8 +51,6 @@ func (b *Boxen) resolveProfile(
 	}
 
 	for _, assetFile := range assetFiles {
-		p := &boxenprofile.Profile{}
-
 		extension := filepath.Ext(assetFile.Name())
 		if assetFile.IsDir() || (extension != ".yaml" && extension != ".yml") {
 			continue
@@ -72,9 +69,9 @@ func (b *Boxen) resolveProfile(
 			return nil, err
 		}
 
-		err = yaml.Unmarshal(contents, p)
+		p, err := boxenprofile.Load(contents)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("embedded profile %s: %w", assetFile.Name(), err)
 		}
 
 		if maybeAssetProfileName == profileNameOrFile {
@@ -115,8 +112,8 @@ func loadProfileFile(filename string) (*boxenprofile.Profile, error) {
 		return nil, err
 	}
 
-	p := &boxenprofile.Profile{}
-	if err := yaml.Unmarshal(contents, p); err != nil {
+	p, err := boxenprofile.Load(contents)
+	if err != nil {
 		return nil, err
 	}
 	profileDirectory, err := filepath.Abs(filepath.Dir(filename))

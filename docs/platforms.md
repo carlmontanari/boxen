@@ -24,7 +24,7 @@ All profiles in this checkout set `managementPassthrough: true`. Packaging still
 
 ## Cisco XRv 9000
 
-The `cisco_xrv9k` profile handles the root-system user dialog, enables baseline management services, and creates the extra internal control and device NICs alongside the management NIC. Inspect its CPU configuration for your host: historical `emulate` fields are not wired to the current generator; use `cpuEmulation` or a tested CPU override where needed. Consult Containerlab's [XRv 9000 kind](https://containerlab.dev/manual/kinds/vr-xrv9k/) for its interface names and runtime inputs.
+The `cisco_xrv9k` profile handles the root-system user dialog, enables baseline management services, and creates the extra internal control and device NICs alongside the management NIC. Its CPU model is `qemu64,+ssse3,+sse4.1,+sse4.2`; use `QEMU_CPU` or a tested override where needed. Consult Containerlab's [XRv 9000 kind](https://containerlab.dev/manual/kinds/vr-xrv9k/) for its interface names and runtime inputs.
 
 ## NVIDIA Cumulus VX
 

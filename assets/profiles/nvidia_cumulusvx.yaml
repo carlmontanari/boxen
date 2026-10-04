@@ -27,6 +27,7 @@ virtualMachine:
     def configure(vm):
         return {"nicCount": layout(vm["nicCount"])["nicCount"]}
 packaging:
+  sparsify: true
   process:
     - type: readUntil
       readUntil:
@@ -104,7 +105,6 @@ packaging:
     - type: wait
       wait:
         duration: 5s
-  shrinkify: true
 
 run:
   process:
