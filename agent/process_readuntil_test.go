@@ -86,6 +86,24 @@ func TestReadUntilTimeout(t *testing.T) {
 	}
 }
 
+func TestCaptureKeepsEndMarker(t *testing.T) {
+	a := NewAgent(slog.LevelError)
+
+	fakeConsoleOutput(a, "BEGIN\r\nconfig\r\nEND\r\nleaf1# ")
+
+	output, err := a.readCapture(t.Context(), &boxenprofile.StepCapture{
+		Start: boxenprofile.Contains{Contains: "BEGIN"},
+		End:   boxenprofile.Contains{Contains: "END"},
+	})
+	if err != nil || output != "config\n" {
+		t.Fatalf("got %q, %v", output, err)
+	}
+
+	if err := a.processStepReadUntil(t.Context(), readUntilStep("leaf1#")); err != nil {
+		t.Fatalf("the prompt after the capture was lost: %v", err)
+	}
+}
+
 func TestWaitForEchoIgnoresSurroundingWhitespace(t *testing.T) {
 	a := NewAgent(slog.LevelError)
 

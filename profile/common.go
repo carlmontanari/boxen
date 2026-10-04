@@ -79,6 +79,7 @@ const (
 	StepTypeReadUntil StepType = "readUntil"
 	StepTypeWrite     StepType = "write"
 	StepTypeWait      StepType = "wait"
+	StepTypeCapture   StepType = "capture"
 )
 
 // Step represents a step during a package/run process.
@@ -88,6 +89,7 @@ type Step struct {
 	ReadUntil StepReadUntil `yaml:"readUntil"`
 	Write     StepWrite     `yaml:"write"`
 	Wait      StepWait      `yaml:"wait"`
+	Capture   StepCapture   `yaml:"capture"`
 }
 
 // StepPrompts is a step that lets us handle some prompt(s) from a device.
@@ -144,4 +146,27 @@ type StepWrite struct {
 type StepWait struct {
 	// something ParseDuration will accept, i.e. 5s, 1m, etc.
 	Duration string `yaml:"duration"`
+}
+
+// CaptureDecodeBase64 decodes captured output as (line wrapped) base64.
+const CaptureDecodeBase64 = "base64"
+
+// StepCapture sends a command and records its output. It is used by `run.saveProcess`: `boxen save`
+// writes the output recorded by the save process to the node's startup config file.
+type StepCapture struct {
+	// something ParseDuration will accept, i.e. 5s, 1m, etc.
+	Timeout string `yaml:"timeout"`
+	// Command is rendered as a Go template, like write content, and sent as a single line.
+	Command string `yaml:"command"`
+	// if marked hidden we dont wait for the command to echo before sending return; the echo then
+	// is part of the output, so set Start to skip past it
+	Hidden bool `yaml:"hidden"`
+	// Start optionally marks the beginning of the output: recording begins on the line after the
+	// first match. Without it, recording begins right after the command.
+	Start Contains `yaml:"start"`
+	// End marks the end of the output: recording stops right before the first match, typically
+	// the next prompt or a marker the command prints after its output.
+	End Contains `yaml:"end"`
+	// Decode optionally decodes the recorded output, "base64" is supported.
+	Decode string `yaml:"decode"`
 }

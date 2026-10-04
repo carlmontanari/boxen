@@ -2,9 +2,7 @@ package agent
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"time"
@@ -39,6 +37,13 @@ func (a *Agent) Run(
 	}
 
 	a.f = boxenprofile.NewFormatters(username, password, hostname, connectionMode, a.p, false)
+
+	a.startupConfigFile, err = a.resolveStartupConfigFile()
+	if err != nil {
+		return err
+	}
+
+	a.f.SetStartupConfigFile(a.startupConfigFile)
 
 	defer func() {
 		if a.stdoutF == nil {
@@ -95,7 +100,7 @@ func (a *Agent) startRun(ctx context.Context, errs chan error) {
 	// this only runs during `run` (not packaging)
 	a.startTCService(ctx)
 
-	err = a.openConsoleConn(ctx, "run.console.log")
+	err = a.openConsoleConn(ctx, "run.console.log", false)
 	if err != nil {
 		errs <- err
 
@@ -318,12 +323,13 @@ func (a *Agent) runProcesses(ctx context.Context) error {
 func (a *Agent) runStartupConfig(ctx context.Context) error {
 	a.l.Info("handling startup config")
 
-	_, err := os.Stat(boxenconstants.StartupConfigFilePath)
-	if errors.Is(err, fs.ErrNotExist) {
+	if a.startupConfigFile == "" {
 		a.l.Debug("startup config file not present, nothing to do")
 
 		return nil
 	}
+
+	a.l.Info("applying startup config", "file", a.startupConfigFile)
 
 	return a.runSteps(ctx, "run configProcess", a.p.Run.ConfigProcess)
 }

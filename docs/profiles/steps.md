@@ -1,6 +1,6 @@
 # Process steps
 
-`packaging.process`, `run.process`, and `run.configProcess` all use the same four step types. They run sequentially against the guest's serial console. A failed step aborts its process.
+`packaging.process`, `run.process`, `run.configProcess`, and `run.saveProcess` use the same step types. They run sequentially against the guest's serial console. A failed step aborts its process.
 
 | Type | Purpose | Duration field |
 | --- | --- | --- |
@@ -8,8 +8,9 @@
 | `readUntil` | Wait for a literal string or pattern | `readUntil.timeout` |
 | `write` | Send inline content or a file line by line | No per-step timeout field |
 | `wait` | Pause for a fixed duration | `wait.duration` |
+| `capture` | Send a command and record its output; only in `run.saveProcess` | `capture.timeout` |
 
-Use Go duration strings such as `5s`, `2m`, and `20m`. Duration fields are required; `boxen build` validates them along with step types, match conditions, and `readUntil` patterns.
+Use Go duration strings such as `5s`, `2m`, and `20m`. Duration fields are required; `boxen build` validates them along with step types, match conditions, and `readUntil` and `capture` patterns.
 
 ## `prompts`: handle interactive dialogs
 
@@ -113,3 +114,31 @@ Use `content: "\n"` to send a blank line. An empty `content: ""` by itself is no
 ```
 
 Use a wait where the guest has no observable completion marker, such as a final disk flush. Prefer a prompt or success marker for boot and configuration transitions, since those can finish earlier or take longer on different hosts.
+
+## `capture`: record the running configuration
+
+`boxen save` runs `run.saveProcess` and writes the output recorded by its `capture` steps to the node's startup config file. A save process typically gets to a prompt, logging in if needed, and then captures the configuration:
+
+```yaml
+run:
+  saveProcess:
+    - type: capture
+      capture:
+        timeout: 2m
+        hidden: true
+        command: "printf 'BOXEN_%s\\n' BEGIN; show-config-command; printf 'BOXEN_%s\\n' END"
+        start:
+          contains: BOXEN_BEGIN
+        end:
+          contains: BOXEN_END
+```
+
+| Field | Behavior |
+| --- | --- |
+| `command` | Single line sent to the console, rendered as a Go template. |
+| `hidden` | Do not wait for the command to echo; the echo is then part of the output, so set `start`. |
+| `start` | Optional marker; recording begins on the line after its first match. |
+| `end` | Required marker; recording stops right before its first match, such as the next prompt. |
+| `decode` | Optional; `base64` decodes the recorded output, for content that must survive the console exactly. |
+
+Console line endings are normalized to `\n`. Markers printed with `printf` keep the literal marker text out of the echoed command. Without markers, leave `hidden` unset and set `end` to the prompt, so that recording begins right after the command. Disable paging before capturing.

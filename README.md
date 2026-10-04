@@ -119,8 +119,8 @@ datapath during image build.
 ## Write
 
 Write content uses Go template variables. Templates work in the following fields:
-`write.content`, `write.contentFromFile`, `write.contentFromStartupConfig`, and
-`prompts.response`.
+`write.content`, `write.contentFromFile`, `write.contentFromStartupConfig`, `prompts.response`,
+and `capture.command`.
 
 ```yaml
 run:
@@ -142,6 +142,7 @@ The following values are available:
 | `{{ .username }}`          | `admin`                     | Containerlab-provided username during run.         |
 | `{{ .password }}`          | `admin`                     | Containerlab-provided password during run.         |
 | `{{ .hostname }}`          | `leaf1`                     | Containerlab node hostname during run.             |
+| `{{ .startupConfigFile }}` | `/config/startup-config.cfg` | Startup config file during run, empty if none. |
 | `{{ .dataNICMACs }}` | `[aa:c1:ab:94:6d:16 ...]` | Data NIC MACs in NIC order during run. |
 | `{{ .mgmtDHCP }}`          | `false`                     | Whether management config should use DHCP.         |
 | `{{ .mgmtIPv4 }}`          | `172.20.20.10/24`           | IPv4 management address in CIDR notation.          |

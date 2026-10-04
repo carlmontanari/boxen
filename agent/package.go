@@ -133,7 +133,7 @@ func (a *Agent) startPackage(ctx context.Context, errs chan error) {
 		return
 	}
 
-	err = a.openConsoleConn(ctx, "package.console.log")
+	err = a.openConsoleConn(ctx, "package.console.log", false)
 	if err != nil {
 		errs <- err
 

@@ -7,10 +7,13 @@ import (
 	"net"
 	"strconv"
 	"sync"
+	"time"
 
 	boxenconstants "github.com/carlmontanari/boxen/constants"
 	boxenerrors "github.com/carlmontanari/boxen/errors"
 )
+
+const consoleWakeDelay = 500 * time.Millisecond
 
 // consoleAddress is the VM serial console listener.
 var consoleAddress = net.JoinHostPort("127.0.0.1", strconv.Itoa(boxenconstants.ConsolePort))
@@ -27,8 +30,10 @@ type consoleRelay struct {
 }
 
 // startConsoleRelay starts relaying the first client of the returned relay's port to the console
-// at target. Telnet negotiation passes through unchanged.
-func startConsoleRelay(ctx context.Context, target string) (*consoleRelay, error) {
+// at target. With wake set, the relay sends a return to the guest once connected: opening a
+// console session only completes once the guest printed something, and an idle guest prints
+// nothing until it receives input. Telnet negotiation passes through unchanged.
+func startConsoleRelay(ctx context.Context, target string, wake bool) (*consoleRelay, error) {
 	var lc net.ListenConfig
 
 	lis, err := lc.Listen(ctx, "tcp", "127.0.0.1:0")
@@ -48,7 +53,7 @@ func startConsoleRelay(ctx context.Context, target string) (*consoleRelay, error
 		closer: []io.Closer{lis},
 	}
 
-	go r.serve(ctx, lis, target)
+	go r.serve(ctx, lis, target, wake)
 
 	return r, nil
 }
@@ -69,7 +74,7 @@ func (r *consoleRelay) Close() {
 	}
 }
 
-func (r *consoleRelay) serve(ctx context.Context, lis net.Listener, target string) {
+func (r *consoleRelay) serve(ctx context.Context, lis net.Listener, target string, wake bool) {
 	client, err := lis.Accept()
 
 	_ = lis.Close()
@@ -92,6 +97,14 @@ func (r *consoleRelay) serve(ctx context.Context, lis net.Listener, target strin
 
 		r.Close()
 	}()
+
+	if wake {
+		// give the telnet negotiation a head start before waking the guest
+		timer := time.AfterFunc(consoleWakeDelay, func() {
+			_, _ = console.Write([]byte("\r"))
+		})
+		defer timer.Stop()
+	}
 
 	_, _ = io.Copy(client, console)
 

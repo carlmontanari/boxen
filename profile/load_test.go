@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	boxenassets "github.com/carlmontanari/boxen/assets"
+	boxenconstants "github.com/carlmontanari/boxen/constants"
 )
 
 const minimalProfile = `name: test
@@ -50,9 +51,16 @@ func TestEmbeddedProfilesLoad(t *testing.T) {
 }
 
 func TestLoadMinimalProfile(t *testing.T) {
-	_, err := Load([]byte(minimalProfile))
+	p, err := Load([]byte(minimalProfile))
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if !slices.Equal(
+		p.Run.GetStartupConfigFiles(),
+		[]string{boxenconstants.StartupConfigFilePath},
+	) {
+		t.Fatalf("unexpected default startup config files %v", p.Run.GetStartupConfigFiles())
 	}
 }
 
@@ -124,6 +132,33 @@ func TestValidateReportsProblems(t *testing.T) {
 			},
 			want: "packaging.process[0]: readUntil.until",
 		},
+		{
+			name: "capture outside save",
+			mutate: func(p *Profile) {
+				p.Run.Process = []Step{{Type: StepTypeCapture, Capture: validCapture()}}
+			},
+			want: "run.process[0]: capture steps are only supported in run.saveProcess",
+		},
+		{
+			name: "capture without end",
+			mutate: func(p *Profile) {
+				c := validCapture()
+				c.End = Contains{}
+
+				p.Run.SaveProcess = []Step{{Type: StepTypeCapture, Capture: c}}
+			},
+			want: "run.saveProcess[0]: capture.end",
+		},
+		{
+			name: "capture with unknown decode",
+			mutate: func(p *Profile) {
+				c := validCapture()
+				c.Decode = "hex"
+
+				p.Run.SaveProcess = []Step{{Type: StepTypeCapture, Capture: c}}
+			},
+			want: "capture.decode",
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			p, err := Load([]byte(minimalProfile))
@@ -138,6 +173,27 @@ func TestValidateReportsProblems(t *testing.T) {
 				t.Fatalf("expected error containing %q, got %v", test.want, err)
 			}
 		})
+	}
+}
+
+func TestValidateAcceptsCaptureInSaveProcess(t *testing.T) {
+	p, err := Load([]byte(minimalProfile))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p.Run.SaveProcess = []Step{{Type: StepTypeCapture, Capture: validCapture()}}
+
+	if err := p.Validate(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func validCapture() StepCapture {
+	return StepCapture{
+		Timeout: "1m",
+		Command: "show running-config",
+		End:     Contains{ContainsPattern: `(?m)^\S+#$`},
 	}
 }
 

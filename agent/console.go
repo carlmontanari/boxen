@@ -25,7 +25,10 @@ const (
 	consoleOpenRetryDelay = 3 * time.Second
 )
 
-func (a *Agent) openConsoleConn(ctx context.Context, logFilename string) error {
+// openConsoleConn opens the console session used by profile steps. With wake set, the guest is sent
+// a return so that an idle console prints its prompt; leave it unset while the guest boots, where a
+// stray return could answer a boot dialog.
+func (a *Agent) openConsoleConn(ctx context.Context, logFilename string, wake bool) error {
 	a.l.Info("opening console connection...")
 
 	returnChar := "\r\n"
@@ -38,7 +41,7 @@ func (a *Agent) openConsoleConn(ctx context.Context, logFilename string) error {
 
 	go func() {
 		for attempt := 1; attempt <= consoleOpenAttempts; attempt++ {
-			relay, err := startConsoleRelay(ctx, consoleAddress)
+			relay, err := startConsoleRelay(ctx, consoleAddress, wake)
 			if err != nil {
 				errs <- err
 

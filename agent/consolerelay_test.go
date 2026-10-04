@@ -66,10 +66,47 @@ func readString(t *testing.T, c net.Conn) string {
 	return string(buf[:n])
 }
 
+func TestConsoleRelayWake(t *testing.T) {
+	target, conns := fakeConsole(t)
+
+	r, err := startConsoleRelay(t.Context(), target, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer r.Close()
+
+	client := dialRelay(t, r)
+	console := <-conns
+
+	_ = console.SetDeadline(time.Now().Add(5 * time.Second))
+
+	// the relay sends a return to the idle guest
+	if got := readString(t, console); got != "\r" {
+		t.Fatalf("expected a wake up return, got %q", got)
+	}
+
+	if _, err := console.Write([]byte("leaf1 login: ")); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := readString(t, client); got != "leaf1 login: " {
+		t.Fatalf("expected the guest prompt through the relay, got %q", got)
+	}
+
+	if _, err := client.Write([]byte("admin\r")); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := readString(t, console); got != "admin\r" {
+		t.Fatalf("expected client input to reach the console, got %q", got)
+	}
+}
+
 func TestConsoleRelayCloseFreesConsole(t *testing.T) {
 	target, conns := fakeConsole(t)
 
-	r, err := startConsoleRelay(t.Context(), target)
+	r, err := startConsoleRelay(t.Context(), target, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,7 +120,7 @@ func TestConsoleRelayCloseFreesConsole(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// nothing but client input reaches the console
+	// without wake nothing but client input reaches the console
 	if got := readString(t, console); got != "x" {
 		t.Fatalf("expected only client input, got %q", got)
 	}

@@ -40,6 +40,8 @@ type Formatters struct {
 	p              *Profile
 	isPackaging    bool
 
+	startupConfigFile string
+
 	management *managementFormatters
 }
 
@@ -139,6 +141,11 @@ func NewFormatters(
 		p:              p,
 		isPackaging:    isPackaging,
 	}
+}
+
+// SetStartupConfigFile sets the startup config path exposed as {{ .startupConfigFile }}.
+func (f *Formatters) SetStartupConfigFile(path string) {
+	f.startupConfigFile = path
 }
 
 // RenderTemplate renders write content with named Go template values.
@@ -241,7 +248,8 @@ func (f *Formatters) TemplateData() (map[string]any, error) {
 		"hostname":       f.hostname,
 		"connectionMode": f.connectionMode,
 
-		"dataNICMACs": f.dataNICMACs(),
+		"startupConfigFile": f.startupConfigFile,
+		"dataNICMACs":       f.dataNICMACs(),
 	}
 
 	management, err := f.getManagementFormatters()

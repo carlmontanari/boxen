@@ -124,3 +124,7 @@ docker exec clab-<lab>-<node> tc filter show dev tap1 ingress
 ```
 
 Verify the guest interface is enabled and configured too. The TC service can attach interfaces that appear later, but it cannot correct an incorrect platform port mapping.
+
+## Save fails
+
+`boxen save` needs a profile with `run.saveProcess`, a node that finished provisioning, and the serial console. If it reports that the console could not be opened, close manual console sessions, such as a `telnet localhost 5001` started with `docker exec`, and retry: QEMU serves one console client at a time. Inspect `/boxen/save.console.log` in the node for the save session transcript.
