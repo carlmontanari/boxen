@@ -97,7 +97,7 @@ packaging:
     - type: wait
       wait:
         duration: 5s
-  shrinkify: false
+  sparsify: false
 
 run:
   process:

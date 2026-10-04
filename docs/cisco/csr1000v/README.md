@@ -25,4 +25,4 @@ The result is `boxen-cisco_csr1000v:17.3.1`. Use your actual disk filename and r
 
 Use Containerlab's [CSR 1000v kind](https://containerlab.dev/manual/kinds/vr-csr/) and the packaged image. The profile handles runtime console login, per-node configuration, and optional startup-config commands. Consult the kind documentation for interface aliases and credentials supplied by Containerlab.
 
-The accepted disk-sparsification key is `packaging.shrinkify`; the historical `sparsify` spelling in this profile does not enable it. See [profile structure](../../profiles/structure.md).
+The disk-sparsification key is `packaging.sparsify`; this profile leaves it disabled. See [profile structure](../../profiles/structure.md).

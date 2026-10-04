@@ -27,7 +27,7 @@ virtualMachine:
 prePackagingCommands: []
 packaging:
   stdErrIgnore: []
-  shrinkify: false
+  sparsify: false
   process:
     - type: readUntil
       readUntil:
@@ -85,7 +85,7 @@ Shell hooks operate in the container, while console steps operate in the guest. 
 
 ## Packaging options
 
-`packaging.shrinkify` enables disk sparsification after the VM stops. `packaging.stdErrIgnore` is a list of substrings that permit known QEMU startup messages on stderr. This ignore list is also consulted during runtime startup. Keep entries specific; an ignored message should be understood first.
+`packaging.sparsify` enables disk sparsification after the VM stops. `packaging.stdErrIgnore` is a list of substrings that permit known QEMU startup messages on stderr. This ignore list is also consulted during runtime startup. Keep entries specific; an ignored message should be understood first.
 
 ## YAML reuse
 
