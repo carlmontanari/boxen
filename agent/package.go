@@ -11,6 +11,7 @@ import (
 	boxenconstants "github.com/carlmontanari/boxen/constants"
 	boxenprofile "github.com/carlmontanari/boxen/profile"
 	boxenprotov1 "github.com/carlmontanari/boxen/proto/v1"
+	"github.com/google/uuid"
 	"go.yaml.in/yaml/v4"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -78,11 +79,13 @@ func (a *Agent) Package(ctx context.Context, host string) error {
 		return err
 	}
 
-	// packaging runs as the default variant
+	// packaging runs as the default variant, with a throwaway instance identity
 	err = a.applyVariant("")
 	if err != nil {
 		return err
 	}
+
+	a.p.InstanceMAC = boxenprofile.InstanceMAC(uuid.NewString())
 
 	a.f = boxenprofile.NewFormatters("", "", "", "", a.p, true)
 

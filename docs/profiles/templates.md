@@ -1,6 +1,6 @@
 # Template values
 
-Boxen renders Go templates in `write.content` and in content loaded by `write.contentFromFile` or `write.contentFromStartupConfig`. Use named values with a leading dot, such as `{{ .hostname }}`. An unknown or unavailable key causes template rendering to fail.
+Boxen renders Go templates in `write.content` and in content loaded by `write.contentFromFile` or `write.contentFromStartupConfig`, in prompt responses and capture commands, and in the content of QEMU overrides and extras. Use named values with a leading dot, such as `{{ .hostname }}`. An unknown or unavailable key causes template rendering to fail.
 
 ## Disk and node values
 
@@ -15,6 +15,7 @@ Boxen renders Go templates in `write.content` and in content loaded by `write.co
 | `.connectionMode` | Value passed by Containerlab | Runtime flag; empty during packaging |
 | `.startupConfigFile` | `/config/startup-config.cfg` | Runtime path of the node's startup config file; empty when there is none |
 | `.dataNICMACs` | `[aa:c1:ab:94:6d:16 52:54:00:3f:1a:02]` | MAC of each data NIC in NIC order: the container interface MAC when it exists at boot, otherwise a generated one; empty during packaging |
+| `.instanceMAC` | `02:0f:6a:86:71:00` | A locally administered MAC unique to the container and stable across its restarts, with a zero last octet, for example as a chassis base MAC; random during packaging |
 | `.variant` | `slot=A chassis=sr-1 card=cpm-1` | Settings of the [hardware variant](structure.md#hardware-variants) that do not size the VM; empty without variants |
 | `.variantName` | `sr-1` | Name of the variant definition; empty for a custom variant |
 | `.variantValues` | `.variantValues.config` | Values of the variant definition; keys the variant does not set are empty |
@@ -73,7 +74,7 @@ The exact commands depend on the OS. Use the [management guide](../guides/manage
 
 ## Where rendering happens
 
-Templates expand in the text that a `write` step sends, in `prompts.response`, and in `capture.command`. They do not expand in `readUntil` or prompt matchers, shell hooks, the `contentFromFile` pathname, or QEMU argument overrides. Text without `{{` is sent unchanged.
+Templates expand in the text that a `write` step sends, in `prompts.response`, in `capture.command`, and in the content of `virtualMachine.overrides` and `virtualMachine.extras`, where content that renders empty is left out. They do not expand in `readUntil` or prompt matchers, shell hooks, or the `contentFromFile` pathname. Text without `{{` is sent unchanged.
 
 Go template syntax is not shell syntax. Use `{{ if ... }}` and `{{ end }}` to guard optional values; avoid accessing a missing management key before the DHCP branch.
 
@@ -87,6 +88,15 @@ content: |
   interface Ethernet1/{{ add $idx 1 }}
   mac-address {{ ciscoMAC $mac }}
   {{ end }}
+```
+
+`regexMatch` reports whether a Go regular expression matches a string, for example to configure a setting only for some chassis of a variant:
+
+```yaml
+content: |
+  {{- if not (regexMatch "(?i)(^| )chassis=ixr-" .variant) }}
+  configure system grpc rib-api admin-state enable
+  {{- end }}
 ```
 
 ## Shell arguments and file transfer

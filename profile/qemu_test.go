@@ -20,7 +20,7 @@ func TestQemuSerialBootLogs(t *testing.T) {
 		{packaging: true, filename: boxenconstants.PackageBootLogFilename},
 		{packaging: false, filename: boxenconstants.RunBootLogFilename},
 	} {
-		args, err := QemuArgsFromProfile(p, test.packaging)
+		args, err := QemuArgsFromProfile(p, test.packaging, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -53,7 +53,7 @@ func TestQemuDiskInterface(t *testing.T) {
 				t.Fatal(err)
 			}
 			for _, packaging := range []bool{true, false} {
-				args, err := QemuArgsFromProfile(p, packaging)
+				args, err := QemuArgsFromProfile(p, packaging, nil)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -225,7 +225,7 @@ func TestQemuArgsOverridesAndExtras(t *testing.T) {
 		},
 	}
 
-	runArgs, err := QemuArgsFromProfile(p, false)
+	runArgs, err := QemuArgsFromProfile(p, false, nil)
 	if err != nil {
 		t.Fatalf("building run qemu args failed: %v", err)
 	}
@@ -252,7 +252,7 @@ func TestQemuArgsOverridesAndExtras(t *testing.T) {
 		t.Fatalf("onPackage-only extra should be absent in run args, got %v", runArgs)
 	}
 
-	packageArgs, err := QemuArgsFromProfile(p, true)
+	packageArgs, err := QemuArgsFromProfile(p, true, nil)
 	if err != nil {
 		t.Fatalf("building packaging qemu args failed: %v", err)
 	}
@@ -292,7 +292,7 @@ func TestQemuInstanceUUID(t *testing.T) {
 	p := testQemuProfile(false)
 	p.InstanceUUID = "123e4567-e89b-12d3-a456-426614174000"
 
-	runArgs, err := QemuArgsFromProfile(p, false)
+	runArgs, err := QemuArgsFromProfile(p, false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -301,7 +301,7 @@ func TestQemuInstanceUUID(t *testing.T) {
 		t.Fatalf("expected run uuid %q, got %v", p.InstanceUUID, runArgs[:4])
 	}
 
-	packageArgs, err := QemuArgsFromProfile(p, true)
+	packageArgs, err := QemuArgsFromProfile(p, true, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -331,7 +331,7 @@ func TestQemuNicTypeEnv(t *testing.T) {
 func TestQemuAdditionalArgsWhitespace(t *testing.T) {
 	t.Setenv(boxenconstants.EnvClabQemuAdditionalArgs, "  -machine  pc\t-no-reboot ")
 
-	args, err := QemuArgsFromProfile(testQemuProfile(false), false)
+	args, err := QemuArgsFromProfile(testQemuProfile(false), false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -385,7 +385,10 @@ func TestEmbeddedProfilesTapNames(t *testing.T) {
 		}
 
 		for _, packaging := range []bool{true, false} {
-			args, err := QemuArgsFromProfile(p, packaging)
+			f := NewFormatters("", "", "node1", "", p, packaging)
+			f.management = defaultManagementFormatters()
+
+			args, err := QemuArgsFromProfile(p, packaging, f)
 			if err != nil {
 				t.Fatal(err)
 			}

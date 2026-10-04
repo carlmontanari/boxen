@@ -48,7 +48,7 @@ the automation console. `/boxen/package.boot.log` retains the sequence from imag
 2. Write `1 booting` to `/health`.
 3. Wait for interfaces when `CLAB_INTFS` specifies a count, for at most `BOXEN_INTF_WAIT_TIMEOUT`, then honor `BOOT_DELAY` in seconds.
 4. Execute `preRunCommands` in the container shell.
-5. Create the disk overlay and resolve the VM UUID, reusing both on a restart of the same container.
+5. Create the disk overlay and resolve the instance identity, VM UUID, and instance MAC, reusing them on a restart of the same container.
 6. Launch QEMU with the overlay and runtime hardware settings.
 7. Start the TC service that joins container interfaces to guest TAPs.
 8. Open the serial console and execute `run.process`.

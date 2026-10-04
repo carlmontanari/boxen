@@ -49,106 +49,11 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 
 	cbs := make([]*scrapligocli.ReadCallback, len(step.Prompts.Prompts))
 
-	for idx, p := range step.Prompts.Prompts {
-		cbName := promptCallbackName(idx, p.Name)
-
-		response, err := a.f.RenderTemplate(p.Response)
+	for idx := range step.Prompts.Prompts {
+		cbs[idx], err = a.promptCallback(idx, &step.Prompts.Prompts[idx])
 		if err != nil {
-			return fmt.Errorf("rendering response of %s: %w", cbName, err)
+			return err
 		}
-
-		a.l.Debug(
-			"building prompts callback",
-			"callback name",
-			cbName,
-			"prompt",
-			p.Prompt,
-			"response",
-			response,
-			"completes",
-			p.Completes,
-		)
-
-		var opts []scrapligocli.Option
-
-		if p.Prompt.Contains != "" {
-			opts = append(
-				opts,
-				scrapligocli.WithContains(p.Prompt.Contains),
-			)
-		}
-
-		if p.Prompt.ContainsPattern != "" {
-			opts = append(
-				opts,
-				scrapligocli.WithContainsPattern(p.Prompt.ContainsPattern),
-			)
-		}
-
-		if p.Prompt.NotContains != "" {
-			opts = append(
-				opts,
-				scrapligocli.WithNotContains(p.Prompt.NotContains),
-			)
-		}
-
-		if p.Once {
-			opts = append(
-				opts,
-				scrapligocli.WithOnce(),
-			)
-		}
-
-		if p.Completes {
-			opts = append(
-				opts,
-				scrapligocli.WithCompletes(),
-			)
-		}
-
-		cbs[idx] = scrapligocli.NewReadCallback(
-			cbName,
-			func(ctx context.Context, c *scrapligocli.Cli, searchBuf, _ string) error {
-				a.l.Info("callback triggered", "callback name", cbName)
-
-				a.l.Debug(
-					"writing response",
-					"contains",
-					p.Prompt.Contains,
-					"containsPattern",
-					p.Prompt.ContainsPattern,
-					"notContains",
-					p.Prompt.NotContains,
-					"response",
-					response,
-					"hidden",
-					p.Hidden,
-					"reading until response",
-					response,
-					"searchBuf",
-					searchBuf,
-				)
-
-				defer a.l.Info("callback completed", "callback name", cbName)
-
-				err := c.Write(response)
-				if err != nil {
-					return err
-				}
-
-				if p.Hidden {
-					return c.WriteReturn()
-				}
-
-				err = a.waitForEcho(ctx, response)
-				if err != nil {
-					return err
-				}
-
-				return c.WriteReturn()
-			},
-			opts...,
-		)
 	}
 
 	taskCtx, cancel := context.WithTimeout(ctx, t)
@@ -156,10 +61,142 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 
 	_, err = a.conn.ReadWithCallbacks(taskCtx, step.Prompts.InitialInput, cbs...)
 	if err != nil {
+		if step.Prompts.ContinueOnTimeout && ctx.Err() == nil && taskCtx.Err() != nil {
+			a.l.Warn(
+				"prompts not completed within the timeout, continuing",
+				"timeout", step.Prompts.Timeout,
+			)
+
+			return nil
+		}
+
 		return err
 	}
 
 	return nil
+}
+
+// promptCallback builds the read callback that answers a prompt of a prompts step.
+func (a *Agent) promptCallback(
+	idx int,
+	p *boxenprofile.Prompt,
+) (*scrapligocli.ReadCallback, error) {
+	cbName := promptCallbackName(idx, p.Name)
+
+	response, err := a.f.RenderTemplate(p.Response)
+	if err != nil {
+		return nil, fmt.Errorf("rendering response of %s: %w", cbName, err)
+	}
+
+	var delay time.Duration
+
+	if p.Delay != "" {
+		delay, err = time.ParseDuration(p.Delay)
+		if err != nil {
+			return nil, fmt.Errorf("parsing delay of %s: %w", cbName, err)
+		}
+	}
+
+	a.l.Debug(
+		"building prompts callback",
+		"callback name",
+		cbName,
+		"prompt",
+		p.Prompt,
+		"response",
+		response,
+		"completes",
+		p.Completes,
+	)
+
+	var opts []scrapligocli.Option
+
+	if p.Prompt.Contains != "" {
+		opts = append(
+			opts,
+			scrapligocli.WithContains(p.Prompt.Contains),
+		)
+	}
+
+	if p.Prompt.ContainsPattern != "" {
+		opts = append(
+			opts,
+			scrapligocli.WithContainsPattern(p.Prompt.ContainsPattern),
+		)
+	}
+
+	if p.Prompt.NotContains != "" {
+		opts = append(
+			opts,
+			scrapligocli.WithNotContains(p.Prompt.NotContains),
+		)
+	}
+
+	if p.Once {
+		opts = append(
+			opts,
+			scrapligocli.WithOnce(),
+		)
+	}
+
+	if p.Completes {
+		opts = append(
+			opts,
+			scrapligocli.WithCompletes(),
+		)
+	}
+
+	return scrapligocli.NewReadCallback(
+		cbName,
+		func(ctx context.Context, c *scrapligocli.Cli, searchBuf, _ string) error {
+			a.l.Info("callback triggered", "callback name", cbName)
+
+			a.l.Debug(
+				"writing response",
+				"contains",
+				p.Prompt.Contains,
+				"containsPattern",
+				p.Prompt.ContainsPattern,
+				"notContains",
+				p.Prompt.NotContains,
+				"response",
+				response,
+				"hidden",
+				p.Hidden,
+				"reading until response",
+				response,
+				"searchBuf",
+				searchBuf,
+			)
+
+			defer a.l.Info("callback completed", "callback name", cbName)
+
+			if delay > 0 {
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-time.After(delay):
+				}
+			}
+
+			err := c.Write(response)
+			if err != nil {
+				return err
+			}
+
+			if p.Hidden {
+				return c.WriteReturn()
+			}
+
+			err = a.waitForEcho(ctx, response)
+			if err != nil {
+				return err
+			}
+
+			return c.WriteReturn()
+		},
+		opts...,
+	), nil
 }
 
 func (a *Agent) processStepReadUntil(ctx context.Context, step *boxenprofile.Step) error {

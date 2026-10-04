@@ -102,7 +102,7 @@ A selection that names no definition is a custom variant whose settings are the 
 | `run.configProcess` | After `run.process`, if a startup config file exists | Guest serial console |
 | `run.saveProcess` | When `boxen save` runs in the running node | Guest serial console |
 
-Shell hooks operate in the container, while console steps operate in the guest. Go template expansion is implemented for `write` content, including content read from files. Hooks, prompt responses, and QEMU argument strings are not passed through that renderer.
+Shell hooks operate in the container, while console steps operate in the guest. Go templates render `write` content, including content read from files, prompt responses, capture commands, and the content of QEMU overrides and extras. Hooks are not rendered.
 
 ## Startup and saved configuration
 
@@ -116,6 +116,19 @@ run:
   saveProcess:
     # get to a prompt, then capture the configuration
 ```
+
+### VM UUID from a file
+
+`run.uuidFrom` sets the VM system UUID from a file, for guests whose license is bound to the UUID it was issued for. The first capture group of `pattern` in the content of `file` is the UUID:
+
+```yaml
+run:
+  uuidFrom:
+    file: /tftpboot/license.txt
+    pattern: '(?m)^([0-9A-Fa-f]{8}(?:-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12})\s'
+```
+
+When the file does not exist or the pattern does not match, the VM keeps the instance UUID, which Boxen generates on the first start of a container and keeps across its restarts. The `UUID` environment variable wins over both. A match that is not a valid UUID fails the start.
 
 ## Packaging options
 

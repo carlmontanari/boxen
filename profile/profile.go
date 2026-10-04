@@ -48,4 +48,8 @@ type Profile struct {
 	// InstanceUUID is set by the agent at runtime so the VM keeps its system UUID across restarts
 	// of the same container; packaging uses a random UUID.
 	InstanceUUID string `yaml:"-"`
+
+	// InstanceMAC is a MAC address unique to the container and stable across its restarts,
+	// exposed to templates as {{ .instanceMAC }}.
+	InstanceMAC string `yaml:"-"`
 }

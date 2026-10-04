@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -38,10 +39,12 @@ const (
 	accelerationKVM = "kvm"
 )
 
-// QemuArgsFromProfile builds the qemu launch args from the given profile/disk.
+// QemuArgsFromProfile builds the qemu launch args from the given profile/disk. The content of
+// overrides and extras is rendered as Go templates with the given formatters, when not nil.
 func QemuArgsFromProfile(
 	p *Profile,
 	isPackaging bool,
+	f *Formatters,
 ) ([]string, error) {
 	instanceUUID := p.InstanceUUID
 	if isPackaging || instanceUUID == "" {
@@ -87,7 +90,12 @@ func QemuArgsFromProfile(
 		kOverrides, ok := p.VirtualMachine.Overrides[k]
 		if ok {
 			for _, o := range kOverrides {
-				out = o.Apply(isPackaging, out)
+				var err error
+
+				out, err = o.Apply(isPackaging, out, f)
+				if err != nil {
+					return nil, fmt.Errorf("rendering %s override: %w", k, err)
+				}
 			}
 
 			continue
@@ -116,7 +124,12 @@ func QemuArgsFromProfile(
 	}
 
 	for _, e := range p.VirtualMachine.Extras {
-		out = e.Apply(isPackaging, out)
+		var err error
+
+		out, err = e.Apply(isPackaging, out, f)
+		if err != nil {
+			return nil, fmt.Errorf("rendering extras: %w", err)
+		}
 	}
 
 	if !isPackaging {
@@ -436,6 +449,15 @@ func buildDataNic(
 			nicID,
 		),
 	}
+}
+
+// InstanceMAC returns a locally administered unicast MAC address derived from the given instance
+// id. Its last octet is zero, so a guest can derive further addresses from it, for example as the
+// base of its chassis MAC pool.
+func InstanceMAC(instanceID string) string {
+	sum := sha256.Sum256([]byte(instanceID))
+
+	return fmt.Sprintf("02:%02x:%02x:%02x:%02x:00", sum[0], sum[1], sum[2], sum[3])
 }
 
 func generateMac(lastOctet int) string {

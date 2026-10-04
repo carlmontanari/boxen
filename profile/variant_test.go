@@ -2,6 +2,8 @@ package profile
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -181,5 +183,72 @@ func TestValidateVariants(t *testing.T) {
 
 	if errs := testVariants().validate(); len(errs) != 0 {
 		t.Errorf("valid variants reported %v", errs)
+	}
+}
+
+func TestFileMatch(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "license.txt")
+
+	const uuid = "00000000-1111-2222-3333-444444444444"
+
+	m := &FileMatch{File: path, Pattern: `(?m)^([0-9a-f-]{36})\s`}
+
+	value, ok, err := m.Match()
+	if err != nil || ok {
+		t.Fatalf("a missing file must not match: %q %v %v", value, ok, err)
+	}
+
+	content := "# comment " + strings.Repeat("f", 36) + "\n#\n" + uuid + " blob\n"
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	value, ok, err = m.Match()
+	if err != nil || !ok || value != uuid {
+		t.Fatalf("got %q %v %v", value, ok, err)
+	}
+
+	m.Pattern = `(?m)^(nothing)$`
+
+	if _, ok, err = m.Match(); err != nil || ok {
+		t.Fatalf("a pattern without a match must not match: %v %v", ok, err)
+	}
+}
+
+func TestValidateFileMatch(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		match FileMatch
+		want  string
+	}{
+		{"file", FileMatch{Pattern: "(x)"}, "run.uuidFrom.file is required"},
+		{"pattern", FileMatch{File: "f"}, "run.uuidFrom.pattern is required"},
+		{"invalid pattern", FileMatch{File: "f", Pattern: "("}, "run.uuidFrom.pattern: error"},
+		{"no capture group", FileMatch{File: "f", Pattern: "x"}, "needs a capture group"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			err := errors.Join(test.match.validate()...)
+			if err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("expected %q, got %v", test.want, err)
+			}
+		})
+	}
+}
+
+func TestInstanceMAC(t *testing.T) {
+	first := InstanceMAC("6f1c2b1e-0d1a-4f43-9a3c-0b8f5c1e7a10")
+
+	if first != InstanceMAC("6f1c2b1e-0d1a-4f43-9a3c-0b8f5c1e7a10") {
+		t.Fatal("the instance mac must be stable for an instance id")
+	}
+
+	if first == InstanceMAC("1b2c3d4e-0d1a-4f43-9a3c-0b8f5c1e7a10") {
+		t.Fatal("different instance ids must give different macs")
+	}
+
+	// locally administered unicast, with a zero last octet
+	if !strings.HasPrefix(first, "02:") || !strings.HasSuffix(first, ":00") || len(first) != 17 {
+		t.Fatalf("unexpected instance mac %q", first)
 	}
 }

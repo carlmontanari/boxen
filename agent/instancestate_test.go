@@ -113,6 +113,16 @@ func TestRunResolveInstanceUUID(t *testing.T) {
 		if a.p.InstanceUUID != "123e4567-e89b-12d3-a456-426614174000" {
 			t.Fatalf("expected env uuid, got %q", a.p.InstanceUUID)
 		}
+
+		// the instance identity is still the container's own
+		b, err := os.ReadFile(boxenconstants.InstanceUUIDFilename)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if a.p.InstanceMAC != boxenprofile.InstanceMAC(strings.TrimSpace(string(b))) {
+			t.Fatalf("instance mac %q is not derived from the instance id", a.p.InstanceMAC)
+		}
 	})
 
 	t.Run("invalid environment", func(t *testing.T) {
@@ -167,6 +177,102 @@ func TestRunResolveInstanceUUID(t *testing.T) {
 		b, _ := os.ReadFile(boxenconstants.InstanceUUIDFilename)
 		if strings.TrimSpace(string(b)) != a.p.InstanceUUID {
 			t.Fatalf("expected the new uuid to be stored, got %q", b)
+		}
+	})
+}
+
+// TestRunResolveInstanceUUIDFile checks the vm uuid read from a file, as for licenses bound to the
+// system uuid.
+func TestRunResolveInstanceUUIDFile(t *testing.T) {
+	const envUUID = "123E4567-E89B-12D3-A456-426614174000"
+
+	t.Run("uuid file", func(t *testing.T) {
+		t.Chdir(t.TempDir())
+		t.Setenv(boxenconstants.EnvClabUUID, "")
+
+		const licenseUUID = "00000000-0000-0000-0000-000000000000"
+
+		if err := os.WriteFile(
+			"license.txt",
+			[]byte("# comment\n"+licenseUUID+" record\n"),
+			0o600,
+		); err != nil {
+			t.Fatal(err)
+		}
+
+		newAgent := func() *Agent {
+			a := NewAgent(slog.LevelError)
+			a.p.Run = &boxenprofile.Run{UUIDFrom: &boxenprofile.FileMatch{
+				File:    "license.txt",
+				Pattern: `(?m)^([0-9a-f-]{36})\s`,
+			}}
+
+			return a
+		}
+
+		first := newAgent()
+		if err := first.runResolveInstanceUUID(); err != nil {
+			t.Fatal(err)
+		}
+
+		if first.p.InstanceUUID != licenseUUID {
+			t.Fatalf("expected the uuid from the file, got %q", first.p.InstanceUUID)
+		}
+
+		// nodes sharing a license still get distinct instance macs
+		if err := os.Remove(boxenconstants.InstanceUUIDFilename); err != nil {
+			t.Fatal(err)
+		}
+
+		second := newAgent()
+		if err := second.runResolveInstanceUUID(); err != nil {
+			t.Fatal(err)
+		}
+
+		if second.p.InstanceUUID != licenseUUID || second.p.InstanceMAC == first.p.InstanceMAC {
+			t.Fatalf("expected a shared uuid and distinct macs, got %q %q %q",
+				second.p.InstanceUUID, first.p.InstanceMAC, second.p.InstanceMAC)
+		}
+
+		// the environment wins over the file
+		t.Setenv(boxenconstants.EnvClabUUID, envUUID)
+
+		third := newAgent()
+		if err := third.runResolveInstanceUUID(); err != nil {
+			t.Fatal(err)
+		}
+
+		if !strings.EqualFold(third.p.InstanceUUID, envUUID) {
+			t.Fatalf("expected the env uuid, got %q", third.p.InstanceUUID)
+		}
+	})
+
+	t.Run("uuid file missing or invalid", func(t *testing.T) {
+		t.Chdir(t.TempDir())
+		t.Setenv(boxenconstants.EnvClabUUID, "")
+
+		a := NewAgent(slog.LevelError)
+		a.p.Run = &boxenprofile.Run{UUIDFrom: &boxenprofile.FileMatch{
+			File:    "license.txt",
+			Pattern: `(?m)^(\S+)\s`,
+		}}
+
+		if err := a.runResolveInstanceUUID(); err != nil {
+			t.Fatal(err)
+		}
+
+		b, _ := os.ReadFile(boxenconstants.InstanceUUIDFilename)
+		if a.p.InstanceUUID != strings.TrimSpace(string(b)) {
+			t.Fatalf("expected the instance uuid without a file, got %q", a.p.InstanceUUID)
+		}
+
+		if err := os.WriteFile("license.txt", []byte("not-a-uuid record\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+
+		err := a.runResolveInstanceUUID()
+		if err == nil || !strings.Contains(err.Error(), `invalid uuid "not-a-uuid"`) {
+			t.Fatalf("expected an invalid uuid error, got %v", err)
 		}
 	})
 }
