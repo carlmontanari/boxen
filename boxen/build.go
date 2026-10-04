@@ -230,7 +230,7 @@ func (b *Boxen) openVMConsole(ctx context.Context, containerID string) error {
 			ContainerID: containerID,
 			Command: []string{
 				"telnet",
-				"localhost",
+				boxenconstants.ConsoleHost,
 				fmt.Sprint(boxenconstants.ConsolePort),
 			},
 			Interactive: true,
@@ -251,8 +251,9 @@ func (b *Boxen) openVMConsole(ctx context.Context, containerID string) error {
 
 func buildOpenConsoleCommand(containerID string) string {
 	return fmt.Sprintf(
-		"docker exec -i -t %s telnet localhost %d",
+		"docker exec -i -t %s telnet %s %d",
 		containerID,
+		boxenconstants.ConsoleHost,
 		boxenconstants.ConsolePort,
 	)
 }

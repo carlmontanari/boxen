@@ -184,3 +184,41 @@ func TestWaitForEchoConsumesTheEcho(t *testing.T) {
 		t.Fatalf("output past the echo was lost: %v", err)
 	}
 }
+
+func TestWaitForEchoKeepsOutputBeforeTheEcho(t *testing.T) {
+	a := NewAgent(slog.LevelError)
+
+	// guest output streaming between the write and the echo stays available
+	fakeConsoleOutput(a, "building configuration...\r\nexit\r\nswitch# ")
+
+	if err := a.waitForEcho(t.Context(), "exit"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := a.processStepReadUntil(
+		t.Context(),
+		readUntilStep("building configuration"),
+	); err != nil {
+		t.Fatalf("output that arrived before the echo was dropped: %v", err)
+	}
+}
+
+func TestWaitForEchoKeepsOutputBeyondTheWindow(t *testing.T) {
+	a := NewAgent(slog.LevelError)
+
+	// more guest output than the echo window holds arrives before the echo; chunks are
+	// separated with empty reads, so the first lands before the echo in a later poll
+	fakeConsoleOutput(a, strings.Repeat("log line\r\n", 2_000), "", "exit\r\nswitch# ")
+
+	if err := a.waitForEcho(t.Context(), "exit"); err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Contains(a.pendingConsole, []byte("log line")) {
+		t.Fatal("output evicted from the echo window was dropped")
+	}
+
+	if err := a.processStepReadUntil(t.Context(), readUntilStep("switch#")); err != nil {
+		t.Fatal(err)
+	}
+}

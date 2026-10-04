@@ -140,7 +140,7 @@ func TestBuildBuilderVolumes(t *testing.T) {
 
 func TestBuildConsoleAttachCommand(t *testing.T) {
 	actual := buildOpenConsoleCommand("container-id")
-	expected := "docker exec -i -t container-id telnet localhost 5001"
+	expected := "docker exec -i -t container-id telnet 127.0.0.1 5001"
 
 	if actual != expected {
 		t.Fatalf("attach command incorrect, got %q, want %q", actual, expected)

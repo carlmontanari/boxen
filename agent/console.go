@@ -24,7 +24,6 @@ const (
 )
 
 const (
-	consoleHost           = "127.0.0.1"
 	consoleOpenAttempts   = 5
 	consoleOpenRetryDelay = 3 * time.Second
 )
@@ -43,7 +42,7 @@ func (a *Agent) openConsoleConn(ctx context.Context, logFilename string) error {
 	go func() {
 		for attempt := 1; attempt <= consoleOpenAttempts; attempt++ {
 			conn, err := scrapligocli.NewCli(
-				consoleHost,
+				boxenconstants.ConsoleHost,
 				scrapligooptions.WithDefinitionFileOrName(".scrapligo_definition.yaml"),
 				scrapligooptions.WithPort(boxenconstants.ConsolePort),
 				scrapligooptions.WithLogger(a.l.l),
@@ -211,8 +210,9 @@ func (a *Agent) unreadConsole(b []byte) {
 // waitForEcho waits until the console echoed written text, so that following input is not sent
 // before the guest processed it. Whitespace is ignored, since CLIs do not always echo it verbatim
 // and wrap long lines, and an echo that never arrives fails the step instead of blocking it. Only
-// output read after the write is matched, and the echo itself is consumed, so repeated identical
-// lines wait for their own echo; output past the echo stays available for the following steps.
+// output read after the write is matched, and only the echoed text itself is consumed, so
+// repeated identical lines wait for their own echo; everything else the guest produces stays
+// available for the following steps.
 func (a *Agent) waitForEcho(ctx context.Context, s string) error {
 	want, _ := withoutWhitespace([]byte(s))
 	if len(want) == 0 {
@@ -228,6 +228,10 @@ func (a *Agent) waitForEcho(ctx context.Context, s string) error {
 	a.pendingConsole = nil
 
 	var raw []byte
+
+	// output evicted from the window was already checked and cannot match anymore; it stays
+	// available for the following steps instead of being dropped
+	var evicted []byte
 
 	for {
 		// this read cant block because its only reading off the internally buffered
@@ -246,15 +250,23 @@ func (a *Agent) waitForEcho(ctx context.Context, s string) error {
 		contents, offsets := withoutWhitespace(raw)
 
 		if idx := bytes.Index(contents, want); idx >= 0 {
-			// the echo is consumed; only output past it goes back for the following steps
-			a.unreadConsole(raw[offsets[idx+len(want)-1]+1:])
-			a.unreadConsole(pending)
+			// only the echoed text itself is consumed; output read before and after it goes
+			// back, so the following steps see everything the guest produced
+			start := offsets[idx]
+			end := offsets[idx+len(want)-1] + 1
+			back := make([]byte, 0, len(pending)+len(evicted)+len(raw))
+			back = append(back, pending...)
+			back = append(back, evicted...)
+			back = append(back, raw[:start]...)
+			back = append(back, raw[end:]...)
+			a.pendingConsole = back
 
 			return nil
 		}
 
-		if len(raw) > len(want)+echoWindowExtra {
-			raw = append([]byte(nil), raw[len(raw)-len(want)-echoWindowExtra:]...)
+		if size := len(want) + echoWindowExtra; len(raw) > size {
+			evicted = append(evicted, raw[:len(raw)-size]...)
+			raw = append([]byte(nil), raw[len(raw)-size:]...)
 		}
 
 		select {

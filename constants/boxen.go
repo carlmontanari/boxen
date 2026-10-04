@@ -23,4 +23,7 @@ const (
 	ConsolePort = 5001
 	// MonitorPort is the QEMU human monitor port, reachable from inside the container.
 	MonitorPort = 4001
+	// ConsoleHost is the loopback address the console listens on; it is spelled out rather than
+	// using localhost, which can resolve to IPv6 where nothing listens.
+	ConsoleHost = "127.0.0.1"
 )
