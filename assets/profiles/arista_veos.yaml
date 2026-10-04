@@ -7,7 +7,6 @@ scrapliDefinitionNameOrFile: arista_eos
 extraFiles:
   - Aboot-veos-serial-8.0.0.iso
 virtualMachine:
-  emulate: ""
   machine: ""
   memory: 4096
   cpuCores: 0
@@ -156,7 +155,6 @@ packaging:
     - type: wait
       wait:
         duration: 10s
-  sparsify: false
 run:
   process:
     - type: prompts

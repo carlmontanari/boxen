@@ -23,10 +23,14 @@ const (
 	commandBinary  = "/bin/bash"
 
 	stderrCheckInterval = time.Second
+	// the console opens after the stderr check: connecting to it in the first seconds of a boot
+	// stalls the Nexus 9000v loader for minutes.
 	stderrCheckDuration = 10 * time.Second
 
-	readUntilSearchDepth = 256
-	readUntilRingBufSize = 1_000
+	// readUntilWindowSize is how much earlier output a readUntil step keeps, so that matches
+	// spanning reads are found.
+	readUntilWindowSize   = 1_000
+	readUntilPollInterval = 100 * time.Millisecond
 )
 
 // Package begins the packaging process for the container.
@@ -129,7 +133,7 @@ func (a *Agent) startPackage(ctx context.Context, errs chan error) {
 		return
 	}
 
-	err = a.openConsoleConn(ctx, "package.console.log")
+	err = a.openConsoleConn(ctx, "package.console.log", false)
 	if err != nil {
 		errs <- err
 
@@ -374,7 +378,7 @@ func (a *Agent) packageConvertDisk(ctx context.Context) error {
 		"-O",
 		"qcow2",
 		localFilename,
-		"disk.qcow2",
+		boxenconstants.DiskFilename,
 	)
 
 	err := cmd.Run()
@@ -399,36 +403,11 @@ func (a *Agent) packagePreCommands(ctx context.Context) error {
 }
 
 func (a *Agent) packageProcess(ctx context.Context) error {
-	for idx := range a.p.Packaging.Process {
-		step := &a.p.Packaging.Process[idx]
-
-		a.l.Info("starting package process", "step", idx, "type", step.Type)
-
-		var err error
-
-		switch step.Type {
-		case boxenprofile.StepTypePrompts:
-			err = a.processStepPrompts(ctx, step)
-		case boxenprofile.StepTypeReadUntil:
-			err = a.processStepReadUntil(ctx, step)
-		case boxenprofile.StepTypeWrite:
-			err = a.processStepWrite(ctx, step)
-		case boxenprofile.StepTypeWait:
-			err = a.processStepWait(ctx, step)
-		default:
-			panic("unimplemented step type")
-		}
-
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return a.runSteps(ctx, "package process", a.p.Packaging.Process)
 }
 
 func (a *Agent) packageShrinkify(ctx context.Context) error {
-	err := os.Rename("disk.qcow2", "fat.qcow2")
+	err := os.Rename(boxenconstants.DiskFilename, "fat.qcow2")
 	if err != nil {
 		return err
 	}
@@ -438,7 +417,7 @@ func (a *Agent) packageShrinkify(ctx context.Context) error {
 		_ = os.RemoveAll("/var/tmp/.guestfs-0")
 	}()
 
-	args := []string{"fat.qcow2", "--compress", "disk.qcow2"}
+	args := []string{"fat.qcow2", "--compress", boxenconstants.DiskFilename}
 
 	a.l.Info(
 		"starting disk sparsify, this can take 10+ minutes...",
@@ -446,7 +425,7 @@ func (a *Agent) packageShrinkify(ctx context.Context) error {
 		"args", args,
 	)
 
-	cmd := exec.CommandContext(ctx, sparsifyBinary, args...)
+	cmd := exec.CommandContext(ctx, sparsifyBinary, args...) //nolint: gosec
 
 	err = cmd.Run()
 	if err != nil {
