@@ -27,6 +27,8 @@ func (a *Agent) runSteps(ctx context.Context, phase string, steps []boxenprofile
 			err = a.processStepWrite(ctx, step)
 		case boxenprofile.StepTypeWait:
 			err = a.processStepWait(ctx, step)
+		case boxenprofile.StepTypeCapture:
+			err = a.processStepCapture(ctx, step)
 		default:
 			err = fmt.Errorf("%w: unsupported step type %q", boxenerrors.ErrBoxen, step.Type)
 		}
