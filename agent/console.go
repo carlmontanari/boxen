@@ -208,7 +208,7 @@ func (a *Agent) unreadConsole(b []byte) {
 // before the guest processed it. Whitespace is ignored, since CLIs do not always echo it verbatim
 // and wrap long lines, and an echo that never arrives fails the step instead of blocking it.
 func (a *Agent) waitForEcho(ctx context.Context, s string) error {
-	want, _ := withoutWhitespace([]byte(s))
+	want := withoutWhitespace([]byte(s))
 	if len(want) == 0 {
 		return nil
 	}
@@ -232,10 +232,11 @@ func (a *Agent) waitForEcho(ctx context.Context, s string) error {
 
 		buf.Write(b)
 
-		contents, offsets := withoutWhitespace(buf.Bytes())
+		contents := withoutWhitespace(buf.Bytes())
 
-		if idx := bytes.Index(contents, want); idx >= 0 {
-			a.unreadConsole(buf.Bytes()[offsets[idx+len(want)-1]+1:])
+		if bytes.Contains(contents, want) {
+			// put everything read back, so the following steps see output past the echo
+			a.unreadConsole(buf.Bytes())
 
 			return nil
 		}
@@ -253,21 +254,18 @@ func (a *Agent) waitForEcho(ctx context.Context, s string) error {
 }
 
 // withoutWhitespace returns b without whitespace, and without the NUL, bell, and backspace bytes
-// that line editors emit, for example when wrapping a line, and the offset in b of each returned
-// byte.
-func withoutWhitespace(b []byte) (out []byte, offsets []int) {
-	out = make([]byte, 0, len(b))
-	offsets = make([]int, 0, len(b))
+// that line editors emit, for example when wrapping a line.
+func withoutWhitespace(b []byte) []byte {
+	out := make([]byte, 0, len(b))
 
-	for idx, c := range b {
+	for _, c := range b {
 		switch c {
 		case ' ', '\t', '\r', '\n', 0, '\a', '\b':
 			continue
 		}
 
 		out = append(out, c)
-		offsets = append(offsets, idx)
 	}
 
-	return out, offsets
+	return out
 }
