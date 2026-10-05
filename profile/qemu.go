@@ -136,8 +136,9 @@ func QemuArgsFromProfile(
 }
 
 // useRunDisk points the VM at the per-container overlay instead of the packaged disk. It rewrites
-// every reference to the packaged disk, including ones from profile overrides, mutators, and
-// extras, so the packaged disk is only ever opened read-only as the overlay's backing file.
+// every reference to the packaged disk, including path-qualified ones and ones from profile
+// overrides, mutators, and extras, so the packaged disk is only ever opened read-only as the
+// overlay's backing file.
 func useRunDisk(args []string) []string {
 	const fileOpt = "file="
 
@@ -151,10 +152,20 @@ func useRunDisk(args []string) []string {
 		opts := strings.Split(arg, ",")
 
 		for optIdx, opt := range opts {
-			if opt == fileOpt+boxenconstants.DiskFilename {
-				opts[optIdx] = fileOpt + boxenconstants.RunDiskFilename
-				args[idx] = strings.Join(opts, ",")
+			value, ok := strings.CutPrefix(opt, fileOpt)
+			if !ok {
+				continue
 			}
+
+			// match the packaged disk by exact name or as a path suffix, so both relative and
+			// absolute references are covered; disk.qcow2.bak and friends stay untouched
+			if value != boxenconstants.DiskFilename &&
+				!strings.HasSuffix(value, "/"+boxenconstants.DiskFilename) {
+				continue
+			}
+
+			opts[optIdx] = fileOpt + boxenconstants.RunDiskFilename
+			args[idx] = strings.Join(opts, ",")
 		}
 	}
 

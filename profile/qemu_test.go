@@ -269,22 +269,41 @@ func TestQemuArgsOverridesAndExtras(t *testing.T) {
 }
 
 func TestUseRunDisk(t *testing.T) {
-	args := useRunDisk([]string{
-		"-drive", "if=none,file=disk.qcow2,format=qcow2",
-		"-hda", "disk.qcow2",
-		"-drive", "file=disk.qcow2.bak,format=qcow2",
-		"-cdrom", "config.iso",
-	})
-
-	want := []string{
-		"-drive", "if=none,file=disk.overlay.qcow2,format=qcow2",
-		"-hda", "disk.overlay.qcow2",
-		"-drive", "file=disk.qcow2.bak,format=qcow2",
-		"-cdrom", "config.iso",
-	}
-
-	if !slices.Equal(args, want) {
-		t.Fatalf("got %v, want %v", args, want)
+	for _, test := range []struct {
+		name string
+		args []string
+		want []string
+	}{
+		{
+			name: "bare argument",
+			args: []string{"-drive", "if=none,file=disk.qcow2,format=qcow2", "-hda", "disk.qcow2"},
+			want: []string{
+				"-drive", "if=none,file=disk.overlay.qcow2,format=qcow2",
+				"-hda", "disk.overlay.qcow2",
+			},
+		},
+		{
+			name: "path qualified",
+			args: []string{
+				"-drive", "if=none,file=/boxen/disk.qcow2,format=qcow2,id=drive0",
+				"-drive", "file=./disk.qcow2",
+			},
+			want: []string{
+				"-drive", "if=none,file=disk.overlay.qcow2,format=qcow2,id=drive0",
+				"-drive", "file=disk.overlay.qcow2",
+			},
+		},
+		{
+			name: "other files untouched",
+			args: []string{"-drive", "file=disk.qcow2.bak,format=qcow2", "-cdrom", "config.iso"},
+			want: []string{"-drive", "file=disk.qcow2.bak,format=qcow2", "-cdrom", "config.iso"},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := useRunDisk(test.args); !slices.Equal(got, test.want) {
+				t.Fatalf("got %v, want %v", got, test.want)
+			}
+		})
 	}
 }
 

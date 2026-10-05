@@ -37,7 +37,7 @@ boxen build --disk /path/to/vendor.qcow2 --profile /path/to/profile.yaml
 | `CLAB_MGMT_INTF` | `<prefix>0` | Container management interface name |
 | `CLAB_INTF_PREFIX` | `eth` | Prefix used for container interface names |
 | `CLAB_INTFS` | `0` | Requested data-interface count; a nonzero count enables startup waiting for interfaces |
-| `BOXEN_INTF_WAIT_TIMEOUT` | `2m` | Go duration bounding the `CLAB_INTFS` wait; the VM then starts and later interfaces are wired when they appear |
+| `BOXEN_INTF_WAIT_TIMEOUT` | `2m` | Go duration bounding the `CLAB_INTFS` wait; the VM then starts and later interfaces are wired when they appear. A nonpositive value fails the run |
 | `BOOT_DELAY` | `0` | Delay in seconds after interface provisioning and before guest boot |
 | `QEMU_MEMORY` | Profile `memory` | Override generated `-m` value |
 | `QEMU_CPU` | Profile `cpuEmulation` | Override generated CPU model |

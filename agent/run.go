@@ -282,6 +282,15 @@ func intfWaitTimeout() (time.Duration, error) {
 		)
 	}
 
+	if timeout <= 0 {
+		return 0, fmt.Errorf(
+			"%w: invalid %s value %q: must be positive",
+			boxenerrors.ErrBoxen,
+			boxenconstants.EnvIntfWaitTimeout,
+			v,
+		)
+	}
+
 	return timeout, nil
 }
 
