@@ -17,6 +17,8 @@ Boxen renders Go templates in `write.content` and in content loaded by `write.co
 
 Although `.disk` contains the source basename during packaging, conversion has already produced the working `disk.qcow2` before console steps run. Do not assume the source filename still exists inside the builder.
 
+At runtime `.disk` expands to `disk.qcow2`, not to the overlay filename. The VM writes to the overlay `disk.overlay.qcow2`, and Boxen rewrites every `disk.qcow2` drive reference in the QEMU arguments to the overlay, including ones built from `{{ .disk }}` in overrides and extras. Console steps that reference the file name should keep using `{{ .disk }}`; never hardcode `disk.overlay.qcow2`.
+
 Index the file list to select one filename:
 
 ```yaml

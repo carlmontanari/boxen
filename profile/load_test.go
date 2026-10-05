@@ -172,3 +172,26 @@ func TestContainsFind(t *testing.T) {
 		})
 	}
 }
+
+func TestCumulusRunLoginAnyHostname(t *testing.T) {
+	b, err := boxenassets.Assets.ReadFile("profiles/nvidia_cumulusvx.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p, err := Load(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// a restarted node shows its own hostname instead of the factory one
+	for _, console := range []string{
+		"\r\nDebian GNU/Linux 12 cumulus ttyS0\r\n\r\ncumulus login: ",
+		"\r\nDebian GNU/Linux 12 leaf1 ttyS0\r\n\r\nleaf1 login: \r\n",
+	} {
+		got, err := p.Run.Process[0].ReadUntil.Until.Check([]byte(console))
+		if err != nil || !got {
+			t.Fatalf("login prompt in %q not matched: %v, %v", console, got, err)
+		}
+	}
+}

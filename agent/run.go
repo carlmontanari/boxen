@@ -10,9 +10,17 @@ import (
 	"time"
 
 	boxenconstants "github.com/carlmontanari/boxen/constants"
+	boxenerrors "github.com/carlmontanari/boxen/errors"
 	boxenprofile "github.com/carlmontanari/boxen/profile"
 	boxenutil "github.com/carlmontanari/boxen/util"
 	"go.yaml.in/yaml/v4"
+)
+
+const (
+	// defaultIntfWaitTimeout bounds the wait for containerlab data interfaces before starting the
+	// vm.
+	defaultIntfWaitTimeout = 2 * time.Minute
+	intfPollInterval       = 250 * time.Millisecond
 )
 
 // Run runs the packaged container -- starting the vm, handling containerlab inputs, etc.
@@ -65,21 +73,7 @@ func (a *Agent) startRun(ctx context.Context, errs chan error) {
 		a.l.Error("failed writing booting health status", "error", err.Error())
 	}
 
-	err := a.runClabNICProvisionDelay(ctx)
-	if err != nil {
-		errs <- err
-
-		return
-	}
-
-	err = a.runClabStartDelay(ctx)
-	if err != nil {
-		errs <- err
-
-		return
-	}
-
-	err = a.runPreCommands(ctx)
+	err := a.runPrepare(ctx)
 	if err != nil {
 		errs <- err
 
@@ -88,12 +82,14 @@ func (a *Agent) startRun(ctx context.Context, errs chan error) {
 
 	// no need to capture the process to kill as we passed the root ctx so itll cancel anyway
 	// if we catch a sigint/sigkill
-	_, err = a.startInstance(ctx, false)
+	proc, err := a.startInstance(ctx, false)
 	if err != nil {
 		errs <- err
 
 		return
 	}
+
+	go a.watchInstance(ctx, proc, errs)
 
 	// start the tc service that stitches the container interfaces to the vm taps;
 	// this only runs during `run` (not packaging)
@@ -139,6 +135,24 @@ func (a *Agent) startRun(ctx context.Context, errs chan error) {
 	<-ctx.Done()
 
 	a.done <- struct{}{}
+}
+
+// runPrepare does everything that has to happen before the vm starts.
+func (a *Agent) runPrepare(ctx context.Context) error {
+	for _, prepare := range []func(context.Context) error{
+		a.runClabNICProvisionDelay,
+		a.runClabStartDelay,
+		a.runPreCommands,
+		a.runPrepareDisk,
+		func(context.Context) error { return a.runResolveInstanceUUID() },
+	} {
+		err := prepare(ctx)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (a *Agent) runLoadProfile() error {
@@ -201,19 +215,43 @@ func (a *Agent) runClabNICProvisionDelay(ctx context.Context) error {
 		return nil
 	}
 
+	timeout, err := intfWaitTimeout()
+	if err != nil {
+		return err
+	}
+
 	intfPrefix := boxenutil.ClabIntfPrefix()
 
-	a.l.Info("waiting for clab nics to be priviosined", "count", clabIntfCount)
+	a.l.Info(
+		"waiting for clab nics to be provisioned",
+		"count", clabIntfCount,
+		"timeout", timeout,
+	)
 
-	ticker := time.NewTicker(time.Second)
+	ticker := time.NewTicker(intfPollInterval)
 	defer ticker.Stop()
+
+	deadline := time.NewTimer(timeout)
+	defer deadline.Stop()
+
+	var provisionedNics []string
 
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
+		case <-deadline.C:
+			// CLAB_INTFS is fixed when the container is created, so it overcounts once links are
+			// removed from a running node; the tc service wires late interfaces when they appear
+			a.l.Warn(
+				"not all clab nics were provisioned in time, starting the vm anyway",
+				"expected", clabIntfCount,
+				"provisioned", max(len(provisionedNics)-1, 0),
+			)
+
+			return nil
 		case <-ticker.C:
-			provisionedNics, err := filepath.Glob(fmt.Sprintf("/sys/class/net/%s*", intfPrefix))
+			provisionedNics, err = filepath.Glob(fmt.Sprintf("/sys/class/net/%s*", intfPrefix))
 			if err != nil {
 				return err
 			}
@@ -224,6 +262,58 @@ func (a *Agent) runClabNICProvisionDelay(ctx context.Context) error {
 				return nil
 			}
 		}
+	}
+}
+
+func intfWaitTimeout() (time.Duration, error) {
+	v := os.Getenv(boxenconstants.EnvIntfWaitTimeout)
+	if v == "" {
+		return defaultIntfWaitTimeout, nil
+	}
+
+	timeout, err := time.ParseDuration(v)
+	if err != nil {
+		return 0, fmt.Errorf(
+			"%w: invalid %s value %q: %w",
+			boxenerrors.ErrBoxen,
+			boxenconstants.EnvIntfWaitTimeout,
+			v,
+			err,
+		)
+	}
+
+	if timeout <= 0 {
+		return 0, fmt.Errorf(
+			"%w: invalid %s value %q: must be positive",
+			boxenerrors.ErrBoxen,
+			boxenconstants.EnvIntfWaitTimeout,
+			v,
+		)
+	}
+
+	return timeout, nil
+}
+
+// watchInstance reports the VM exiting on its own (crash or guest power off) as a run failure,
+// so the node becomes unhealthy and the container exits instead of looking healthy without a VM.
+func (a *Agent) watchInstance(ctx context.Context, proc *os.Process, errs chan<- error) {
+	state, err := proc.Wait()
+	if ctx.Err() != nil {
+		// the vm is stopped because the container is shutting down
+		return
+	}
+
+	if healthErr := a.writeHealth(boxenconstants.HealthStatusVMExited); healthErr != nil {
+		a.l.Error("failed writing vm exited health status", "error", healthErr.Error())
+	}
+
+	if err == nil {
+		err = fmt.Errorf("%w: vm exited: %s", boxenerrors.ErrBoxen, state.String())
+	}
+
+	select {
+	case errs <- err:
+	default:
 	}
 }
 

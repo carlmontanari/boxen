@@ -30,10 +30,12 @@ embedded companions, allowing users to override the included versions.
 
 Files arrive in `/boxen` under their basenames. Reference those container paths in
 `write.contentFromFile` and Starlark `load(...)`; those references do not transfer
-files themselves. Use distinct names and avoid `disk.qcow2`, which is reserved for
-the converted disk. Also give the source disk a vendor filename rather than the
-literal `disk.qcow2`: the current conversion routine uses that name for its output
-and deletes the transferred source afterward.
+files themselves. Use distinct names and avoid `disk.qcow2`, `disk.overlay.qcow2`,
+and `instance.uuid`: the first is reserved for the converted disk, the second for
+the runtime overlay, and the third for the stored VM UUID. Also give the source
+disk a vendor filename rather than the literal `disk.qcow2`: the current
+conversion routine uses that name for its output and deletes the transferred
+source afterward.
 
 ## Name the image
 

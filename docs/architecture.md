@@ -51,7 +51,7 @@ Containerlab topology + packaged image + optional startup config
                      /health = 0 running
 ```
 
-The runtime reads the packaged profile and disk. It waits for the requested Containerlab interfaces, honors a boot delay, runs pre-run commands, and launches the guest. A background TC service redirects traffic between the container's data interfaces and the guest's TAP devices. The console procedure applies node-specific values and optional startup configuration before marking the container ready.
+The runtime reads the packaged profile and disk. It waits for the requested Containerlab interfaces, honors a boot delay, runs pre-run commands, and launches the guest on a qcow2 overlay backed by the packaged disk. A background TC service redirects traffic between the container's data interfaces and the guest's TAP devices. The console procedure applies node-specific values and optional startup configuration before marking the container ready.
 
 ## Networking
 
@@ -61,6 +61,6 @@ Management can use QEMU user networking with port forwards, or a TAP interface w
 
 ## The image and the running container
 
-An image is the prepared baseline. Each new container gets a writable layer containing its own disk changes. A restart of that same container retains its writable layer; removing and recreating it starts from the image again. `boxen run` does not automatically snapshot or publish guest changes.
+An image is the prepared baseline. Each new container gets its own disk overlay in its writable layer, which holds only the guest's changes. A restart of that same container retains the overlay; removing and recreating it starts from the image again. `boxen run` does not automatically snapshot or publish guest changes.
 
-Boxen's readiness check records completion of provisioning. It does not continuously test routing protocols, SSH reachability, or QEMU liveness after provisioning. Use additional monitoring for those needs.
+Boxen's readiness check records completion of provisioning. The node turns unhealthy and the container exits if QEMU exits, but Boxen does not continuously test routing protocols or SSH reachability after provisioning. Use additional monitoring for those needs.

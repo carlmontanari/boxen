@@ -108,11 +108,12 @@ packaging:
 
 run:
   process:
+    # the login prompt and shell prompt show the node hostname once the run process set it
     - type: readUntil
       readUntil:
         timeout: 20m
         until:
-          containsPattern: '(?m)^[^\r\n]+ login: *$'
+          containsPattern: '(?m)^[^\r\n]+ login: *\r?$'
     - type: write # enter newline to resurface the prompt
       write:
         content: "\n"

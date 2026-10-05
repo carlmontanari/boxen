@@ -21,4 +21,7 @@ const (
 	EnvImageTag      = "BOXEN_IMAGE_TAG"
 
 	EnvScrapliLogLevel = "BOXEN_SCRAPLI_LOG_LEVEL"
+
+	// EnvIntfWaitTimeout bounds the wait for CLAB_INTFS data interfaces before the VM starts.
+	EnvIntfWaitTimeout = "BOXEN_INTF_WAIT_TIMEOUT"
 )

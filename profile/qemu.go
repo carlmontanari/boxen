@@ -44,11 +44,17 @@ func QemuArgsFromProfile(
 	if err := p.VirtualMachine.ApplyConfiguration(isPackaging); err != nil {
 		return nil, err
 	}
+
+	instanceUUID := p.InstanceUUID
+	if isPackaging || instanceUUID == "" {
+		instanceUUID = uuid.NewString()
+	}
+
 	out := []string{
 		"-name",
 		p.Name,
 		"-uuid",
-		uuid.NewString(),
+		instanceUUID,
 	}
 
 	fs := map[string]func(p *Profile) []string{
@@ -121,7 +127,49 @@ func QemuArgsFromProfile(
 		out = append(out, strings.Split(qemuAdditionalArgs, " ")...)
 	}
 
+	// rewrite last, so drive references added via QEMU_ADDITIONAL_ARGS point at the overlay too
+	if !isPackaging {
+		out = useRunDisk(out)
+	}
+
 	return out, nil
+}
+
+// useRunDisk points the VM at the per-container overlay instead of the packaged disk. It rewrites
+// every reference to the packaged disk, including path-qualified ones and ones from profile
+// overrides, mutators, and extras, so the packaged disk is only ever opened read-only as the
+// overlay's backing file.
+func useRunDisk(args []string) []string {
+	const fileOpt = "file="
+
+	for idx, arg := range args {
+		if arg == boxenconstants.DiskFilename {
+			args[idx] = boxenconstants.RunDiskFilename
+
+			continue
+		}
+
+		opts := strings.Split(arg, ",")
+
+		for optIdx, opt := range opts {
+			value, ok := strings.CutPrefix(opt, fileOpt)
+			if !ok {
+				continue
+			}
+
+			// match the packaged disk by exact name or as a path suffix, so both relative and
+			// absolute references are covered; disk.qcow2.bak and friends stay untouched
+			if value != boxenconstants.DiskFilename &&
+				!strings.HasSuffix(value, "/"+boxenconstants.DiskFilename) {
+				continue
+			}
+
+			opts[optIdx] = fileOpt + boxenconstants.RunDiskFilename
+			args[idx] = strings.Join(opts, ",")
+		}
+	}
+
+	return args
 }
 
 func qemuCPU(p *Profile) []string {
@@ -213,7 +261,8 @@ func qemuMachine(p *Profile) []string {
 func qemuDisk(p *Profile) []string {
 	return []string{
 		"-drive",
-		"if=" + cmp.Or(p.VirtualMachine.DiskInterface, "ide") + ",file=disk.qcow2,format=qcow2",
+		"if=" + cmp.Or(p.VirtualMachine.DiskInterface, "ide") +
+			",file=" + boxenconstants.DiskFilename + ",format=qcow2",
 	}
 }
 

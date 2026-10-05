@@ -1,6 +1,6 @@
 # QEMU configuration
 
-`virtualMachine` controls the QEMU arguments generated for packaging and runtime. The current agent invokes `qemu-system-x86_64` and uses `disk.qcow2` in `/boxen`.
+`virtualMachine` controls the QEMU arguments generated for packaging and runtime. The current agent invokes `qemu-system-x86_64`. Packaging writes `disk.qcow2` in `/boxen`; at runtime the VM writes to the overlay `disk.overlay.qcow2`, backed by `disk.qcow2`, and every `disk.qcow2` drive reference, including those in overrides, mutators, and extras, is pointed at the overlay.
 
 ## Hardware fields
 
@@ -25,6 +25,8 @@ Set `diskInterface: virtio` for a VirtIO disk, as in the vJunos-router profile. 
 The generator enables `-accel kvm` whenever `/dev/kvm` exists. Without it, QEMU uses its normal software path, which can be very slow or incompatible with a profile requesting `cpuEmulation: host`. Set a suitable CPU model and acceleration override for a platform that supports software emulation; nested virtualization guests require KVM.
 
 The YAML field `emulation` exists in the Go type but does not select the QEMU executable. Use `cpuEmulation`, an override, or `QEMU_CPU` for the CPU model. `boxen build` rejects unknown keys, such as the historical `emulate`.
+
+At runtime the VM UUID comes from the `UUID` environment variable, or is generated once per container and kept across its restarts, so the guest's system UUID and serial number stay stable. Packaging uses a random UUID.
 
 The generated serial backends tee guest output into `package.boot.log` during packaging and
 `boot.log` during runtime, under `/boxen`. Each additional serial port gets its own numeric suffix

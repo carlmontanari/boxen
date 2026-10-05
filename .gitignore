@@ -32,3 +32,6 @@ dist/
 site/
 __pycache__/
 .wrangler/
+
+# agent search cache
+.tavily
