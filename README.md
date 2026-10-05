@@ -85,11 +85,12 @@ Since the telnet client is used to attach to the VM console, to exit it, type `C
 By default, Boxen connects the VM management interface with QEMU user networking.
 In that mode, the VM receives the fixed management address `10.0.0.15/24`, uses
 `10.0.0.2` as its gateway, and the ports a user wants to forward to the VM are driven by the
-QEMU `hostfwd` rules defined in `virtualMachine.natPorts`.  
+QEMU `hostfwd` rules defined in `virtualMachine.natPorts`, falling back to a default set of
+common management ports when `natPorts` is empty, as in vrnetlab.  
 This operational mode, however, has several shortcomings:
 
 - The management IP address configured in the Network Operating System config is static and different from the one assigned to the container management interface by containerlab. This makes every NOS see the same management IP and makes external management systems confused when the nodes report their IP during the onboarding/call-home process.
-- The exposed ports are a fixed set of ports provided by the user and are only forwarded via IPv4 address family due to QEMU limitations. This makes it impossible to forward ports via IPv6 easily.
+- The exposed ports are a fixed set of ports provided by the user, or the default management ports when none are configured, and are only forwarded via IPv4 address family due to QEMU limitations. This makes it impossible to forward ports via IPv6 easily.
 
 To solve for these limitations, Boxen offers transparent management mode that can be enabled in the profile by setting:
 
