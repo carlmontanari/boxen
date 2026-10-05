@@ -113,7 +113,7 @@ run:
       readUntil:
         timeout: 20m
         until:
-          containsPattern: '(?m)^[^\r\n]+ login: *$'
+          containsPattern: '(?m)^[^\r\n]+ login: *\r?$'
     - type: write # enter newline to resurface the prompt
       write:
         content: "\n"
