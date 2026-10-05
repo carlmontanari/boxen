@@ -121,14 +121,15 @@ func QemuArgsFromProfile(
 		out = e.Apply(isPackaging, out)
 	}
 
-	if !isPackaging {
-		out = useRunDisk(out)
-	}
-
 	qemuAdditionalArgs := os.Getenv(boxenconstants.EnvClabQemuAdditionalArgs)
 
 	if qemuAdditionalArgs != "" {
 		out = append(out, strings.Split(qemuAdditionalArgs, " ")...)
+	}
+
+	// rewrite last, so drive references added via QEMU_ADDITIONAL_ARGS point at the overlay too
+	if !isPackaging {
+		out = useRunDisk(out)
 	}
 
 	return out, nil

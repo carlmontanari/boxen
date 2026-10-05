@@ -288,6 +288,24 @@ func TestUseRunDisk(t *testing.T) {
 	}
 }
 
+func TestQemuAdditionalArgsRunDisk(t *testing.T) {
+	t.Setenv(
+		boxenconstants.EnvClabQemuAdditionalArgs,
+		"-drive if=none,file=disk.qcow2,format=qcow2",
+	)
+
+	p := testQemuProfile(false)
+
+	args, err := QemuArgsFromProfile(p, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !slices.Contains(args, "if=none,file=disk.overlay.qcow2,format=qcow2") {
+		t.Fatalf("expected additional args disk reference rewritten to overlay, got %v", args)
+	}
+}
+
 func TestQemuInstanceUUID(t *testing.T) {
 	p := testQemuProfile(false)
 	p.InstanceUUID = "123e4567-e89b-12d3-a456-426614174000"
