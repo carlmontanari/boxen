@@ -78,14 +78,13 @@ Go template syntax is not shell syntax. Use `{{ if ... }}` and `{{ end }}` to gu
 
 ## Interface values
 
-`add` adds two integers and `ciscoMAC` formats a MAC address in the dotted Cisco notation. Together with `.dataNICMACs` they configure per-interface values, such as the MAC of each routed port:
+`add` adds two integers and `ciscoMAC` formats a MAC address in the dotted Cisco notation. Together with `.dataNICMACs` they configure per-interface values, such as the MAC of each routed port. Template actions emit the text around them, so keep the `range` action inline with the first body line and trim the closing action, or blank lines reach the guest console:
 
 ```yaml
 content: |
-  {{ range $idx, $mac := .dataNICMACs }}
-  interface Ethernet1/{{ add $idx 1 }}
+  {{ range $idx, $mac := .dataNICMACs }}interface Ethernet1/{{ add $idx 1 }}
   mac-address {{ ciscoMAC $mac }}
-  {{ end }}
+  {{ end -}}
 ```
 
 ## Runtime files and Starlark

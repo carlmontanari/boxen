@@ -256,3 +256,18 @@ func TestCiscoMAC(t *testing.T) {
 		t.Fatal("expected an invalid MAC error")
 	}
 }
+
+func TestRenderTemplateDataNICMACs(t *testing.T) {
+	p := testQemuProfile(true)
+	p.DataNICMACs = []string{"02:00:00:00:00:01", "02:00:00:00:00:02"}
+
+	got, err := NewFormatters("", "", "", "", p, false).RenderTemplate(`{{ len .dataNICMACs }}`)
+	if err != nil || got != "2" {
+		t.Fatalf("run-phase dataNICMACs missing: got %q, err %v", got, err)
+	}
+
+	got, err = NewFormatters("", "", "", "", p, true).RenderTemplate(`{{ len .dataNICMACs }}`)
+	if err != nil || got != "0" {
+		t.Fatalf("packaging must not expose dataNICMACs: got %q, err %v", got, err)
+	}
+}

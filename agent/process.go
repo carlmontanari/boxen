@@ -58,6 +58,12 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 			return fmt.Errorf("rendering response of %s: %w", cbName, err)
 		}
 
+		// hidden responses are usually credentials, so the rendered value stays out of the logs
+		logged := response
+		if p.Hidden {
+			logged = "[redacted]"
+		}
+
 		a.l.Debug(
 			"building prompts callback",
 			"callback name",
@@ -65,7 +71,7 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 			"prompt",
 			p.Prompt,
 			"response",
-			response,
+			logged,
 			"completes",
 			p.Completes,
 		)
@@ -121,11 +127,11 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 					"notContains",
 					p.Prompt.NotContains,
 					"response",
-					response,
+					logged,
 					"hidden",
 					p.Hidden,
 					"reading until response",
-					response,
+					logged,
 					"searchBuf",
 					searchBuf,
 				)

@@ -267,7 +267,9 @@ func (f *Formatters) TemplateData() (map[string]any, error) {
 }
 
 func (f *Formatters) dataNICMACs() []string {
-	if f.p == nil {
+	// MACs are a run-phase value, like username and password; QEMU argument generation still uses
+	// the resolved MACs, but packaging templates must not bake random ones into the disk
+	if f.isPackaging || f.p == nil {
 		return nil
 	}
 
@@ -422,31 +424,27 @@ func runtimeDefaultGateway(ctx context.Context, family, intf string) (string, er
 	return o[0].Gateway, nil
 }
 
-// parseCIDR parses a CIDR string into its address, network, and prefix-length parts.
-func parseCIDR(cidr string) (address, network, prefixLen string, err error) {
+// parseCIDR parses a CIDR string into its address, network, and prefix-length parts. The prefix
+// length is returned as an int, so callers that need it numerically do not parse it back.
+func parseCIDR(cidr string) (address, network string, bits int, err error) {
 	prefix, err := netip.ParsePrefix(cidr)
 	if err != nil {
-		return "", "", "", err
+		return "", "", 0, err
 	}
 
-	return prefix.Addr().String(), prefix.Masked().String(), strconv.Itoa(prefix.Bits()), nil
+	return prefix.Addr().String(), prefix.Masked().String(), prefix.Bits(), nil
 }
 
 // applyIPv4CIDR sets the IPv4 address, network, and prefix-length fields from the given CIDR.
 func (m *managementFormatters) applyIPv4CIDR(cidr string) error {
-	address, network, prefixLen, err := parseCIDR(cidr)
-	if err != nil {
-		return err
-	}
-
-	bits, err := strconv.Atoi(prefixLen)
+	address, network, bits, err := parseCIDR(cidr)
 	if err != nil {
 		return err
 	}
 
 	m.ipv4 = cidr
 	m.ipv4Address = address
-	m.ipv4PrefixLen = prefixLen
+	m.ipv4PrefixLen = strconv.Itoa(bits)
 	m.ipv4Network = network
 	m.ipv4Netmask = net.IP(net.CIDRMask(bits, net.IPv4len*8)).String() //nolint: mnd
 
@@ -455,14 +453,14 @@ func (m *managementFormatters) applyIPv4CIDR(cidr string) error {
 
 // applyIPv6CIDR sets the IPv6 address, network, and prefix-length fields from the given CIDR.
 func (m *managementFormatters) applyIPv6CIDR(cidr string) error {
-	address, network, prefixLen, err := parseCIDR(cidr)
+	address, network, bits, err := parseCIDR(cidr)
 	if err != nil {
 		return err
 	}
 
 	m.ipv6 = cidr
 	m.ipv6Address = address
-	m.ipv6PrefixLen = prefixLen
+	m.ipv6PrefixLen = strconv.Itoa(bits)
 	m.ipv6Network = network
 
 	return nil
