@@ -18,6 +18,8 @@ const (
 
 	FlagProfileNameOrPath      = "profile"
 	FlagProfileNameOrPathShort = "prof"
+
+	FlagTimeout = "timeout"
 )
 
 const (

@@ -61,6 +61,6 @@ Management can use QEMU user networking with port forwards, or a TAP interface w
 
 ## The image and the running container
 
-An image is the prepared baseline. Each new container gets its own disk overlay in its writable layer, which holds only the guest's changes. A restart of that same container retains the overlay; removing and recreating it starts from the image again. `boxen run` does not automatically snapshot or publish guest changes.
+An image is the prepared baseline. Each new container gets its own disk overlay in its writable layer, which holds only the guest's changes. A restart of that same container retains the overlay; removing and recreating it starts from the image again. `boxen save` records the guest's running configuration into the node's startup config file, which the next container applies; Boxen does not snapshot or publish disk changes.
 
 Boxen's readiness check records completion of provisioning. The node turns unhealthy and the container exits if QEMU exits, but Boxen does not continuously test routing protocols or SSH reachability after provisioning. Use additional monitoring for those needs.

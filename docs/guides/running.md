@@ -44,7 +44,7 @@ the automation console. `/boxen/package.boot.log` retains the sequence from imag
 
 ## Runtime order
 
-1. Read `/boxen/profile.yaml` and construct the template values from the runtime flags.
+1. Read `/boxen/profile.yaml`, construct the template values from the runtime flags, and look up the startup config file.
 2. Write `1 booting` to `/health`.
 3. Wait for interfaces when `CLAB_INTFS` specifies a count, for at most `BOXEN_INTF_WAIT_TIMEOUT`, then honor `BOOT_DELAY` in seconds.
 4. Execute `preRunCommands` in the container shell.
@@ -52,7 +52,7 @@ the automation console. `/boxen/package.boot.log` retains the sequence from imag
 6. Launch QEMU with the overlay and runtime hardware settings.
 7. Start the TC service that joins container interfaces to guest TAPs.
 8. Open the serial console and execute `run.process`.
-9. If `/config/startup-config.cfg` exists, execute `run.configProcess`.
+9. If a startup config file exists, execute `run.configProcess`.
 10. Close the automation console and write `0 running` to `/health`.
 11. Keep the container running until its context is cancelled.
 
@@ -70,7 +70,7 @@ Declare a startup file on the Containerlab node:
 startup-config: ./configs/r1.cfg
 ```
 
-Containerlab's VM integration places the file at `/config/startup-config.cfg`. The profile's `configProcess` must enter the appropriate NOS configuration mode, send or load the file, and save or commit it. The presence of a file only triggers that process; it is not an automatic configuration loader by itself.
+Containerlab's VM integration places the file at `/config/startup-config.cfg`. Profiles for kinds that use another file, such as the SONiC kinds' `/config/config_db.json`, list their files in `run.startupConfigFiles`; the first one that exists is used. The profile's `configProcess` must enter the appropriate NOS configuration mode, send or load the file, and save or commit it. The presence of a file only triggers that process; it is not an automatic configuration loader by itself.
 
 For CLI-oriented platforms, a typical step is:
 
@@ -83,6 +83,16 @@ run:
 ```
 
 Add the platform's mode changes and completion checks around this step. The [vJunos-router profile](../juniper/vjunos-router/README.md) instead loads hierarchical configuration using `load merge terminal`. Avoid startup commands that break management connectivity or change the console credentials expected during the next boot.
+
+## Save the running configuration
+
+Profiles with a `run.saveProcess` support saving the guest's running configuration:
+
+```sh
+docker exec clab-router-lab-r1 /boxen/boxen save
+```
+
+The configuration is written to the node's startup config file in the lab directory, for example `clab-router-lab/r1/config/startup-config.cfg`, so the node comes up with it the next time it is created. Saving needs the serial console, so close manual console sessions first. See the [CLI reference](../reference/cli.md#boxen-save).
 
 ## Hardware and boot overrides
 
@@ -129,4 +139,4 @@ Exit telnet with `Ctrl+]`, then `q`. Avoid taking over the console while profile
 sudo containerlab destroy --topo router-lab.clab.yml
 ```
 
-Removing a node removes its disk overlay and so its guest changes unless you arranged separate persistence. A newly created node uses the packaged image baseline plus its runtime and startup configuration.
+Removing a node removes its disk overlay and so its guest changes; use `boxen save` first to keep the configuration. A newly created node uses the packaged image baseline plus its runtime and startup configuration.

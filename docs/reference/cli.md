@@ -1,6 +1,6 @@
 # CLI commands
 
-Boxen exposes `build`, `package`, `run`, and `health`. Use each command's `--help` output for the binary installed on your host. This reference describes the current checkout.
+Boxen exposes `build`, `package`, `run`, `health`, and `save`. Use each command's `--help` output for the binary installed on your host. This reference describes the current checkout.
 
 ## `boxen build`
 
@@ -64,6 +64,24 @@ docker exec clab-<lab>-<node> /boxen/boxen health
 ```
 
 Exits 0 when the first whitespace-separated field of `/health` is `0`. A missing file, empty file, or any other status returns a nonzero exit code. Boxen writes `1 booting` during startup, `0 running` after successful runtime and startup-config processing, and `1 vm exited` when the VM stops on its own.
+
+## `boxen save`
+
+Run inside a running node container to save the guest's running configuration as the node's startup configuration:
+
+```sh
+docker exec clab-<lab>-<node> /boxen/boxen save
+```
+
+| Flag | Default | Purpose |
+| --- | --- | --- |
+| `--username` | `USERNAME` environment variable | Exposed as `.username` to save process templates |
+| `--password` | `PASSWORD` environment variable | Exposed as `.password` to save process templates |
+| `--hostname` | Container hostname | Exposed as `.hostname` to save process templates |
+| `--timeout` | `5m` | Maximum duration of the save |
+| `--logLevel` | `info` | Logging level |
+
+The command runs the profile's `run.saveProcess` over the serial console and writes the recorded configuration to the node's startup config file: the existing file from `run.startupConfigFiles`, otherwise the first listed path. Containerlab VM kinds bind that directory from the lab directory, so the saved file is applied by `run.configProcess` the next time the node is created. The command fails when the profile defines no save process, while the node is still provisioning, or when the console cannot be opened within a minute, for example because another session holds it.
 
 ## Global help and version
 

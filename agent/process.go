@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	boxenconstants "github.com/carlmontanari/boxen/constants"
 	boxenerrors "github.com/carlmontanari/boxen/errors"
 	boxenprofile "github.com/carlmontanari/boxen/profile"
 	scrapligocli "github.com/scrapli/scrapligo/v2/cli"
@@ -251,7 +250,11 @@ func (a *Agent) processStepWrite(
 
 		c = string(b)
 	case step.Write.ContentFromStartupConfig:
-		b, err := os.ReadFile(boxenconstants.StartupConfigFilePath)
+		if a.startupConfigFile == "" {
+			return fmt.Errorf("%w: no startup config file present", boxenerrors.ErrBoxen)
+		}
+
+		b, err := os.ReadFile(a.startupConfigFile)
 		if err != nil {
 			return err
 		}

@@ -110,3 +110,28 @@ func (a *Agent) runResolveInstanceUUID() error {
 		instanceStatePermissions,
 	)
 }
+
+// resolveStartupConfigFile returns the first of the profile's startup config files that exists,
+// or an empty string when there is none.
+func (a *Agent) resolveStartupConfigFile() (string, error) {
+	for _, path := range a.p.Run.GetStartupConfigFiles() {
+		info, err := os.Stat(path)
+		if err == nil {
+			if info.IsDir() {
+				return "", fmt.Errorf(
+					"%w: startup config path %q is a directory",
+					boxenerrors.ErrBoxen,
+					path,
+				)
+			}
+
+			return path, nil
+		}
+
+		if !errors.Is(err, fs.ErrNotExist) {
+			return "", err
+		}
+	}
+
+	return "", nil
+}
