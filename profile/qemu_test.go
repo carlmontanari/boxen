@@ -1,6 +1,7 @@
 package profile
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -268,22 +269,59 @@ func TestQemuArgsOverridesAndExtras(t *testing.T) {
 }
 
 func TestUseRunDisk(t *testing.T) {
-	args := useRunDisk([]string{
-		"-drive", "if=none,file=disk.qcow2,format=qcow2",
-		"-hda", "disk.qcow2",
-		"-drive", "file=disk.qcow2.bak,format=qcow2",
-		"-cdrom", "config.iso",
-	})
+	for _, test := range []struct {
+		name string
+		args []string
+		want []string
+	}{
+		{
+			name: "bare argument",
+			args: []string{"-drive", "if=none,file=disk.qcow2,format=qcow2", "-hda", "disk.qcow2"},
+			want: []string{
+				"-drive", "if=none,file=disk.overlay.qcow2,format=qcow2",
+				"-hda", "disk.overlay.qcow2",
+			},
+		},
+		{
+			name: "path qualified",
+			args: []string{
+				"-drive", "if=none,file=/boxen/disk.qcow2,format=qcow2,id=drive0",
+				"-drive", "file=./disk.qcow2",
+			},
+			want: []string{
+				"-drive", "if=none,file=disk.overlay.qcow2,format=qcow2,id=drive0",
+				"-drive", "file=disk.overlay.qcow2",
+			},
+		},
+		{
+			name: "other files untouched",
+			args: []string{"-drive", "file=disk.qcow2.bak,format=qcow2", "-cdrom", "config.iso"},
+			want: []string{"-drive", "file=disk.qcow2.bak,format=qcow2", "-cdrom", "config.iso"},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := useRunDisk(test.args); !slices.Equal(got, test.want) {
+				t.Fatalf("got %v, want %v", got, test.want)
+			}
+		})
+	}
+}
 
-	want := []string{
-		"-drive", "if=none,file=disk.overlay.qcow2,format=qcow2",
-		"-hda", "disk.overlay.qcow2",
-		"-drive", "file=disk.qcow2.bak,format=qcow2",
-		"-cdrom", "config.iso",
+func TestQemuAdditionalArgsRunDisk(t *testing.T) {
+	t.Setenv(
+		boxenconstants.EnvClabQemuAdditionalArgs,
+		"-drive if=none,file=disk.qcow2,format=qcow2",
+	)
+
+	p := testQemuProfile(false)
+
+	args, err := QemuArgsFromProfile(p, false)
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	if !slices.Equal(args, want) {
-		t.Fatalf("got %v, want %v", args, want)
+	if !slices.Contains(args, "if=none,file=disk.overlay.qcow2,format=qcow2") {
+		t.Fatalf("expected additional args disk reference rewritten to overlay, got %v", args)
 	}
 }
 
@@ -375,5 +413,28 @@ func TestQemuDataNICMACs(t *testing.T) {
 	if !strings.Contains(args[1], "mac=02:00:00:00:00:01") ||
 		!strings.Contains(args[5], "mac=02:00:00:00:00:02") {
 		t.Fatalf("data nics do not use the resolved MACs: %v", args)
+	}
+}
+
+func TestQemuBridgeBoundaries(t *testing.T) {
+	for _, count := range []uint16{25, 26, 27, 52, 70} {
+		p := testQemuProfile(false)
+		p.VirtualMachine.NicCount = count
+		p.VirtualMachine.NicPerBus = 26
+		args, err := QemuArgsFromProfile(p, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for index := 1; index <= int(count); index++ {
+			bridge := fmt.Sprintf("pci-bridge,chassis_nr=%d,id=pci.%d",
+				index/26+1, index/26+1)
+			if !slices.Contains(args, bridge) {
+				t.Fatalf("NIC %d of %d references a missing bridge: %s", index, count, bridge)
+			}
+			if !slices.Contains(args,
+				fmt.Sprintf("tap,id=p%03d,ifname=tap%d,script=no,downscript=no", index, index)) {
+				t.Fatalf("missing tap%d", index)
+			}
+		}
 	}
 }

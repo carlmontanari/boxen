@@ -17,10 +17,13 @@ import (
 const (
 	echoTimeout      = 2 * time.Minute
 	echoPollInterval = 20 * time.Millisecond
+	// echoWindowExtra is how much output besides the echoed line waitForEcho keeps, so that the
+	// echo survives guest output arriving between polls and the bytes that CLIs insert when
+	// wrapping a line.
+	echoWindowExtra = 4_096
 )
 
 const (
-	consoleHost           = "127.0.0.1"
 	consoleOpenAttempts   = 5
 	consoleOpenRetryDelay = 3 * time.Second
 )
@@ -38,17 +41,10 @@ func (a *Agent) openConsoleConn(ctx context.Context, logFilename string) error {
 
 	go func() {
 		for attempt := 1; attempt <= consoleOpenAttempts; attempt++ {
-			relay, err := startConsoleRelay(ctx, consoleAddress)
-			if err != nil {
-				errs <- err
-
-				return
-			}
-
 			conn, err := scrapligocli.NewCli(
-				consoleHost,
+				boxenconstants.ConsoleHost,
 				scrapligooptions.WithDefinitionFileOrName(".scrapligo_definition.yaml"),
-				scrapligooptions.WithPort(relay.port),
+				scrapligooptions.WithPort(boxenconstants.ConsolePort),
 				scrapligooptions.WithLogger(a.l.l),
 				scrapligooptions.WithLoggerLevel(
 					scrapligologging.LogLevel(
@@ -64,7 +60,6 @@ func (a *Agent) openConsoleConn(ctx context.Context, logFilename string) error {
 				scrapligooptions.WithSessionRecorderPath(logFilename),
 			)
 			if err != nil {
-				relay.Close()
 				a.l.Error("failed creating console connection", "error", err.Error())
 				errs <- err
 
@@ -75,14 +70,10 @@ func (a *Agent) openConsoleConn(ctx context.Context, logFilename string) error {
 			if err == nil {
 				a.conn = conn
 				a.readConsoleChunk = func() ([]byte, error) { return conn.Read() }
-				a.consoleRelay = relay
 				success <- struct{}{}
 
 				return
 			}
-
-			// a failed open can leave its connection behind, holding the single console session
-			relay.Close()
 
 			if attempt == consoleOpenAttempts {
 				errs <- err
@@ -142,12 +133,6 @@ func (a *Agent) closeConsoleConn(ctx context.Context) error {
 	a.l.Info("closing console connection...")
 
 	_, err := a.conn.Close(ctx)
-
-	// always free the console session for other clients
-	if a.consoleRelay != nil {
-		a.consoleRelay.Close()
-		a.consoleRelay = nil
-	}
 
 	return err
 }
@@ -224,7 +209,10 @@ func (a *Agent) unreadConsole(b []byte) {
 
 // waitForEcho waits until the console echoed written text, so that following input is not sent
 // before the guest processed it. Whitespace is ignored, since CLIs do not always echo it verbatim
-// and wrap long lines, and an echo that never arrives fails the step instead of blocking it.
+// and wrap long lines, and an echo that never arrives fails the step instead of blocking it. Only
+// output read after the write is matched, and only the echoed text itself is consumed, so
+// repeated identical lines wait for their own echo; everything else the guest produces stays
+// available for the following steps.
 func (a *Agent) waitForEcho(ctx context.Context, s string) error {
 	want, _ := withoutWhitespace([]byte(s))
 	if len(want) == 0 {
@@ -234,28 +222,51 @@ func (a *Agent) waitForEcho(ctx context.Context, s string) error {
 	echoCtx, cancel := context.WithTimeout(ctx, echoTimeout)
 	defer cancel()
 
-	var buf bytes.Buffer
+	// output carried over from before the write can never be its echo, so it is excluded from
+	// matching and kept for the following steps
+	pending := a.pendingConsole
+	a.pendingConsole = nil
+
+	var raw []byte
+
+	// output evicted from the window was already checked and cannot match anymore; it stays
+	// available for the following steps instead of being dropped
+	var evicted []byte
 
 	for {
 		// this read cant block because its only reading off the internally buffered
 		// bits that the session has already read
-		b, err := a.readConsole()
+		b, err := drainReads(a.readConsoleChunk)
 		if err != nil {
 			return err
 		}
 
 		if len(b) > 0 {
 			a.l.Debug("console output", "content", string(b))
+
+			raw = append(raw, b...)
 		}
 
-		buf.Write(b)
-
-		contents, offsets := withoutWhitespace(buf.Bytes())
+		contents, offsets := withoutWhitespace(raw)
 
 		if idx := bytes.Index(contents, want); idx >= 0 {
-			a.unreadConsole(buf.Bytes()[offsets[idx+len(want)-1]+1:])
+			// only the echoed text itself is consumed; output read before and after it goes
+			// back, so the following steps see everything the guest produced
+			start := offsets[idx]
+			end := offsets[idx+len(want)-1] + 1
+			back := make([]byte, 0, len(pending)+len(evicted)+len(raw))
+			back = append(back, pending...)
+			back = append(back, evicted...)
+			back = append(back, raw[:start]...)
+			back = append(back, raw[end:]...)
+			a.pendingConsole = back
 
 			return nil
+		}
+
+		if size := len(want) + echoWindowExtra; len(raw) > size {
+			evicted = append(evicted, raw[:len(raw)-size]...)
+			raw = append([]byte(nil), raw[len(raw)-size:]...)
 		}
 
 		select {
@@ -271,8 +282,8 @@ func (a *Agent) waitForEcho(ctx context.Context, s string) error {
 }
 
 // withoutWhitespace returns b without whitespace, and without the NUL, bell, and backspace bytes
-// that line editors emit, for example when wrapping a line, and the offset in b of each returned
-// byte.
+// that line editors emit, for example when wrapping a line, along with the index in b of each
+// returned byte, so a match in the returned bytes maps back to the raw ones.
 func withoutWhitespace(b []byte) (out []byte, offsets []int) {
 	out = make([]byte, 0, len(b))
 	offsets = make([]int, 0, len(b))

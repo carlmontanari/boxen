@@ -171,7 +171,9 @@ func (a *Agent) runLoadProfile() error {
 		return err
 	}
 
-	return nil
+	// validate to fail fast on a broken profile, and to compile readUntil patterns once since
+	// the run loop matches on them on every poll
+	return a.p.Validate()
 }
 
 func (a *Agent) runClabStartDelay(ctx context.Context) error {
@@ -282,6 +284,15 @@ func intfWaitTimeout() (time.Duration, error) {
 			boxenconstants.EnvIntfWaitTimeout,
 			v,
 			err,
+		)
+	}
+
+	if timeout <= 0 {
+		return 0, fmt.Errorf(
+			"%w: invalid %s value %q: must be positive",
+			boxenerrors.ErrBoxen,
+			boxenconstants.EnvIntfWaitTimeout,
+			v,
 		)
 	}
 

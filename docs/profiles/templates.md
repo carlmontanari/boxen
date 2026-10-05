@@ -13,9 +13,12 @@ Boxen renders Go templates in `write.content` and in content loaded by `write.co
 | `.password` | Node-specific password | Runtime flag; empty during packaging |
 | `.hostname` | `leaf1` | Runtime flag; empty during packaging |
 | `.connectionMode` | Value passed by Containerlab | Runtime flag; empty during packaging |
+| `.isPackaging` | `true` or `false` | Whether the current operation is packaging |
 | `.dataNICMACs` | `[aa:c1:ab:94:6d:16 52:54:00:3f:1a:02]` | MAC of each data NIC in NIC order: the container interface MAC when it exists at boot, otherwise a generated one; empty during packaging |
 
 Although `.disk` contains the source basename during packaging, conversion has already produced the working `disk.qcow2` before console steps run. Do not assume the source filename still exists inside the builder.
+
+At runtime `.disk` expands to `disk.qcow2`, not to the overlay filename. The VM writes to the overlay `disk.overlay.qcow2`, and Boxen rewrites every `disk.qcow2` drive reference in the QEMU arguments to the overlay, including ones built from `{{ .disk }}` in overrides and extras. Console steps that reference the file name should keep using `{{ .disk }}`; never hardcode `disk.overlay.qcow2`.
 
 Index the file list to select one filename:
 
@@ -84,6 +87,40 @@ content: |
   mac-address {{ ciscoMAC $mac }}
   {{ end }}
 ```
+
+## Runtime files and Starlark
+
+`readFile` reads raw container file contents when the template is rendered. It does
+not interpret templates contained in that data. Required files fail if unavailable;
+an optional second argument supplies a default only when the file is missing:
+
+```yaml
+write:
+  content: |
+    {{ readFile "/config/commands.txt" }}
+    {{ readFile "/config/optional.txt" "" }}
+```
+
+`starlark` loads a user-supplied script, calls an exported function, and returns its
+result to the template. Arguments and results can be JSON-compatible values,
+including dictionaries and lists:
+
+```yaml
+write:
+  content: |
+    {{ $settings := starlark "settings.star" "commands" (readFile "/config/settings.json") }}
+    {{ range $settings.commands }}{{ . }}
+    {{ end }}
+```
+
+Starlark receives `is_packaging`, `read_file(path, default="...")`, and the `json`
+module. `read_file` uses the same missing-file rules as `readFile`. `load(...)` reads
+other user-supplied modules, relative to the importing script. Paths passed to
+`read_file` are relative to the container working directory, normally `/boxen`.
+Each invocation reads current files; modules are cached only within that invocation.
+List scripts in `extraFiles` to transfer them during packaging, or mount them at runtime.
+
+The same instruments are available to [VM configuration and QEMU mutators](qemu.md).
 
 ## Shell arguments and file transfer
 

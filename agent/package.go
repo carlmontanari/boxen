@@ -161,8 +161,8 @@ func (a *Agent) startPackage(ctx context.Context, errs chan error) {
 		return
 	}
 
-	if a.p.Packaging.Shrinkify {
-		err = a.packageShrinkify(ctx)
+	if a.p.Packaging.Sparsify {
+		err = a.packageSparsify(ctx)
 		if err != nil {
 			errs <- err
 
@@ -276,6 +276,12 @@ func (a *Agent) packageGetProfile(ctx context.Context) error {
 
 	err = yaml.Unmarshal(b, p)
 	if err != nil {
+		return err
+	}
+
+	// validate to fail fast on a broken profile, and to compile readUntil patterns once since
+	// the packaging loop matches on them on every poll
+	if err := p.Validate(); err != nil {
 		return err
 	}
 
@@ -406,7 +412,7 @@ func (a *Agent) packageProcess(ctx context.Context) error {
 	return a.runSteps(ctx, "package process", a.p.Packaging.Process)
 }
 
-func (a *Agent) packageShrinkify(ctx context.Context) error {
+func (a *Agent) packageSparsify(ctx context.Context) error {
 	err := os.Rename(boxenconstants.DiskFilename, "fat.qcow2")
 	if err != nil {
 		return err

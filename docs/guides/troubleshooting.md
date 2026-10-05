@@ -87,7 +87,7 @@ Boxen looks at the profile's listed path first, then beside the disk under the s
 
 ## Disk conversion or sparsification fails
 
-Give the source disk a vendor-specific filename, not the literal `disk.qcow2`, which the conversion routine reserves for output. Check the disk format and free space in the Docker storage filesystem. The builder temporarily holds the transferred source and converted disk. Sparsification can require additional working space and host kernel support. If shrinkification is not required for your platform, set `packaging.shrinkify: false` in a custom profile and repackage.
+Give the source disk a vendor-specific filename, not the literal `disk.qcow2`, which the conversion routine reserves for output. Check the disk format and free space in the Docker storage filesystem. The builder temporarily holds the transferred source and converted disk. Sparsification can require additional working space and host kernel support. If sparsification is not required for your platform, set `packaging.sparsify: false` in a custom profile and repackage.
 
 ## QEMU fails at startup
 

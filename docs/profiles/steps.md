@@ -52,6 +52,8 @@ Use Go duration strings such as `5s`, `2m`, and `20m`. Duration fields are requi
 
 Give a successful terminal prompt `completes: true`; otherwise the step can continue until its timeout. Use `once` for first-boot dialogs and password changes so the same buffered prompt cannot repeatedly trigger a response.
 
+Non-hidden responses wait for their echo before the return character is sent, under the same rules as `write` steps; an echo that does not arrive within two minutes fails the step.
+
 `hidden` handles non-echoing terminal input. It does not redact the content from all logs: the current agent logs prompt definitions and response values. Treat collected automation logs accordingly.
 
 ## `readUntil`: confirm an outcome
@@ -100,7 +102,15 @@ Read the runtime startup config:
 
 Choose one content source. The implementation prioritizes nonempty `content`, then `contentFromFile`, then `contentFromStartupConfig`. File paths are container paths; companion files normally reside in `/boxen`. Startup-config content is available at runtime, not during packaging.
 
-The selected content is rendered as a [Go template](templates.md), split on newlines, and written line by line. By default Boxen waits for each line's echo before sending return. The comparison ignores whitespace and the backspace and bell bytes of line editors, since CLIs wrap long lines and do not always echo indentation; an echo that does not arrive within two minutes fails the step. Set `hidden: true` for a password or another input that does not echo. A `write` step does not verify the OS accepted a command; follow it with a `readUntil` check when the result matters.
+The selected content is rendered as a [Go template](templates.md), split on newlines, and written line by line. By default Boxen waits for each line's echo before sending return. The comparison ignores whitespace and the NUL, backspace, and bell bytes of line editors, since CLIs wrap long lines and do not always echo indentation; an echo that does not arrive within two minutes fails the step. Set `hidden: true` for a password or another input that does not echo. A `write` step does not verify the OS accepted a command; follow it with a `readUntil` check when the result matters.
+
+The Cumulus VX profile uses `contentFromFile: nvidia_cumulusvx_breakout.sh.tmpl`
+for guest breakout setup. Its embedded companion files contain the commands
+and layout logic, while the profile controls their position and the following
+completion check. A custom YAML profile can list user files in `extraFiles` with the
+same names to override them. List companion files in `extraFiles` to package them into `/boxen`,
+or bind-mount them at runtime. Templates can also read data with `readFile` and
+call external functions with `starlark`.
 
 Use `content: "\n"` to send a blank line. An empty `content: ""` by itself is not a supported write source.
 

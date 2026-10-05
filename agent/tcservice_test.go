@@ -426,6 +426,99 @@ func TestWatchNICWireAndRewire(t *testing.T) {
 	}
 }
 
+func TestWatchNICRetriesPartialWiringFailure(t *testing.T) {
+	origPoll := interfacePollInterval
+	origExists, origIndex, origRun := intfExists, intfIndex, runNetCommand
+	t.Cleanup(func() {
+		interfacePollInterval = origPoll
+		intfExists, intfIndex, runNetCommand = origExists, origIndex, origRun
+	})
+
+	interfacePollInterval = 5 * time.Millisecond
+	fn := &fakeNet{present: map[string]bool{}}
+	fn.setPresent("tap1", true)
+	fn.setPresent("eth1", true)
+	intfExists, intfIndex = fn.exists, fn.indexOf
+
+	wantErr := errors.ErrUnsupported
+	failOnce := true
+	runNetCommand = func(_ context.Context, name string, args ...string) ([]byte, error) {
+		fn.record(name, args...)
+		// Fail the final redirect after the other qdiscs and filter have been installed.
+		if failOnce && name == "tc" && len(args) >= 4 &&
+			slices.Equal(args[:4], []string{"filter", "add", "dev", "tap1"}) {
+			failOnce = false
+
+			return []byte("injected redirect failure"), wantErr
+		}
+
+		return nil, nil
+	}
+
+	a := NewAgent(slog.LevelError)
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	defer func() {
+		cancel()
+		<-done
+	}()
+
+	results := make(chan error, 2)
+	go func() {
+		defer close(done)
+		a.watchNIC(
+			ctx,
+			"tap1",
+			"eth1",
+			a.bringTapUp,
+			func(ctx context.Context, tap, eth string) error {
+				err := a.wireDataTap(ctx, tap, eth)
+				select {
+				case results <- err:
+				case <-ctx.Done():
+				}
+
+				return err
+			},
+		)
+	}()
+
+	// The same interface index must retry after failure and then wire successfully.
+	for attempt, want := range []error{wantErr, nil} {
+		select {
+		case err := <-results:
+			if !errors.Is(err, want) {
+				t.Fatalf("attempt %d: expected %v, got %v", attempt+1, want, err)
+			}
+		case <-time.After(time.Second):
+			t.Fatalf("wiring attempt %d did not complete", attempt+1)
+		}
+	}
+
+	cancel()
+	<-done
+
+	// Tap setup runs once, followed by two complete six-command wiring attempts.
+	if len(fn.calls) != 14 {
+		t.Fatalf(
+			"expected 14 commands for setup and two wiring attempts, got %d: %v",
+			len(fn.calls),
+			fn.calls,
+		)
+	}
+
+	first, retry := fn.calls[2:8], fn.calls[8:]
+	assertCalls(t, retry[:2], [][]string{
+		{"tc", "qdisc", "del", "dev", "eth1", "ingress"},
+		{"tc", "qdisc", "del", "dev", "tap1", "ingress"},
+	})
+	if !slices.EqualFunc(first, retry, func(a, b capturedCmd) bool {
+		return a.name == b.name && slices.Equal(a.args, b.args)
+	}) {
+		t.Fatalf("retry should repeat the full wiring sequence: first=%v retry=%v", first, retry)
+	}
+}
+
 func TestSetupMgmtNICPlugsOnce(t *testing.T) {
 	t.Setenv(boxenconstants.EnvClabMgmtMAC, "")
 

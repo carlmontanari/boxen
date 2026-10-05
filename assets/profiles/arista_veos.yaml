@@ -71,6 +71,7 @@ virtualMachine:
         - content: -cdrom
         - content: Aboot-veos-serial-8.0.0.iso
 packaging:
+  sparsify: true
   process:
     # handle ztp login
     - type: prompts

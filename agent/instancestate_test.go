@@ -206,6 +206,14 @@ func TestIntfWaitTimeout(t *testing.T) {
 	if _, err = intfWaitTimeout(); err == nil {
 		t.Fatal("expected an invalid duration error")
 	}
+
+	for _, invalid := range []string{"0s", "-30s"} {
+		t.Setenv(boxenconstants.EnvIntfWaitTimeout, invalid)
+
+		if _, err = intfWaitTimeout(); err == nil {
+			t.Fatalf("expected a nonpositive duration error for %q", invalid)
+		}
+	}
 }
 
 func TestWatchInstanceReportsVMExit(t *testing.T) {
