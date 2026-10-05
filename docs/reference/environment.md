@@ -42,7 +42,8 @@ boxen build --disk /path/to/vendor.qcow2 --profile /path/to/profile.yaml
 | `QEMU_MEMORY` | Profile `memory` | Override generated `-m` value |
 | `QEMU_CPU` | Profile `cpuEmulation` | Override generated CPU model |
 | `QEMU_SMP` | Profile CPU topology | Override generated SMP value when `cpuCores` is nonzero |
-| `QEMU_ADDITIONAL_ARGS` | Empty | Append space-split arguments after profile extras |
+| `QEMU_NIC_TYPE` | Profile `nicType` | Override the management and data NIC model |
+| `QEMU_ADDITIONAL_ARGS` | Empty | Append whitespace-split arguments after profile extras |
 | `UUID` | Generated once per container | VM system UUID; a generated UUID is kept across restarts of the same container |
 
 `CLAB_INTFS` is fixed when Containerlab creates the container, so it overcounts after links are removed from a running node; the bounded wait keeps such a node from waiting for interfaces that no longer exist. The integer helpers fall back to defaults for invalid integer input. Keep counts and delays nonnegative. Profile section overrides bypass the corresponding generators, so CPU and memory environment values do not replace explicitly overridden sections.

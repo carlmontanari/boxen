@@ -109,7 +109,7 @@ A healthy flag confirms successful provisioning, not continuing guest service av
 
 ## SSH or management addresses do not work
 
-In transparent mode, compare the container's management addresses and routes with the commands rendered into the guest. Guard optional IPv6 fields and handle DHCP explicitly. In legacy mode, confirm the profile supplies `natPorts` for the service; toggling off transparent management does not automatically add them.
+In transparent mode, compare the container's management addresses and routes with the commands rendered into the guest. Guard optional IPv6 fields and handle DHCP explicitly. In legacy mode, confirm the service's port is forwarded: the profile's `natPorts`, or the default management ports when it defines none.
 
 Remember to put `CLAB_MGMT_PASSTHROUGH` inside the node's environment. See [management networking](management.md).
 

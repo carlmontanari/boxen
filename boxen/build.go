@@ -134,7 +134,7 @@ func (b *Boxen) Build(
 
 	fmt.Fprintf(&imageID, "boxen-%s:%s", b.p.Name, imageTag)
 
-	natPorts := b.p.VirtualMachine.NatPorts
+	natPorts := b.p.VirtualMachine.GetNatPorts()
 	if b.p.VirtualMachine.ManagementPassthrough {
 		natPorts = nil
 	}

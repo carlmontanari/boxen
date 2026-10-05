@@ -9,7 +9,7 @@ Boxen packages a network OS VM together with a Go agent and the tools it needs t
 | Host CLI | Resolves the disk and profile, serves files to the builder, and commits the finished image. |
 | Builder image | Supplies Boxen, QEMU, disk utilities, libscrapli, and the generic serial-console definition. |
 | Profile | Describes VM hardware and the packaging and runtime console procedures. |
-| Packaged image | Contains `/boxen/disk.qcow2`, `/boxen/profile.yaml`, companion files, and the agent runtime. |
+| Packaged image | Contains `/boxen/disk.qcow2`, `/boxen/profile.yaml`, companion files, and the agent runtime. Packaged images carry the `org.opencontainers.image.vendor=Boxen` label that Containerlab detects. |
 | Containerlab | Creates node containers, supplies runtime inputs and links, and manages the lab lifecycle. |
 | Boxen agent | Boots the VM, executes console steps, joins VM and container interfaces, and reports readiness. |
 
