@@ -203,6 +203,7 @@ func TestRenderTemplateManagementFormatters(t *testing.T) {
 		`hostname {{ .hostname }}
 address {{ .mgmtIPv4Address }}
 network {{ .mgmtIPv4Network }}
+netmask {{ .mgmtIPv4Netmask }}
 ipv6 {{ .mgmtIPv6Address }}`,
 	)
 	if err != nil {
@@ -212,6 +213,7 @@ ipv6 {{ .mgmtIPv6Address }}`,
 	expected := `hostname leaf1
 address 172.20.20.10
 network 172.20.20.0/24
+netmask 255.255.255.0
 ipv6 `
 
 	if actual != expected {
@@ -241,5 +243,31 @@ func TestRenderTemplateDHCPManagementFormatters(t *testing.T) {
 	_, err = f.RenderTemplate(`address {{ .mgmtIPv4 }}`)
 	if err == nil {
 		t.Fatal("expected direct management address use to fail in DHCP mode")
+	}
+}
+
+func TestCiscoMAC(t *testing.T) {
+	got, err := ciscoMAC("AA:C1:AB:94:6D:16")
+	if err != nil || got != "aac1.ab94.6d16" {
+		t.Fatalf("got %q, %v", got, err)
+	}
+
+	if _, err := ciscoMAC("not-a-mac"); err == nil {
+		t.Fatal("expected an invalid MAC error")
+	}
+}
+
+func TestRenderTemplateDataNICMACs(t *testing.T) {
+	p := testQemuProfile(true)
+	p.DataNICMACs = []string{"02:00:00:00:00:01", "02:00:00:00:00:02"}
+
+	got, err := NewFormatters("", "", "", "", p, false).RenderTemplate(`{{ len .dataNICMACs }}`)
+	if err != nil || got != "2" {
+		t.Fatalf("run-phase dataNICMACs missing: got %q, err %v", got, err)
+	}
+
+	got, err = NewFormatters("", "", "", "", p, true).RenderTemplate(`{{ len .dataNICMACs }}`)
+	if err != nil || got != "0" {
+		t.Fatalf("packaging must not expose dataNICMACs: got %q, err %v", got, err)
 	}
 }

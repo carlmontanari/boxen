@@ -45,7 +45,7 @@ Use Go duration strings such as `5s`, `2m`, and `20m`. Duration fields are requi
 | `prompt.contains` | Literal substring to match. |
 | `prompt.containsPattern` | Regex to match console output. |
 | `prompt.notContains` | Reject a match when this substring is present. |
-| `response` | Text sent to the console, followed by a return character. It is not Go-templated. |
+| `response` | Text sent to the console, followed by a return character. It is rendered as a [Go template](templates.md). |
 | `hidden` | Do not wait for the response to echo before sending return. |
 | `once` | Trigger this callback at most once in the step. |
 | `completes` | End the prompts step after the matching callback. |
@@ -112,7 +112,7 @@ same names to override them. List companion files in `extraFiles` to package the
 or bind-mount them at runtime. Templates can also read data with `readFile` and
 call external functions with `starlark`.
 
-Use `content: "\n"` to send a blank line. An empty `content: ""` by itself is not a supported write source. For runtime credentials use a templated `write` step after waiting for the relevant password prompt, rather than putting templates in `prompts.response`.
+Use `content: "\n"` to send a blank line. An empty `content: ""` by itself is not a supported write source.
 
 ## `wait`: allow background work to finish
 

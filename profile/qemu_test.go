@@ -402,6 +402,20 @@ func TestQemuMgmtNICLegacyDefaultNatPorts(t *testing.T) {
 	}
 }
 
+func TestQemuDataNICMACs(t *testing.T) {
+	p := testQemuProfile(false)
+	p.VirtualMachine.NicCount = 2
+	p.VirtualMachine.NicPerBus = 26
+	p.DataNICMACs = []string{"02:00:00:00:00:01", "02:00:00:00:00:02"}
+
+	args := qemuDataNICs(p)
+
+	if !strings.Contains(args[1], "mac=02:00:00:00:00:01") ||
+		!strings.Contains(args[5], "mac=02:00:00:00:00:02") {
+		t.Fatalf("data nics do not use the resolved MACs: %v", args)
+	}
+}
+
 func TestQemuBridgeBoundaries(t *testing.T) {
 	for _, count := range []uint16{25, 26, 27, 52, 70} {
 		p := testQemuProfile(false)
