@@ -13,7 +13,7 @@ RUN CGO_ENABLED=0 \
     go run \
     build/write-libscrapli-to-cache/main.go
 
-RUN cp /root/.cache/scrapli/libscrapli.so.* /root/.cache/scrapli/libscrapli.so
+RUN cp /root/.cache/scrapli/libscrapli-* /root/.cache/scrapli/libscrapli.so
 
 RUN CGO_ENABLED=0 \
     go build \
