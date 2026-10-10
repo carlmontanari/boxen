@@ -44,6 +44,8 @@ Push a tag such as `v0.0.5` on the commit to release, or create a new tag when p
 
 The workflow uploads four `boxen_<version>_<os>_<arch>.tar.gz` archives for `linux` and `darwin`, each on `amd64` and `arm64`, plus `boxen_<version>_checksums.txt`. Archives contain the `boxen` executable, license, and README. If a pushed tag has no release, the workflow creates one; tags containing `-` are created as prereleases. Existing releases retain their notes and prerelease status, and reruns replace their assets.
 
+The same workflow builds the agent image from `build/agent.Dockerfile` and pushes it to `ghcr.io/carlmontanari/boxen` tagged with the release version, so a released CLI resolves its default builder image. The image targets `linux/amd64` only.
+
 To build the same archives locally on Linux without publishing:
 
 ```sh

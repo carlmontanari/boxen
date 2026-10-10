@@ -59,10 +59,12 @@ build:
 
 ## Build the base boxen agent container image
 BOXEN_IMAGE ?= ghcr.io/carlmontanari/boxen:0.0.0
+VERSION ?= 0.0.0
 .PHONY: build-image
 build-image:
 	docker build \
         -f build/agent.Dockerfile \
+        --build-arg VERSION=$(VERSION) \
         --build-arg GO_VERSION=$(GO_VERSION) \
         -t "$(BOXEN_IMAGE)" .
         # .	\
