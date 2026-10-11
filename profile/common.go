@@ -89,6 +89,10 @@ type Prompt struct {
 	Name     string   `yaml:"name"`
 	Prompt   Contains `yaml:"prompt"`
 	Response string   `yaml:"response"`
+	// sendReturn defaults to true; set it to false to send the response without a return
+	// character, for example to interrupt a boot countdown with a bare keystroke. A response
+	// sent without a return is written as-is and its echo is not awaited.
+	SendReturn *bool `yaml:"sendReturn"`
 	// if marked hidden we wont read the inputs we send off the channel, use this for
 	// passwords and the like
 	Hidden    bool `yaml:"hidden"`
@@ -122,6 +126,9 @@ type StepWrite struct {
 	// if marked hidden we wont read the inputs we send off the channel, use this for
 	// passwords and the like
 	Hidden bool `yaml:"hidden"`
+	// sendReturn defaults to true; set it to false to write the content as-is in a single
+	// write, without a return character and without waiting for an echo.
+	SendReturn *bool `yaml:"sendReturn"`
 }
 
 // StepWait tells the agent to wait during a package/run.
