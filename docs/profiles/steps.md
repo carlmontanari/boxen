@@ -45,14 +45,15 @@ Use Go duration strings such as `5s`, `2m`, and `20m`. Duration fields are requi
 | `prompt.contains` | Literal substring to match. |
 | `prompt.containsPattern` | Regex to match console output. |
 | `prompt.notContains` | Reject a match when this substring is present. |
-| `response` | Text sent to the console, followed by a return character. It is rendered as a [Go template](templates.md). |
+| `response` | Text sent to the console, followed by a return character unless `sendReturn` is false. It is rendered as a [Go template](templates.md). |
+| `sendReturn` | Set to `false` to send the response without a return character, for example to interrupt a boot countdown with a keystroke. The response is written as-is and the echo wait is skipped. |
 | `hidden` | Do not wait for the response to echo before sending return. |
 | `once` | Trigger this callback at most once in the step. |
 | `completes` | End the prompts step after the matching callback. |
 
 Give a successful terminal prompt `completes: true`; otherwise the step can continue until its timeout. Use `once` for first-boot dialogs and password changes so the same buffered prompt cannot repeatedly trigger a response.
 
-Non-hidden responses wait for their echo before the return character is sent, under the same rules as `write` steps; an echo that does not arrive within two minutes fails the step.
+Non-hidden responses wait for their echo before the return character is sent, under the same rules as `write` steps; an echo that does not arrive within two minutes fails the step. A prompt with `sendReturn: false` skips the echo wait along with the return character.
 
 `hidden` handles non-echoing terminal input. It does not redact the content from all logs: the current agent logs prompt definitions and response values. Treat collected automation logs accordingly.
 
@@ -102,7 +103,7 @@ Read the runtime startup config:
 
 Choose one content source. The implementation prioritizes nonempty `content`, then `contentFromFile`, then `contentFromStartupConfig`. File paths are container paths; companion files normally reside in `/boxen`. Startup-config content is available at runtime, not during packaging.
 
-The selected content is rendered as a [Go template](templates.md), split on newlines, and written line by line. By default Boxen waits for each line's echo before sending return. The comparison ignores whitespace and the NUL, backspace, and bell bytes of line editors, since CLIs wrap long lines and do not always echo indentation; an echo that does not arrive within two minutes fails the step. Set `hidden: true` for a password or another input that does not echo. A `write` step does not verify the OS accepted a command; follow it with a `readUntil` check when the result matters.
+The selected content is rendered as a [Go template](templates.md), split on newlines, and written line by line. By default Boxen waits for each line's echo before sending return. The comparison ignores whitespace and the NUL, backspace, and bell bytes of line editors, since CLIs wrap long lines and do not always echo indentation; an echo that does not arrive within two minutes fails the step. Set `hidden: true` for a password or another input that does not echo. Set `sendReturn: false` to write the rendered content verbatim in a single write, without a return character and without the echo wait — for example, a keystroke aimed at a boot menu. A `write` step does not verify the OS accepted a command; follow it with a `readUntil` check when the result matters.
 
 The Cumulus VX profile uses `contentFromFile: nvidia_cumulusvx_breakout.sh.tmpl`
 for guest breakout setup. Its embedded companion files contain the commands

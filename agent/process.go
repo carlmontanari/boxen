@@ -64,6 +64,9 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 			logged = "[redacted]"
 		}
 
+		// sendReturn defaults to true when unset
+		sendReturn := p.SendReturn == nil || *p.SendReturn
+
 		a.l.Debug(
 			"building prompts callback",
 			"callback name",
@@ -72,6 +75,8 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 			p.Prompt,
 			"response",
 			logged,
+			"sendReturn",
+			sendReturn,
 			"completes",
 			p.Completes,
 		)
@@ -141,6 +146,12 @@ func (a *Agent) processStepPrompts(ctx context.Context, step *boxenprofile.Step)
 				err := c.Write(response)
 				if err != nil {
 					return err
+				}
+
+				// a response sent without a return does not wait for its echo, bootloaders and
+				// similar consumers of bare keystrokes often do not echo them
+				if !sendReturn {
+					return nil
 				}
 
 				if p.Hidden {
@@ -266,6 +277,16 @@ func (a *Agent) processStepWrite(
 	c, err := a.f.RenderTemplate(c)
 	if err != nil {
 		return err
+	}
+
+	// sendReturn defaults to true when unset; without a return the content is written verbatim
+	// in a single write, keeping any newlines it contains
+	sendReturn := step.Write.SendReturn == nil || *step.Write.SendReturn
+
+	if !sendReturn {
+		a.l.Debug("writing to console", "content", c)
+
+		return a.conn.Write(c)
 	}
 
 	writeIterator := strings.SplitSeq(

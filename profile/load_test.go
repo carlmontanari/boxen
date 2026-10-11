@@ -62,6 +62,60 @@ func TestLoadMinimalProfile(t *testing.T) {
 	}
 }
 
+func TestLoadSendReturn(t *testing.T) {
+	data := `name: test
+virtualMachine:
+  memory: 1024
+  serialPortCount: 1
+  nicType: virtio-net-pci
+  nicCount: 1
+  nicPerBus: 26
+packaging:
+  process:
+    - type: prompts
+      prompts:
+        timeout: 1m
+        prompts:
+          - prompt:
+              contains: "Booting in"
+            response: q
+            sendReturn: false
+          - prompt:
+              contains: "login:"
+            response: admin
+    - type: write
+      write:
+        content: stop
+        sendReturn: false
+run:
+  process:
+    - type: wait
+      wait:
+        duration: 1s
+`
+
+	p, err := Load([]byte(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	prompts := p.Packaging.Process[0].Prompts.Prompts
+
+	if prompts[0].SendReturn == nil || *prompts[0].SendReturn {
+		t.Fatal("sendReturn false should parse as false")
+	}
+
+	// an omitted sendReturn stays nil; the agent treats nil as true
+	if prompts[1].SendReturn != nil {
+		t.Fatal("omitted sendReturn should be nil")
+	}
+
+	w := p.Packaging.Process[1].Write
+	if w.SendReturn == nil || *w.SendReturn {
+		t.Fatal("sendReturn false should parse as false")
+	}
+}
+
 func TestLoadRejectsUnknownKeys(t *testing.T) {
 	data := strings.Replace(
 		minimalProfile,
