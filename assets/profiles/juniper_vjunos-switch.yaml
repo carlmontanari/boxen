@@ -39,7 +39,7 @@ prePackagingCommands:
       echo "start-junos.sh already handles SVM"
       exit 0
     fi
-    virt-edit -a disk.qcow2 /home/pfe/junos/start-junos.sh -e 's/grep -ci vmx)/grep -Eci "vmx|svm")/'
+    virt-edit -a disk.qcow2 /home/pfe/junos/start-junos.sh -e 's/grep -ci vmx\)/grep -Eci "vmx|svm")/'
     virt-cat -a disk.qcow2 /home/pfe/junos/start-junos.sh 2>/dev/null | grep -q svm
 packaging:
   sparsify: true
