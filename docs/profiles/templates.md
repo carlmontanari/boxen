@@ -14,6 +14,7 @@ Boxen renders Go templates in `write.content` and in content loaded by `write.co
 | `.hostname` | `leaf1` | Runtime flag; empty during packaging |
 | `.connectionMode` | Value passed by Containerlab | Runtime flag; empty during packaging |
 | `.isPackaging` | `true` or `false` | Whether the current operation is packaging |
+| `.startupConfigFile` | `/config/startup-config.cfg` | Runtime path of the node's startup config file; empty when there is none |
 | `.dataNICMACs` | `[aa:c1:ab:94:6d:16 52:54:00:3f:1a:02]` | MAC of each data NIC in NIC order: the container interface MAC when it exists at boot, otherwise a generated one; empty during packaging |
 
 Although `.disk` contains the source basename during packaging, conversion has already produced the working `disk.qcow2` before console steps run. Do not assume the source filename still exists inside the builder.
@@ -72,7 +73,7 @@ The exact commands depend on the OS. Use the [management guide](../guides/manage
 
 ## Where rendering happens
 
-Templates expand in the text that a `write` step sends and in `prompts.response`. They do not expand in `readUntil` or prompt matchers, shell hooks, the `contentFromFile` pathname, or QEMU argument overrides. Text without `{{` is sent unchanged.
+Templates expand in the text that a `write` step sends, in `prompts.response`, and in `capture.command`. They do not expand in `readUntil` or prompt matchers, shell hooks, the `contentFromFile` pathname, or QEMU argument overrides. Text without `{{` is sent unchanged.
 
 Go template syntax is not shell syntax. Use `{{ if ... }}` and `{{ end }}` to guard optional values; avoid accessing a missing management key before the DHCP branch.
 
@@ -136,5 +137,5 @@ send safely. It does not validate usernames or hostnames for the guest OS.
 `fileBase64` reads a file from the container and returns its base64 encoding in lines of at most
 76 characters. The original file is not parsed as a Go template. Use a guest heredoc to receive
 the lines, then decode and validate the file before importing it. The Community SONiC profile
-uses this function to transfer `/config/startup-config.cfg` without shell interpolation or console
-line truncation. A missing or unreadable file fails rendering.
+uses `{{ fileBase64 .startupConfigFile }}` to transfer the startup config without shell
+interpolation or console line truncation. A missing or unreadable file fails rendering.

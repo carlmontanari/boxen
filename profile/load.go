@@ -13,10 +13,11 @@ import (
 )
 
 var (
-	errRequired        = errors.New("is required")
-	errInvalid         = errors.New("is invalid")
-	errUnknownStepType = errors.New("unknown step type")
-	errWriteContent    = errors.New(
+	errRequired           = errors.New("is required")
+	errInvalid            = errors.New("is invalid")
+	errUnknownStepType    = errors.New("unknown step type")
+	errCaptureOutsideSave = errors.New("capture steps are only supported in run.saveProcess")
+	errWriteContent       = errors.New(
 		"write requires content, contentFromFile, or contentFromStartupConfig",
 	)
 	errMatchConditionUnset = errors.New("contains or containsPattern is required")
@@ -69,14 +70,15 @@ func (p *Profile) Validate() error {
 	if p.Packaging == nil {
 		errs = append(errs, fmt.Errorf("packaging %w", errRequired))
 	} else {
-		errs = append(errs, validateSteps("packaging.process", p.Packaging.Process)...)
+		errs = append(errs, validateSteps("packaging.process", p.Packaging.Process, false)...)
 	}
 
 	if p.Run == nil {
 		errs = append(errs, fmt.Errorf("run %w", errRequired))
 	} else {
-		errs = append(errs, validateSteps("run.process", p.Run.Process)...)
-		errs = append(errs, validateSteps("run.configProcess", p.Run.ConfigProcess)...)
+		errs = append(errs, validateSteps("run.process", p.Run.Process, false)...)
+		errs = append(errs, validateSteps("run.configProcess", p.Run.ConfigProcess, false)...)
+		errs = append(errs, validateSteps("run.saveProcess", p.Run.SaveProcess, true)...)
 	}
 
 	if len(errs) == 0 {
@@ -133,11 +135,11 @@ func (v *VirtualMachine) validate() []error {
 	return errs
 }
 
-func validateSteps(phase string, steps []Step) []error {
+func validateSteps(phase string, steps []Step, allowCapture bool) []error {
 	var errs []error
 
 	for idx := range steps {
-		err := steps[idx].validate()
+		err := steps[idx].validate(allowCapture)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%s[%d]: %w", phase, idx, err))
 		}
@@ -146,7 +148,7 @@ func validateSteps(phase string, steps []Step) []error {
 	return errs
 }
 
-func (s *Step) validate() error {
+func (s *Step) validate(allowCapture bool) error {
 	switch s.Type {
 	case StepTypePrompts:
 		return s.Prompts.validate()
@@ -156,6 +158,12 @@ func (s *Step) validate() error {
 		return s.Write.validate()
 	case StepTypeWait:
 		return validateDuration("wait.duration", s.Wait.Duration)
+	case StepTypeCapture:
+		if !allowCapture {
+			return errCaptureOutsideSave
+		}
+
+		return s.Capture.validate()
 	default:
 		return fmt.Errorf("%w %q", errUnknownStepType, s.Type)
 	}
@@ -204,8 +212,37 @@ func (s *StepWrite) validate() error {
 	return nil
 }
 
+func (s *StepCapture) validate() error {
+	err := validateDuration("capture.timeout", s.Timeout)
+	if err != nil {
+		return err
+	}
+
+	if s.Command == "" {
+		return fmt.Errorf("capture.command %w", errRequired)
+	}
+
+	if s.Start.Contains != "" || s.Start.ContainsPattern != "" {
+		err = s.Start.validate(true)
+		if err != nil {
+			return fmt.Errorf("capture.start: %w", err)
+		}
+	}
+
+	err = s.End.validate(true)
+	if err != nil {
+		return fmt.Errorf("capture.end: %w", err)
+	}
+
+	if s.Decode != "" && s.Decode != CaptureDecodeBase64 {
+		return fmt.Errorf("capture.decode %w: must be empty or %q", errInvalid, CaptureDecodeBase64)
+	}
+
+	return nil
+}
+
 // validate checks that a match condition is set; goPattern compiles containsPattern with the go
-// regexp package, which matches readUntil output.
+// regexp package, which matches readUntil and capture output.
 func (c *Contains) validate(goPattern bool) error {
 	if c.Contains == "" && c.ContainsPattern == "" {
 		return errMatchConditionUnset

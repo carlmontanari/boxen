@@ -86,9 +86,23 @@ bind-mounted into the node container.
 | `postPackagingCommands` | After QEMU stops and optional sparsification | Builder container, `/bin/bash -c` |
 | `preRunCommands` | Before QEMU starts on each runtime invocation | Node container, `/bin/bash -c` |
 | `run.process` | After the runtime console opens | Guest serial console |
-| `run.configProcess` | After `run.process`, if the startup config path exists | Guest serial console |
+| `run.configProcess` | After `run.process`, if a startup config file exists | Guest serial console |
+| `run.saveProcess` | When `boxen save` runs in the running node | Guest serial console |
 
 Shell hooks operate in the container, while console steps operate in the guest. Go template expansion is implemented for `write` content, including content read from files. Hooks, prompt responses, and QEMU argument strings are not passed through that renderer.
+
+## Startup and saved configuration
+
+`run.startupConfigFiles` lists the startup config paths to look for, in order; the first one that exists is the node's startup config, exposed as `{{ .startupConfigFile }}` and read by `contentFromStartupConfig`. It defaults to the Containerlab VM path `/config/startup-config.cfg`. `boxen save` writes the configuration recorded by `run.saveProcess` to the existing startup config file, or to the first listed path, in a format `run.configProcess` can apply:
+
+```yaml
+run:
+  startupConfigFiles:
+    - /config/config_db.json
+    - /config/startup-config.cfg
+  saveProcess:
+    # get to a prompt, then capture the configuration
+```
 
 ## Packaging options
 

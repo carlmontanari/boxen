@@ -20,6 +20,12 @@ const (
 	// EnvClabUUID sets the VM system UUID, as in vrnetlab.
 	EnvClabUUID = "UUID"
 
+	// EnvClabUsername and EnvClabPassword are set by containerlab VM kinds alongside the run
+	// flags; `boxen save` reads them because it is started with `docker exec`.
+	EnvClabUsername = "USERNAME"
+	EnvClabPassword = "PASSWORD"
+
+	// StartupConfigFilePath is the default startup config path for containerlab VM kinds.
 	StartupConfigFilePath = "/config/startup-config.cfg"
 
 	// HealthFilePath is read by the container healthcheck; its first whitespace

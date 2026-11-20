@@ -12,6 +12,7 @@ import (
 	"time"
 
 	boxenconstants "github.com/carlmontanari/boxen/constants"
+	boxenprofile "github.com/carlmontanari/boxen/profile"
 )
 
 func TestRunPrepareDisk(t *testing.T) {
@@ -168,6 +169,44 @@ func TestRunResolveInstanceUUID(t *testing.T) {
 			t.Fatalf("expected the new uuid to be stored, got %q", b)
 		}
 	})
+}
+
+func TestResolveStartupConfigFile(t *testing.T) {
+	dir := t.TempDir()
+	first := filepath.Join(dir, "config_db.json")
+	second := filepath.Join(dir, "startup-config.cfg")
+
+	a := NewAgent(slog.LevelError)
+	a.p.Run = &boxenprofile.Run{StartupConfigFiles: []string{first, second}}
+
+	got, err := a.resolveStartupConfigFile()
+	if err != nil || got != "" {
+		t.Fatalf("expected no startup config, got %q, %v", got, err)
+	}
+
+	if err := os.WriteFile(second, []byte("cfg"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err = a.resolveStartupConfigFile()
+	if err != nil || got != second {
+		t.Fatalf("expected %q, got %q, %v", second, got, err)
+	}
+
+	if err := os.WriteFile(first, []byte("{}"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err = a.resolveStartupConfigFile()
+	if err != nil || got != first {
+		t.Fatalf("expected the first configured file %q, got %q, %v", first, got, err)
+	}
+
+	a.p.Run.StartupConfigFiles = []string{dir}
+
+	if _, err := a.resolveStartupConfigFile(); err == nil {
+		t.Fatal("expected an error for a directory")
+	}
 }
 
 func TestRunClabNICProvisionDelayTimeout(t *testing.T) {
