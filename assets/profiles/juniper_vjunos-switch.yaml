@@ -36,8 +36,7 @@ prePackagingCommands:
   # partition layout, and each substitution is idempotent so newer images that
   # ship with any of these fixes are handled without error. On an AMD EPYC
   # host these patches cut vJunos-switch 25.4R1.12 boot time from ~15 minutes
-  # to ~3.5 minutes; see
-  # https://www.linkedin.com/pulse/defying-impossible-getting-nested-vjunos-switch-running-piet-braat-i9d4e
+  # to ~3.5 minutes.
   - |
     set -e
     cache="$(mktemp -d)"
