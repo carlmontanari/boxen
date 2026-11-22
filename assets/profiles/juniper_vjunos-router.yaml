@@ -26,14 +26,16 @@ virtualMachine:
         - content: -boot
         - content: strict=on
 prePackagingCommands:
-  # The outer Linux VM accepts Intel VMX but overlooks AMD SVM.
+  # The outer Linux VM accepts Intel VMX but overlooks AMD SVM, miscounts
+  # processors on AMD, and starts the nested Junos VM paused under an strace
+  # monitor; see the juniper_vjunos-switch profile for the full background.
   - |
     set -e
     cache="$(mktemp -d)"
     trap 'rm -rf "$cache"' EXIT
-    LIBGUESTFS_CACHEDIR="$cache" guestfish --rw -a disk.qcow2 -m /dev/sda2 sh \
-      "sed -i 's/grep -ci vmx)/grep -Eci \"vmx|svm\")/' /home/pfe/junos/start-junos.sh &&
-       grep -qF 'grep -Eci \"vmx|svm\"' /home/pfe/junos/start-junos.sh"
+    export LIBGUESTFS_CACHEDIR="$cache"
+    virt-edit -a disk.qcow2 /home/pfe/junos/start-junos.sh -e 's/grep -ci vmx\)/grep -Eci "vmx|svm")/; s/grep -csi "processor"/grep -csi "^processor"/; s/^ -S \\\n//; s|^/usr/sbin/start-stop-daemon --start --exec /home/pfe/junos/qemu_monitor.sh -C -v -b\n||'
+    virt-cat -a disk.qcow2 /home/pfe/junos/start-junos.sh 2>/dev/null | grep -q svm
 packaging:
   sparsify: true
   process:

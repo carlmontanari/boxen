@@ -26,20 +26,24 @@ virtualMachine:
         - content: -boot
         - content: strict=on
 prePackagingCommands:
-  # The outer Linux VM checks Intel VMX but overlooks AMD SVM. virt-edit
-  # locates the filesystem containing start-junos.sh regardless of partition
-  # layout, and the check is idempotent so newer images that ship with the SVM
-  # fix are handled without error.
+  # The outer Linux VM checks Intel VMX but overlooks AMD SVM. It also
+  # miscounts processors on AMD, because the case-insensitive "processor"
+  # grep matches "AMD EPYC-... Processor" model-name lines too, so the nested
+  # Junos VM boots with more vCPUs than the outer VM was given (5 instead of
+  # 1 for cpuCores: 4). Finally it starts the Junos VM paused for debugger
+  # attach (-S) and runs qemu_monitor.sh, which attaches strace to it.
+  # virt-edit locates the filesystem containing start-junos.sh regardless of
+  # partition layout, and each substitution is idempotent so newer images that
+  # ship with any of these fixes are handled without error. On an AMD EPYC
+  # host these patches cut vJunos-switch 25.4R1.12 boot time from ~15 minutes
+  # to ~3.5 minutes; see
+  # https://www.linkedin.com/pulse/defying-impossible-getting-nested-vjunos-switch-running-piet-braat-i9d4e
   - |
     set -e
     cache="$(mktemp -d)"
     trap 'rm -rf "$cache"' EXIT
     export LIBGUESTFS_CACHEDIR="$cache"
-    if virt-cat -a disk.qcow2 /home/pfe/junos/start-junos.sh 2>/dev/null | grep -q svm; then
-      echo "start-junos.sh already handles SVM"
-      exit 0
-    fi
-    virt-edit -a disk.qcow2 /home/pfe/junos/start-junos.sh -e 's/grep -ci vmx\)/grep -Eci "vmx|svm")/'
+    virt-edit -a disk.qcow2 /home/pfe/junos/start-junos.sh -e 's/grep -ci vmx\)/grep -Eci "vmx|svm")/; s/grep -csi "processor"/grep -csi "^processor"/; s/^ -S \\\n//; s|^/usr/sbin/start-stop-daemon --start --exec /home/pfe/junos/qemu_monitor.sh -C -v -b\n||'
     virt-cat -a disk.qcow2 /home/pfe/junos/start-junos.sh 2>/dev/null | grep -q svm
 packaging:
   sparsify: true

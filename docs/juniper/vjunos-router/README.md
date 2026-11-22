@@ -3,9 +3,15 @@
 The `juniper_vjunos-router` profile packages a vJunos-router QCOW2 disk. It uses
 four CPU cores, 5120 MiB RAM, a virtio disk, and 96 virtio data interfaces. The
 host needs nested virtualization available through `/dev/kvm`, using Intel VMX
-or AMD SVM. Packaging patches the VMX-only CPU check in
-`/home/pfe/junos/start-junos.sh` to recognize both flags, following this
+or AMD SVM. Packaging patches `/home/pfe/junos/start-junos.sh` to recognize
+both flags, following this
 [AMD workaround](https://marcstech.blog/archives/juniper-vjunos-switch-amd-cpu-containerlab/).
+It also anchors the processor count so AMD model-name lines are not counted
+as extra CPUs, and removes the paused-start QEMU `-S` flag and the `strace`
+monitor attached to the nested Junos VM; on an AMD EPYC host these cut
+vJunos-switch 25.4R1.12 nested boot time from about 15 minutes to about 3.5
+minutes
+([background](https://www.linkedin.com/pulse/defying-impossible-getting-nested-vjunos-switch-running-piet-braat-i9d4e)).
 See Juniper's
 [deployment guide](https://www.juniper.net/documentation/us/en/software/vjunos-router/vjunos-router-kvm/topics/deploy-and-manage-vjunos-router-kvm.html).
 
