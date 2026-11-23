@@ -3,22 +3,32 @@
 The `juniper_vjunos-router` profile packages a vJunos-router QCOW2 disk. It uses
 four CPU cores, 5120 MiB RAM, a virtio disk, and 96 virtio data interfaces. The
 host needs nested virtualization available through `/dev/kvm`, using Intel VMX
-or AMD SVM. Packaging patches `/home/pfe/junos/start-junos.sh` to recognize
-both flags, following this
-[AMD workaround](https://marcstech.blog/archives/juniper-vjunos-switch-amd-cpu-containerlab/).
-It also anchors the processor count so AMD model-name lines are not counted
-as extra CPUs, and removes the paused-start QEMU `-S` flag and the `strace`
-monitor attached to the nested Junos VM; on an AMD EPYC host these cut
-vJunos-switch 25.4R1.12 nested boot time from about 15 minutes to about 3.5
-minutes.
-See Juniper's
+or AMD SVM. See Juniper's
 [deployment guide](https://www.juniper.net/documentation/us/en/software/vjunos-router/vjunos-router-kvm/topics/deploy-and-manage-vjunos-router-kvm.html).
 
+Like vJunos-switch, vJunos-router is an outer Linux VM that runs the packet
+forwarding engine and launches a nested QEMU VM for the Junos control plane.
 Juniper does not support launching vJunos-router from inside another VM because
 of its nested architecture; see the
 [hardware and software requirements](https://www.juniper.net/documentation/us/en/software/vjunos-router/vjunos-router-kvm/topics/vjunos-router-kvm-hw-requirements.html).
 Working console, SSH, or NETCONF access does not establish that the forwarding
 plane works. Check the FPC status and routed traffic separately.
+
+Before the first boot, packaging applies the same outer VM script patches as
+the [vJunos-switch profile](../vjunos-switch/README.md#packaging-patches):
+
+- accept AMD SVM as well as Intel VMX in `/home/pfe/junos/start-junos.sh`,
+  following this
+  [AMD workaround](https://marcstech.blog/archives/juniper-vjunos-switch-amd-cpu-containerlab/);
+- count only lines that begin with `processor`, so AMD model names do not give
+  the nested Junos VM extra vCPUs;
+- start the nested QEMU without `-S` and without the `strace` monitor;
+- send PFE launch script and PFE manager output to `/var/log` in the outer VM,
+  and keep outer kernel messages off the console, so they do not split Junos
+  prompts on the shared serial console.
+
+Boot times were measured on vJunos-switch; see its
+[boot time](../vjunos-switch/README.md#boot-time) section.
 
 Build the current Boxen runtime and package the disk:
 
@@ -39,10 +49,18 @@ docker cp vjunos-disk-source:/vJunos-router-25.2R1.9.qcow2 .
 docker rm vjunos-disk-source
 ```
 
-Packaging patches the CPU check, logs into the Junos root shell, and waits for
-the first Auto Image Upgrade DHCP cycle before opening the CLI. It disables
-auto image upgrade, sets the root password, enables SSH and NETCONF, and
-configures the 96 data ports through the console before halting Junos cleanly.
+Start from the vendor QCOW2 or a vrnetlab image as above. Do not repackage
+`/boxen/disk.qcow2` from an existing Boxen image: that disk is already
+provisioned, Auto Image Upgrade never runs again, and packaging times out
+waiting for its DHCP cycle.
+
+After patching, packaging logs into the Junos root shell and waits for the
+first Auto Image Upgrade DHCP cycle before opening the CLI. It disables auto
+image upgrade, sets the root password, enables SSH and NETCONF, and configures
+the 96 data ports through the console. It finishes with
+`request system power-off` and a 30-second wait. Powering off, rather than
+halting, makes the nested QEMU exit and flush its disk before the outer VM is
+stopped; a halted image can boot with a corrupted Junos filesystem.
 Factory DHCP messages can interrupt command echoes, so bootstrap writes wait
 for the resulting prompts and successful commit instead.
 At runtime Boxen sets the supplied hostname and user credentials and

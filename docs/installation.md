@@ -47,7 +47,7 @@ Use a Linux x86-64 host for the documented packaging and lab workflows.
 | Requirement | Why it matters |
 | --- | --- |
 | Docker Engine and the `docker` CLI | Boxen currently supports Docker only. The CLI must reach the daemon. |
-| Hardware virtualization and `/dev/kvm` | QEMU uses KVM when the device exists. Nested platforms such as vJunos-router need nested virtualization. |
+| Hardware virtualization and `/dev/kvm` | QEMU uses KVM when the device exists. Nested platforms such as vJunos-router and vJunos-switch need nested virtualization. |
 | Enough memory, CPU, and disk | Each guest reserves the resources in its profile. Packaging also needs room for a converted disk and image layers. |
 | Go at the version in `.github/vars.env` | Needed only for source builds. `make tools` checks the exact toolchain version. |
 | A vendor VM disk and required companion files | Boxen packages your files; it does not download the network OS. |

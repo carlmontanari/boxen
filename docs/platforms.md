@@ -11,6 +11,7 @@ The current checkout includes the profiles below. They describe hardware and boo
 | Community SONiC | `community_sonic` | 4096 | 16 | None listed |
 | NVIDIA Cumulus VX | `nvidia_cumulusvx` | 4096 | 16 | Embedded `nvidia_cumulusvx_breakout.star` and `.sh.tmpl` |
 | Juniper vJunos-router | `juniper_vjunos-router` | 5120 | 96 | None listed |
+| Juniper vJunos-switch | `juniper_vjunos-switch` | 5120 | 96 | None listed |
 
 All profiles in this checkout set `managementPassthrough: true`. Packaging still uses legacy QEMU user networking. Use a custom YAML path to adapt hardware or boot procedures for a different OS release.
 
@@ -21,6 +22,7 @@ All profiles in this checkout set `managementPassthrough: true`. Packaging still
 - [Cisco Nexus 9000v](cisco/n9kv/README.md): UEFI firmware and AHCI disk setup.
 - Community SONiC: Console provisioning starts with the packaged `admin/admin` credentials. Static management requires a gateway for each configured address family. Restarting a provisioned container is unsupported; remove it and create a fresh node from the image.
 - [Juniper vJunos-router](juniper/vjunos-router/README.md): Nested virtualization, console bootstrap, hierarchical startup configuration, and a longer readiness allowance.
+- [Juniper vJunos-switch](juniper/vjunos-switch/README.md): The same nested design and bootstrap as vJunos-router, plus measured boot times.
 
 ## Cisco XRv 9000
 
