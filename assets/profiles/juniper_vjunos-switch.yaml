@@ -26,21 +26,34 @@ virtualMachine:
         - content: -boot
         - content: strict=on
 prePackagingCommands:
-  # The outer Linux VM checks Intel VMX but overlooks AMD SVM. virt-edit
-  # locates the filesystem containing start-junos.sh regardless of partition
-  # layout, and the check is idempotent so newer images that ship with the SVM
-  # fix are handled without error.
+  # The outer Linux VM checks Intel VMX but overlooks AMD SVM. It also
+  # miscounts processors on AMD, because the case-insensitive "processor"
+  # grep matches "AMD EPYC-... Processor" model-name lines too, so the nested
+  # Junos VM boots with more vCPUs than the outer VM was given (5 instead of
+  # 1 for cpuCores: 4). Finally it starts the Junos VM paused for debugger
+  # attach (-S) and runs qemu_monitor.sh, which attaches strace to it.
+  # virt-edit locates the filesystem containing start-junos.sh regardless of
+  # partition layout, and each substitution is idempotent so newer images that
+  # ship with any of these fixes are handled without error. On an AMD EPYC
+  # host these patches cut vJunos-switch 25.4R1.12 boot time from ~15 minutes
+  # to ~3-5 minutes.
+  # The Junos console shares the outer VM's ttyS0 with the outer kernel and
+  # init's /dev/console. Once Junos is booting, the PFE launch script, the PFE
+  # manager (mpcsd.py, respawned from inittab) and the kernel (igb_uio binding
+  # every data NIC) print onto it, splitting prompts.
+  # Their output goes to /var/log instead, and the outer kernel only
+  # logs emergencies to the console from that point on.
   - |
     set -e
     cache="$(mktemp -d)"
     trap 'rm -rf "$cache"' EXIT
     export LIBGUESTFS_CACHEDIR="$cache"
-    if virt-cat -a disk.qcow2 /home/pfe/junos/start-junos.sh 2>/dev/null | grep -q svm; then
-      echo "start-junos.sh already handles SVM"
-      exit 0
-    fi
-    virt-edit -a disk.qcow2 /home/pfe/junos/start-junos.sh -e 's/grep -ci vmx\)/grep -Eci "vmx|svm")/'
+    virt-edit -a disk.qcow2 /home/pfe/junos/start-junos.sh -e 's/grep -ci vmx\)/grep -Eci "vmx|svm")/; s/grep -csi "processor"/grep -csi "^processor"/; s/^ -S \\\n//; s|^/usr/sbin/start-stop-daemon --start --exec /home/pfe/junos/qemu_monitor.sh -C -v -b\n||'
     virt-cat -a disk.qcow2 /home/pfe/junos/start-junos.sh 2>/dev/null | grep -q svm
+    virt-edit -a disk.qcow2 /home/pfe/riot/phase2_nest_launch.sh -e 's|respawn:/usr/share/pfe/mpcsd.py"|respawn:/usr/share/pfe/mpcsd.py >/var/log/mpcsd.log 2>&1"|'
+    virt-cat -a disk.qcow2 /home/pfe/riot/phase2_nest_launch.sh 2>/dev/null | grep -q mpcsd.log
+    virt-edit -a disk.qcow2 /home/pfe/riot/rc.juniper -e 's|^sh /home/pfe/riot/phase2_nest_launch.sh$|echo 1 > /proc/sys/kernel/printk\nsh /home/pfe/riot/phase2_nest_launch.sh >/var/log/phase2_nest_launch.log 2>&1|'
+    virt-cat -a disk.qcow2 /home/pfe/riot/rc.juniper 2>/dev/null | grep -q phase2_nest_launch.log
 packaging:
   sparsify: true
   process:
@@ -107,7 +120,9 @@ packaging:
     - type: write
       write:
         hidden: true
-        content: |
+        # Strip the trailing newline: an extra empty line can reach the
+        # password prompt before the password and abort it.
+        content: |-
           delete chassis auto-image-upgrade
           set system root-authentication plain-text-password
     - &newPassword
@@ -162,15 +177,20 @@ packaging:
         timeout: 3m
         until:
           contains: 'host-name boxen-vjunos;'
+    # Power off rather than halt: a halted Junos leaves its nested QEMU
+    # running with unflushed qcow2 metadata, which is lost when the outer VM
+    # is killed and shows up later as UFS corruption (ffs_blkfree_cg panics).
+    # Powering off makes the nested QEMU exit and flush its disk; the wait
+    # lets the outer VM's filesystem flush that write before it is killed.
     - type: write
       write:
-        content: request system halt
+        content: request system power-off
     - type: prompts
       prompts:
         timeout: 5m
         prompts:
           - prompt:
-              contains: 'Halt the system'
+              contains: 'Power Off the system'
             response: 'yes'
             once: true
             completes: true
@@ -178,10 +198,10 @@ packaging:
       readUntil:
         timeout: 5m
         until:
-          contains: 'The operating system has halted.'
+          contains: 'Powering system off'
     - type: wait
       wait:
-        duration: 10s
+        duration: 30s
 run:
   process:
     - *junosBoot
@@ -197,7 +217,7 @@ run:
     - *configPrompt
     - type: write
       write:
-        content: |
+        content: |-
           set system host-name {{ .hostname }}
           set system login user {{ .username }} class super-user
           set system login user {{ .username }} authentication plain-text-password

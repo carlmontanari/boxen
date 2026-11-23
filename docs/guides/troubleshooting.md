@@ -93,7 +93,7 @@ Give the source disk a vendor-specific filename, not the literal `disk.qcow2`, w
 
 Check `/dev/kvm`, nested virtualization, available memory, requested CPU model, disk bus, and firmware. The agent treats nonblank QEMU stderr as a failure unless it matches `packaging.stdErrIgnore`. Read the actual message before adding an ignore substring.
 
-For vJunos-router, also check its [nested virtualization and bootstrap requirements](../juniper/vjunos-router/README.md). Fresh packaging logs into the root shell and waits for the first Auto Image Upgrade DHCP cycle before configuring Junos through the console.
+For vJunos-router and vJunos-switch, also check their nested virtualization and bootstrap requirements ([router](../juniper/vjunos-router/README.md), [switch](../juniper/vjunos-switch/README.md)). Fresh packaging logs into the root shell and waits for the first Auto Image Upgrade DHCP cycle before configuring Junos through the console.
 
 ## A console step times out or hangs
 
