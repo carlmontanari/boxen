@@ -258,7 +258,7 @@ func TestCiscoMAC(t *testing.T) {
 }
 
 func TestRenderTemplateDataNICMACs(t *testing.T) {
-	p := testQemuProfile(true)
+	p := testQemuProfile(false)
 	p.DataNICMACs = []string{"02:00:00:00:00:01", "02:00:00:00:00:02"}
 
 	got, err := NewFormatters("", "", "", "", p, false).RenderTemplate(`{{ len .dataNICMACs }}`)
